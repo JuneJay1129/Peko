@@ -2,41 +2,44 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton
 
 
+# 与宠物气泡一致：圆角、半透明白底、绿色边框
+BUBBLE_STYLE = """
+    QDialog {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 2px solid #4CAF50;
+        border-radius: 15px;
+        padding: 10px;
+    }
+    QLineEdit {
+        font-size: 14px;
+        border: 1px solid #CCCCCC;
+        border-radius: 8px;
+        padding: 5px;
+        background: white;
+    }
+    QPushButton {
+        font-size: 14px;
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 10px;
+        padding: 5px 15px;
+    }
+    QPushButton:hover {
+        background-color: #45A049;
+    }
+"""
+
+
 class InputDialog(QDialog):
     def __init__(self, parent, on_submit):
         """
-        自定义输入对话框。
-        :param parent: 父窗口（通常是桌宠窗口）。
-        :param on_submit: 提交按钮点击后的回调函数，接收输入的文本。
+        自定义输入对话框，样式与宠物气泡一致（圆角气泡）。
         """
         super().__init__(parent)
         self.setWindowTitle("与宠物对话")
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(255, 255, 255, 0.95);
-                border: 2px solid #4CAF50;
-                border-radius: 15px;
-                padding: 10px;
-            }
-            QLineEdit {
-                font-size: 14px;
-                border: 1px solid #CCCCCC;
-                border-radius: 8px;
-                padding: 5px;
-            }
-            QPushButton {
-                font-size: 14px;
-                background-color: #4CAF50;
-                color: white;
-                border-radius: 10px;
-                padding: 5px 15px;
-            }
-            QPushButton:hover {
-                background-color: #45A049;
-            }
-        """)
+        self.setAttribute(Qt.WA_TranslucentBackground)  # 透明背景，只显示圆角气泡区域
+        self.setStyleSheet(BUBBLE_STYLE)
 
         # 输入框
         self.layout = QVBoxLayout(self)

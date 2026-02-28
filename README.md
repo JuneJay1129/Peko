@@ -1,88 +1,128 @@
-# 🐈 **AI 桌宠 Neko**
-一个可爱、可交互的桌面宠物Neko，支持气泡对话、全局快捷键交互，并且集成了 **讯飞星火大模型** 进行 AI 互动。你可以输入问题，让桌宠通过 AI 生成回答，并逐字显示在气泡框中。
+# 🐈 Peko - AI 桌宠
+
+可爱、可交互的桌面宠物，支持**多宠物模板**与**统一 API / 模型选择**。每个宠物独立配置，可快速新增仓鼠、小狗等新宠物；用户只需在**配置文件**中填写 API Key、选择模型即可与任意宠物对话。
 
 ---
 
-## 🎮 **功能介绍**
-✅ **动画播放**：Neko 支持 `站立`、`行走`、`拖拽` 等动画，增加桌面趣味性。  
+## 🎮 功能概览
 
-✅ **AI 互动**：输入对话，Neko 会回答你哦。
-
-✅ **全局快捷键**：使用 `L + Enter` 组合键快速打开对话框，与桌宠聊天。  
-
-✅ **托盘菜单**：  
-   - `停止移动`：让 Neko 保持站立状态，不再随机移动。  
-   - `退出`：关闭桌宠程序。
-     
-✅ **窗口透明**：桌宠无边框，背景透明，不影响其他窗口使用。
-
-✅ **气泡对话**：Neko 会在屏幕上方显示一段话，并逐字动态输出。  
+- **多宠物**：每个宠物独立配置（动画、人设、气泡样式、插槽），托盘内可切换
+- **统一 API**：在配置文件中填写 Key、选择模型，所有宠物共用
+- **快速新增宠物**：使用脚手架一条命令生成新宠物模板，放入资源即可
+- **插槽**：公共插槽（如 AI 模型）、每宠物独立插槽（可扩展不同功能）
+- **动画 / 气泡 / 快捷键**：L+Enter 对话、托盘显示/隐藏/停止移动
 
 ---
 
-## 🔧 **安装方法**
-### 1 **环境依赖**
-本项目基于 **Python 3.8+**，并使用 `PyQt5` 进行界面开发。
+## 🔧 安装与运行
 
-### 2 **运行桌宠**
-运行以下命令启动桌宠：
+- **环境**：Python 3.8+，PyQt5  
+- **可选**：`openai`（OpenAI 兼容接口）、`sparkai`（讯飞星火）
+
 ```bash
+pip install PyQt5 keyboard
+pip install openai        # 使用 SiliconFlow / OpenAI / 豆包等
+# 可选: pip install sparkai  # 使用讯飞星火
 python main.py
 ```
 
-### 3 **打包成 EXE**
-如果想要将桌宠打包成独立可执行文件（Windows 环境）：
-```bash
-pyinstaller --noconsole --onefile --windowed --icon=icon.ico main.py
+---
+
+## ⚙️ 配置 AI（在 config/api.json 中填写）
+
+在 **`config/api.json`** 中完成配置即可：
+
+1. **apiKey**：填写你的 API Key（SiliconFlow / OpenAI 等）。
+2. **modelId**：当前要使用的模型 ID，需与下方 `models` 列表中某一项的 `id` 一致（如 `qwen-72b`、`1`、`deepseek-v3` 等）。
+
+同一文件中的 **models** 为可用的模型列表，可自行增删；**modelId** 必须为其中某个模型的 **id**。
+
+示例（api.json 顶层字段）：
+
+```json
+{
+  "apiKey": "你的 API Key",
+  "modelId": "qwen-72b",
+  "defaultModel": "qwen-72b",
+  "models": [ ... ]
+}
 ```
 
 ---
 
-## 🎮 **使用方法**
-1. **启动桌宠**：运行 `main.py` 或 `main.exe`，桌宠会出现在 **桌面右下角区域**。
-   
-3. **对话互动**：
-   - 按 `L + Enter` **打开对话框**，输入内容后，宠物会使用 AI 生成回答。
-   - 生成的回答会 **逐字输出** 在宠物的气泡框中。
-     
-4. **托盘控制**：
-   - 右键点击托盘图标：
-     - 选择 **"停止移动"** 可让宠物静止不动，仅播放 `stand` 动画。
-     - 选择 **"退出"** 关闭宠物。
+## 🐾 快速新增一只新宠物（脚手架）
+
+与 SimuEngine 的「快速新增话题」类似，在项目根目录执行：
+
+```bash
+python scripts/scaffold_pet.py <宠物id> "<宠物名称>" "[作者]"
+```
+
+示例：
+
+```bash
+python scripts/scaffold_pet.py hamster "仓鼠"
+python scripts/scaffold_pet.py dog "小狗" "我"
+```
+
+会在 `pets/<宠物id>/` 下生成：
+
+- `pet_config.json`：id、name、character（人设 systemPrompt）、animations、bubbleStyle、slots
+- `resources/stand/`、`walk_left/` 等目录
+
+**下一步**：将对应动画帧（如 `0.png`, `1.png`）放入 `pets/<id>/resources/stand/` 等目录，或修改 `pet_config.json` 中 `animations` 的路径指向已有资源（如项目根 `resources/`）。然后运行 `python main.py`，在托盘「切换宠物」中选择新宠物。
 
 ---
 
-## 💡 **配置 AI 互动**
-本项目支持 **讯飞星火大模型 (Spark AI)**，请先获取 API Key：
-- 访问 **[讯飞开放平台](https://console.xfyun.cn/)** 获取 **APP_ID、API_KEY 和 API_SECRET**。
-- 在 `config.py` 文件中配置你的 API：
-  
-  ```python
-  SPARKAI_APP_ID = '你的APP_ID'
-  SPARKAI_API_SECRET = '你的API_SECRET'
-  SPARKAI_API_KEY = '你的API_KEY'
-  ```
+## 📁 项目结构（重构后）
+
+```
+Peko/
+├── main.py                 # 入口：加载宠物包、托盘、快捷键
+├── pet.py                  # 桌宠组件（宠物包 + 插槽）
+├── pet_manager.py          # 宠物包注册与发现
+├── api_config_loader.py    # API/模型配置加载
+├── ai_service.py           # 统一 AI 调用（OpenAI 兼容 + 讯飞星火）
+├── api_settings_dialog.py  # API/模型设置对话框（可选）
+├── tray.py                 # 托盘：显示/隐藏、切换宠物、退出
+├── input_dialog.py         # 对话输入框
+├── config/
+│   └── api.json            # AI 配置：apiKey、modelId、模型列表（可编辑）
+├── pets/
+│   ├── neko/
+│   │   └── pet_config.json # 默认小猫（动画指向根目录 resources/）
+│   └── <宠物id>/
+│       ├── pet_config.json
+│       └── resources/      # 可选：该宠物专属帧
+├── scripts/
+│   └── scaffold_pet.py     # 快速新增宠物脚手架
+└── resources/              # 默认 Neko 动画资源
+```
 
 ---
 
-## 🐱 **资源来源**
+## 🐱 宠物配置说明（pet_config.json）
 
-- 图片资源来源：https://cupnooble.itch.io/sprout-lands-asset-pack
-  
----
-## 📌 **未来计划**
+| 字段 | 说明 |
+|------|------|
+| `id` / `name` | 唯一 id、显示名称 |
+| `character.systemPrompt` | 对话人设（系统提示词） |
+| `animations` | 各状态对应图片路径列表（相对宠物目录或项目根） |
+| `bubbleStyle` | 气泡样式（backgroundColor、border、fontSize 等） |
+| `slots` | 该宠物独立插槽（预留扩展） |
 
-- 🔹 Neko 帮助你直接写并保存文件。
-- 🔹 优化宠物动画，添加 睡觉、跳跃 等更多动态行为。
-- 🔹 支持多宠物，让多个桌宠一起互动。
-
----
-
-## 💖 **贡献**
-如果你对本项目感兴趣，欢迎提交 **Issue / PR**！ 🎉
+公共能力（如调用 AI 模型）通过全局配置与 `ai_service` 提供，无需在每个宠物里重复配置。
 
 ---
 
-## 🐟 **许可协议**
-本项目基于 **MIT License** 开源，你可以自由使用和修改。
+## 📌 后续可扩展
 
+- 更多公共插槽：如主题、快捷键、多语言
+- 每宠物插槽：如心情值、喂食、小游戏
+- 讯飞星火在设置中支持 APP_ID / KEY / SECRET 或环境变量
+
+---
+
+## 💖 许可
+
+MIT License.

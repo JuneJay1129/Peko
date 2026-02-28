@@ -1,0 +1,7 @@
+PyQt5>=5.15
+keyboard>=0.13.5
+openai>=1.0.0
+requests>=2.28.0
+
+# 可选：讯飞星火
+# sparkai

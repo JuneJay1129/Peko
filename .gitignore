@@ -1,0 +1,9 @@
+# 含 API Key 的配置可放入 .env（可选）
+.env
+.env.local
+*.pyc
+__pycache__/
+.idea/
+dist/
+build/
+*.spec.bak

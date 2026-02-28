@@ -1,61 +1,74 @@
+"""
+Peko 桌宠入口：加载宠物包、统一 API 配置（config/api.json），支持切换宠物
+"""
 import sys
 import threading
-import keyboard  # 用于全局快捷键监听
+import keyboard
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QMetaObject, Qt
+
 from pet import DesktopPet
 from tray import TrayIcon
-from config import animations
-from sparkai.llm.llm import ChatSparkLLM, ChunkPrintHandler
-from sparkai.core.messages import ChatMessage
+from pet_manager import get_pet, get_available_pets, get_default_pet_id, discover_pets
 
 
-# 配置大模型
-SPARKAI_APP_ID = ' '
-SPARKAI_API_KEY = ' '
-SPARKAI_API_SECRET = ' '
-SPARKAI_URL = 'wss://spark-api.xf-yun.com/v1.1/chat'
-SPARKAI_DOMAIN = 'lite'
-
-spark = ChatSparkLLM(
-    spark_api_url=SPARKAI_URL,
-    spark_app_id=SPARKAI_APP_ID,
-    spark_api_key=SPARKAI_API_KEY,
-    spark_api_secret=SPARKAI_API_SECRET,
-    spark_llm_domain=SPARKAI_DOMAIN,
-    request_timeout=30,
-    streaming=True,
-)
-
-def global_hotkey_listener(pet):
-    """
-    全局快捷键监听线程，用于捕获 L + Enter。
-    """
+def global_hotkey_listener(pet_holder):
+    """全局快捷键 L+Enter 唤起对话。"""
     while True:
-        keyboard.wait('l+enter')  # 等待按下 L + Enter
+        keyboard.wait("l+enter")
         QMetaObject.invokeMethod(
-            pet, "show_custom_input_dialog",
-            Qt.QueuedConnection  # 确保方法在主线程中执行
+            pet_holder[0],
+            "show_custom_input_dialog",
+            Qt.QueuedConnection,
         )
 
-if __name__ == "__main__":
+
+def main():
+    discover_pets()
+    avail = get_available_pets()
+    if not avail:
+        print("未找到任何宠物包，请将宠物配置放到 pets/<宠物id>/pet_config.json")
+        sys.exit(1)
+
     app = QApplication(sys.argv)
+    default_id = get_default_pet_id()
+    pet_package = get_pet(default_id)
+    pet = DesktopPet(pet_package, scale_factor=5, frame_rate=2)
+    pet_holder = [pet]
 
-    # 创建桌宠实例
-    pet = DesktopPet(animations, scale_factor=5, frame_rate=2, spark = spark)
+    def switch_pet(pet_id: str):
+        old = pet_holder[0]
+        pkg = get_pet(pet_id)
+        new_pet = DesktopPet(pkg, scale_factor=5, frame_rate=2)
+        was_visible = old.isVisible()
+        old.close()
+        pet_holder[0] = new_pet
+        if was_visible:
+            new_pet.show()
+        # 欢迎语
+        name = pkg.get("name", pet_id)
+        new_pet.show_bubble(
+            f"Hi！我是 {name}。用 L+Enter 和我对话吧～\n请在 config/api.json 中填写 apiKey 并设置 modelId。",
+            duration=10000,
+            typing_speed=100,
+        )
 
-    # 创建托盘图标实例
-    tray = TrayIcon(app, pet)
-
-    # 显示桌宠
+    tray = TrayIcon(app, pet_holder, on_switch_pet=switch_pet)
     pet.show()
+    welcome = pet_package.get("description") or f"我是 {pet_package.get('name', default_id)}，用 L+Enter 和我对话吧！"
+    pet.show_bubble(
+        welcome ,
+        duration=10000,
+        typing_speed=100,
+    )
 
-    # 初始化时让宠物说话
-    pet.show_bubble("Hi！我是你的桌面宠物，叫做 Neko。用 L+Enter 和我对话吧!\n(=｀ω´=)", duration=10000, typing_speed=100)
-    # pet.show_bubble("Hi!我是你的桌面", duration=5000, typing_speed=100)
-
-    # 启动全局快捷键监听线程
-    hotkey_thread = threading.Thread(target=global_hotkey_listener, args=(pet,), daemon=True)
+    hotkey_thread = threading.Thread(
+        target=global_hotkey_listener, args=(pet_holder,), daemon=True
+    )
     hotkey_thread.start()
 
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()

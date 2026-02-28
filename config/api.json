@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "description": "Peko 桌宠 AI 配置 - 在本文件中填写 apiKey 并设置 modelId 即可使用",
+  "apiKey": "sk-gxeugzvpclhlkqzfflkgkswdsmtpymhtkmgwcrhtcwlamzol",
+  "modelId": "1",
+  "defaultModel": "1",
+  "models": [
+    {
+      "id": "1",
+      "name": "DeepSeek V3.2",
+      "provider": "siliconflow",
+      "model": "deepseek-ai/DeepSeek-V3.2",
+      "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
+      "description": "DeepSeek V3.2",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
+    },
+    {
+      "id": "qwen-72b",
+      "name": "Qwen 2.5 72B",
+      "provider": "siliconflow",
+      "model": "Qwen/Qwen2.5-72B-Instruct",
+      "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
+      "description": "通义千问 72B，适合复杂对话",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
+    },
+    {
+      "id": "qwen-32b",
+      "name": "Qwen 2.5 32B",
+      "provider": "siliconflow",
+      "model": "Qwen/Qwen2.5-32B-Instruct",
+      "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
+      "description": "通义千问 32B，平衡性能与速度",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
+    },
+    {
+      "id": "deepseek-v3",
+      "name": "DeepSeek V3",
+      "provider": "siliconflow",
+      "model": "deepseek-ai/DeepSeek-V3",
+      "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
+      "description": "DeepSeek V3，推理能力强",
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "enabled": true
+    },
+    {
+      "id": "gpt-4",
+      "name": "GPT-4",
+      "provider": "openai",
+      "model": "gpt-4",
+      "apiUrl": "https://api.openai.com/v1/chat/completions",
+      "description": "OpenAI GPT-4",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
+    },
+    {
+      "id": "gpt-3.5-turbo",
+      "name": "GPT-3.5 Turbo",
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "apiUrl": "https://api.openai.com/v1/chat/completions",
+      "description": "OpenAI GPT-3.5，性价比高",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
+    },
+    {
+      "id": "spark-lite",
+      "name": "讯飞星火 Lite",
+      "provider": "spark",
+      "model": "lite",
+      "apiUrl": "wss://spark-api.xf-yun.com/v1.1/chat",
+      "description": "讯飞星火 lite（需配置 APPID/KEY/SECRET）",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
+    }
+  ]
+}
