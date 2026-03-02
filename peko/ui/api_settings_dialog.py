@@ -1,15 +1,13 @@
 """
-API 设置对话框：编辑 config/api.json 中的 apiKey 与 modelId（可选，也可直接编辑配置文件）
+API 设置对话框：编辑 config/secrets.json 中的 apiKey、config/api.json 中的 modelId（可选，也可直接编辑配置文件）
 """
-import os
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QFormLayout, QMessageBox,
 )
-from PyQt5.QtGui import QFont
 
-from api_config_loader import (
+from ..ai.config_loader import (
     get_models,
     load_user_api_config,
     save_user_api_config,
@@ -20,7 +18,7 @@ from api_config_loader import (
 class ApiSettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("编辑 API 配置（config/api.json）")
+        self.setWindowTitle("编辑 API 配置（config/secrets.json + api.json）")
         self.setMinimumWidth(400)
         self.setup_ui()
 
@@ -70,7 +68,7 @@ class ApiSettingsDialog(QDialog):
             QMessageBox.warning(
                 self,
                 "提示",
-                "请填写 API Key 后再与宠物对话。也可直接编辑 config/api.json。",
+                "请填写 API Key 后再与宠物对话。也可直接编辑 config/secrets.json。",
             )
         save_user_api_config(api_key=api_key, model_id=model_id)
         self.accept()

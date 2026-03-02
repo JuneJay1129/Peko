@@ -1,11 +1,11 @@
 """
 Peko AI 服务：统一封装对话调用（仿 SimuEngine 风格）
-- 在 config/api.json 中填写 apiKey、modelId 后，由此模块负责流式调用
+- 在 config/secrets.json 填写 apiKey、config/api.json 设置 modelId 后，由此模块负责流式调用
 - 支持 OpenAI 兼容接口（SiliconFlow / OpenAI / 豆包等）与讯飞星火
 """
 import json
 from typing import Any, Callable, List, Dict, Optional
-from api_config_loader import get_ai_config, validate_ai_config
+from .config_loader import get_ai_config, validate_ai_config, load_user_api_config, get_model_by_id
 
 # 可选：使用 openai 包兼容任意 base_url（SiliconFlow、豆包等）
 try:
@@ -165,7 +165,7 @@ def stream_chat(
     返回完整回复文本。
     """
     if not validate_ai_config():
-        raise ValueError("AI 未配置，请在 config/api.json 中填写 apiKey 并设置 modelId")
+        raise ValueError("AI 未配置，请在 config/secrets.json 中填写 apiKey，并在 config/api.json 中设置 modelId")
     cfg = get_ai_config()
     provider = cfg.get("provider", "openai")
     temperature = cfg.get("temperature", 0.8)
@@ -185,7 +185,6 @@ def stream_chat(
     print("[Peko API 请求]", req_info)
 
     if provider == "spark":
-        from api_config_loader import load_user_api_config
         import os
         user = load_user_api_config()
         app_id = user.get("sparkAppId") or os.environ.get("SPARKAI_APP_ID", "")
@@ -235,7 +234,6 @@ def stream_chat(
 
 def get_current_model_name() -> str:
     """返回当前选中模型的显示名称，用于 UI。"""
-    from api_config_loader import get_model_by_id, get_ai_config
     cfg = get_ai_config()
     mid = cfg.get("modelId")
     m = get_model_by_id(mid) if mid else None

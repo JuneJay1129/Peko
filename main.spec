@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('resources/*', 'resources')],
+    datas=[('pets', 'pets')],  # 每个宠物独立 resource，无公共 resources
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

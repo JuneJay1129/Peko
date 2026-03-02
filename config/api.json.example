@@ -1,7 +1,6 @@
 {
   "version": "1.0.0",
-  "description": "Peko 桌宠 AI 配置 - 在本文件中填写 apiKey 并设置 modelId 即可使用",
-  "apiKey": "sk-gxeugzvpclhlkqzfflkgkswdsmtpymhtkmgwcrhtcwlamzol",
+  "description": "Peko 桌宠 AI 配置 - 模型与 endpoint 配置。API Key 请填写在 config/secrets.json 中",
   "modelId": "1",
   "defaultModel": "1",
   "models": [

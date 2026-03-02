@@ -1,14 +1,20 @@
 """
 Peko API 配置加载器
-- 从 config/api.json 读取全部配置：apiKey、modelId（当前使用的模型）、模型列表
-- 用户只需在 api.json 中填写 apiKey、设置 modelId 即可使用
+- 从 config/api.json 读取模型配置；API Key 从 config/secrets.json 读取
+- 用户复制 api.json.example → api.json、secrets.json.example → secrets.json，在 secrets.json 中填写 apiKey 即可
 """
 import json
 import os
+import shutil
 from typing import Optional, List, Dict, Any
 
-CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+# 项目根目录（peko/ai/ -> 项目根）
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CONFIG_DIR = os.path.join(_ROOT, "config")
 API_CONFIG_PATH = os.path.join(CONFIG_DIR, "api.json")
+API_CONFIG_EXAMPLE_PATH = os.path.join(CONFIG_DIR, "api.json.example")
+SECRETS_PATH = os.path.join(CONFIG_DIR, "secrets.json")
+SECRETS_EXAMPLE_PATH = os.path.join(CONFIG_DIR, "secrets.json.example")
 _USER_API_LEGACY_PATH = os.path.join(CONFIG_DIR, "user_api.json")
 
 _cached_api_config: Optional[Dict[str, Any]] = None
@@ -37,9 +43,8 @@ def _merge_legacy_user_api(data: Dict[str, Any]) -> Dict[str, Any]:
         data["modelId"] = legacy["modelId"]
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-            full = json.load(f)
-        full["apiKey"] = data.get("apiKey", "")
+        _save_secrets(data.get("apiKey", ""))
+        full = _load_json(API_CONFIG_PATH) or {}
         full["modelId"] = data.get("modelId", full.get("defaultModel", "qwen-72b"))
         with open(API_CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(full, f, ensure_ascii=False, indent=2)
@@ -48,12 +53,36 @@ def _merge_legacy_user_api(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+def _load_secrets() -> Dict[str, Any]:
+    """从 config/secrets.json 读取 apiKey，不存在则尝试从 example 复制并返回占位。"""
+    if os.path.isfile(SECRETS_PATH):
+        return _load_json(SECRETS_PATH) or {}
+    if os.path.isfile(SECRETS_EXAMPLE_PATH):
+        try:
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            shutil.copy(SECRETS_EXAMPLE_PATH, SECRETS_PATH)
+            return _load_json(SECRETS_PATH) or {}
+        except Exception:
+            return _load_json(SECRETS_EXAMPLE_PATH) or {}
+    return {}
+
+
+def _save_secrets(api_key: str) -> None:
+    """将 apiKey 写入 config/secrets.json。"""
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    data = _load_json(SECRETS_PATH) or {}
+    data["apiKey"] = api_key
+    with open(SECRETS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 def load_api_config() -> Dict[str, Any]:
-    """加载 config/api.json（含 apiKey、modelId、模型列表）。"""
+    """加载 config/api.json（模型列表等），并合并 config/secrets.json 中的 apiKey。"""
     global _cached_api_config
     if _cached_api_config is not None:
         return _cached_api_config
-    data = _load_json(API_CONFIG_PATH)
+    path = API_CONFIG_PATH if os.path.isfile(API_CONFIG_PATH) else API_CONFIG_EXAMPLE_PATH
+    data = _load_json(path)
     if data is None:
         _cached_api_config = {
             "version": "1.0.0",
@@ -73,10 +102,29 @@ def load_api_config() -> Dict[str, Any]:
                 }
             ],
         }
+        secrets = _load_secrets()
+        if secrets.get("apiKey") and secrets.get("apiKey") != "your-api-key-here":
+            _cached_api_config["apiKey"] = secrets["apiKey"]
     else:
         data = _merge_legacy_user_api(data)
         if "apiKey" not in data:
             data["apiKey"] = ""
+        secrets = _load_secrets()
+        if secrets.get("apiKey") and secrets.get("apiKey") != "your-api-key-here":
+            data["apiKey"] = secrets["apiKey"]
+        elif data.get("apiKey") and not os.path.isfile(SECRETS_PATH):
+            # 一次性迁移：原 api.json 中有 apiKey 则写入 secrets.json，并从 api.json 文件中移除
+            _save_secrets(data["apiKey"])
+            try:
+                path = API_CONFIG_PATH
+                if os.path.isfile(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        full = json.load(f)
+                    full.pop("apiKey", None)
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump(full, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
         if "modelId" not in data:
             data["modelId"] = data.get("defaultModel", "qwen-72b")
         _cached_api_config = data
@@ -111,15 +159,18 @@ def load_user_api_config() -> Dict[str, Any]:
 
 
 def save_user_api_config(api_key: str = "", model_id: str = "") -> None:
-    """将 apiKey / modelId 写回 config/api.json。"""
+    """将 apiKey 写入 config/secrets.json，将 modelId 写入 config/api.json。"""
     os.makedirs(CONFIG_DIR, exist_ok=True)
-    data = _load_json(API_CONFIG_PATH) or {}
     if api_key is not None:
-        data["apiKey"] = api_key
+        _save_secrets(api_key)
     if model_id:
+        path = API_CONFIG_PATH
+        if not os.path.isfile(path) and os.path.isfile(API_CONFIG_EXAMPLE_PATH):
+            shutil.copy(API_CONFIG_EXAMPLE_PATH, path)
+        data = _load_json(path) or {}
         data["modelId"] = model_id
-    with open(API_CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
     global _cached_api_config
     _cached_api_config = None
 

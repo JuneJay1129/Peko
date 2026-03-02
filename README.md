@@ -28,22 +28,32 @@ python main.py
 
 ---
 
-## ⚙️ 配置 AI（在 config/api.json 中填写）
+## ⚙️ 配置 AI（config 模板 + 本地配置）
 
-在 **`config/api.json`** 中完成配置即可：
+配置分为**可提交的模板**与**本地实际配置**（不提交，避免泄露 API Key）：
 
-1. **apiKey**：填写你的 API Key（SiliconFlow / OpenAI 等）。
-2. **modelId**：当前要使用的模型 ID，需与下方 `models` 列表中某一项的 `id` 一致（如 `qwen-72b`、`1`、`deepseek-v3` 等）。
+1. **复制模板**（首次使用）  
+   - `config/api.json.example` → `config/api.json`（模型与 endpoint）  
+   - `config/secrets.json.example` → `config/secrets.json`（API Key）
+2. **填写 API Key**：在 **`config/secrets.json`** 中把 `"your-api-key-here"` 改成你的 API Key（SiliconFlow / OpenAI 等）。
+3. **选择模型**：在 **`config/api.json`** 中设置 **modelId**，需与其中 `models` 列表里某一项的 `id` 一致（如 `1`、`qwen-72b`、`deepseek-v3` 等）。
 
-同一文件中的 **models** 为可用的模型列表，可自行增删；**modelId** 必须为其中某个模型的 **id**。
+`config/api.json` 与 `config/secrets.json` 已加入 `.gitignore`，仅本机存在；可推送的只有 `api.json.example` 和 `secrets.json.example`。
 
-示例（api.json 顶层字段）：
+示例：
 
+- **secrets.json**（仅本地，勿提交）：
 ```json
 {
-  "apiKey": "你的 API Key",
-  "modelId": "qwen-72b",
-  "defaultModel": "qwen-72b",
+  "apiKey": "你的 API Key"
+}
+```
+
+- **api.json** 顶层字段：
+```json
+{
+  "modelId": "1",
+  "defaultModel": "1",
   "models": [ ... ]
 }
 ```
@@ -68,36 +78,54 @@ python scripts/scaffold_pet.py dog "小狗" "我"
 会在 `pets/<宠物id>/` 下生成：
 
 - `pet_config.json`：id、name、character（人设 systemPrompt）、animations、bubbleStyle、slots
-- `resources/stand/`、`walk_left/` 等目录
+- `resource/stand/`、`walk_left/` 等目录
 
-**下一步**：将对应动画帧（如 `0.png`, `1.png`）放入 `pets/<id>/resources/stand/` 等目录，或修改 `pet_config.json` 中 `animations` 的路径指向已有资源（如项目根 `resources/`）。然后运行 `python main.py`，在托盘「切换宠物」中选择新宠物。
+**下一步**：将对应动画帧（如 `0.png`, `1.png`）放入 `pets/<id>/resource/stand/` 等目录。每个宠物独立 `resource` 和 `animations`，无公共模块。然后运行 `python main.py`，在托盘「切换宠物」中选择新宠物。
 
 ---
 
-## 📁 项目结构（重构后）
+## 📁 项目结构
 
 ```
 Peko/
-├── main.py                 # 入口：加载宠物包、托盘、快捷键
-├── pet.py                  # 桌宠组件（宠物包 + 插槽）
-├── pet_manager.py          # 宠物包注册与发现
-├── api_config_loader.py    # API/模型配置加载
-├── ai_service.py           # 统一 AI 调用（OpenAI 兼容 + 讯飞星火）
-├── api_settings_dialog.py  # API/模型设置对话框（可选）
-├── tray.py                 # 托盘：显示/隐藏、切换宠物、退出
-├── input_dialog.py         # 对话输入框
+├── main.py                 # 入口：python main.py
+├── peko/                   # 主包
+│   ├── main.py             # 应用逻辑入口
+│   ├── ui/                 # UI 组件
+│   │   ├── pet.py          # 桌宠组件（宠物包 + 插槽）
+│   │   ├── tray.py         # 托盘：显示/隐藏、切换宠物、退出
+│   │   ├── input_dialog.py  # 对话输入框
+│   │   └── api_settings_dialog.py  # API/模型设置对话框
+│   ├── ai/                 # AI 服务
+│   │   ├── config_loader.py # API/模型配置加载
+│   │   └── service.py      # 统一 AI 调用（OpenAI 兼容 + 讯飞星火）
+│   └── core/               # 核心逻辑
+│       └── pet_manager.py  # 宠物包注册与发现
 ├── config/
-│   └── api.json            # AI 配置：apiKey、modelId、模型列表（可编辑）
+│   ├── api.json.example    # 模型配置模板（可推送）
+│   ├── secrets.json.example # API Key 模板（可推送）
+│   ├── api.json             # 本地：模型选择（不提交）
+│   └── secrets.json         # 本地：API Key（不提交）
 ├── pets/
-│   ├── neko/
-│   │   └── pet_config.json # 默认小猫（动画指向根目录 resources/）
 │   └── <宠物id>/
 │       ├── pet_config.json
-│       └── resources/      # 可选：该宠物专属帧
+│       └── resource/       # 该宠物专属资源（stand、walk_left、icon.png 等）
 ├── scripts/
-│   └── scaffold_pet.py     # 快速新增宠物脚手架
-└── resources/              # 默认 Neko 动画资源
+│   ├── scaffold_pet.py     # 快速新增宠物脚手架
+│   ├── devide_frames.py   # 分割精灵表为单帧
+│   └── test_animation.py   # 动画预览测试
 ```
+
+---
+
+## 📦 宠物资源说明
+
+每个宠物**独立**拥有自己的 `resource/` 和 `animations` 配置，无公共 resources 模块。`pet_config.json` 中的路径（如 `resource/stand/0.png`）均相对该宠物目录 `pets/<id>/` 解析。
+
+- 动画帧：`resource/stand/`、`resource/walk_left/` 等
+- 托盘图标：`resource/icon.png`（可选，缺省时使用 stand 首帧）
+
+若之前使用过项目根 `resources/`，请将对应文件移入各宠物的 `pets/<id>/resource/` 下。
 
 ---
 
@@ -107,8 +135,18 @@ Peko/
 |------|------|
 | `id` / `name` | 唯一 id、显示名称 |
 | `character.systemPrompt` | 对话人设（系统提示词） |
-| `animations` | 各状态对应图片路径列表（相对宠物目录或项目根） |
+| `animations` | 各状态对应图片路径列表（相对宠物目录，如 `resource/stand/0.png`） |
+| `actionConfig` | 动作时间配置：`stateSwitchInterval`（状态切换间隔 ms）、`frameRate`（帧率）、`moveSpeed`（移动速度） |
 | `bubbleStyle` | 气泡样式（backgroundColor、border、fontSize 等） |
+
+**actionConfig 动作时间**（可选）：
+- `stateSwitchInterval`：状态切换等待时间（毫秒），默认 3000
+- `frameRate`：动画帧率（帧/秒），默认使用 main 传入值
+- `moveSpeed`：行走时每帧移动像素数，默认 5
+
+**animations 动作说明**：
+- **公共动作**：`stand`（站立）、`walk_left/right/up/down`（行走会位移）、`dragged`（拖拽时）
+- **自定义动作**：在 `animations` 中新增任意 key（如 `wave`、`eat`），配置对应 `resource/` 路径即可参与随机切换，原地播放不位移
 | `slots` | 该宠物独立插槽（预留扩展） |
 
 公共能力（如调用 AI 模型）通过全局配置与 `ai_service` 提供，无需在每个宠物里重复配置。

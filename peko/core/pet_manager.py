@@ -7,15 +7,17 @@ import os
 import json
 from typing import Dict, List, Any, Optional
 
-_ROOT = os.path.dirname(os.path.abspath(__file__))
+# 项目根目录（peko/core/ -> 项目根）
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PETS_DIR = os.path.join(_ROOT, "pets")
 CONFIG_FILENAME = "pet_config.json"
+RESOURCE_DIR = "resource"  # 每个宠物独立 resource 目录名
 
 _pet_registry: Dict[str, Dict[str, Any]] = {}
 
 
 def _load_animations(pet_dir: str, raw: Any) -> Dict[str, List[str]]:
-    """解析 animations：可为路径列表，或相对 pet 目录的路径。"""
+    """解析 animations：路径列表，均相对该宠物目录 pets/<id>/ 解析。每个宠物独立 resource，无公共模块。"""
     if not isinstance(raw, dict):
         return {}
     out = {}
@@ -26,14 +28,8 @@ def _load_animations(pet_dir: str, raw: Any) -> Dict[str, List[str]]:
                 if os.path.isabs(p):
                     resolved.append(p)
                 else:
-                    # 先相对宠物目录，再相对项目根
-                    for base in (pet_dir, _ROOT):
-                        full = os.path.normpath(os.path.join(base, p))
-                        if os.path.isfile(full):
-                            resolved.append(full)
-                            break
-                    else:
-                        resolved.append(os.path.normpath(os.path.join(pet_dir, p)))
+                    full = os.path.normpath(os.path.join(pet_dir, p))
+                    resolved.append(full)
             out[state] = resolved
         else:
             out[state] = []
@@ -52,6 +48,8 @@ def _load_pet_package(pet_id: str, pet_dir: str) -> Dict[str, Any]:
     data["character"] = data.get("character") or {}
     data["slots"] = data.get("slots") or {}
     data["bubbleStyle"] = data.get("bubbleStyle") or {}
+    data["actionConfig"] = data.get("actionConfig") or {}
+    data["_pet_dir"] = pet_dir  # 宠物目录，供托盘图标等使用
     return data
 
 
@@ -99,11 +97,11 @@ def has_pet(pet_id: str) -> bool:
 
 
 def get_default_pet_id() -> str:
-    """默认宠物 ID（优先 neko）。"""
+    """默认宠物 ID（优先 BB)"""
     avail = get_available_pets()
-    if "neko" in avail:
-        return "neko"
-    return avail[0] if avail else "neko"
+    if "BB" in avail:
+        return "BB"
+    return avail[0] if avail else "BB"
 
 
 def register_pet(pet_id: str, pet_dir: str) -> None:
