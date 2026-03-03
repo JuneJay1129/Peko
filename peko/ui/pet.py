@@ -4,12 +4,11 @@
 - 对话使用统一 AI 服务（api_config_loader + ai_service），需在 config/secrets.json 填写 apiKey、config/api.json 设置 modelId
 """
 import random
-import time
 import threading
 import traceback
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import Qt, QTimer, pyqtSlot
+from PyQt5.QtCore import Qt, QTimer, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtWidgets import QLabel, QWidget, QApplication
 
@@ -55,14 +54,14 @@ def _bubble_style_from_config(bubble_style: Dict[str, Any]) -> str:
 class DesktopPet(QWidget):
     """
     桌宠窗口。
-    pet_package: 宠物包（来自 pet_manager.get_pet），含 animations、character、bubbleStyle、slots 等。
-    scale_factor / frame_rate: 显示与动画参数。
+    pet_package: 宠物包（来自 pet_manager.get_pet），含 animations、character、displaySize、bubbleStyle、slots 等。
+    每只宠物大小由 pet_config 的 displaySize（或 frameWidth/frameHeight）或首帧尺寸决定。
     """
+    bubble_text_ready = pyqtSignal(str, int)  # text, duration；从子线程 emit 后会在主线程调用 update_bubble
 
     def __init__(
         self,
         pet_package: Dict[str, Any],
-        scale_factor: int = 2,
         frame_rate: int = 10,
     ):
         super().__init__()
@@ -72,8 +71,16 @@ class DesktopPet(QWidget):
         self.bubble_style_config = pet_package.get("bubbleStyle") or {}
         self.slots = pet_package.get("slots") or {}
         action_cfg = pet_package.get("actionConfig") or {}
+        # 每只宠物独立控制大小：displaySize / frameWidth+frameHeight 为展示尺寸，未配置则用首帧图片尺寸
+        display = pet_package.get("displaySize")
+        if isinstance(display, (list, tuple)) and len(display) >= 2:
+            self._display_width, self._display_height = int(display[0]), int(display[1])
+        elif isinstance(pet_package.get("frameWidth"), (int, float)) and isinstance(pet_package.get("frameHeight"), (int, float)):
+            self._display_width = int(pet_package["frameWidth"])
+            self._display_height = int(pet_package["frameHeight"])
+        else:
+            self._display_width = self._display_height = None
 
-        self.scale_factor = scale_factor
         default_frame_rate = action_cfg.get("frameRate") or frame_rate
         default_switch_interval = action_cfg.get("stateSwitchInterval", 3000)
         default_move_speed = action_cfg.get("moveSpeed", 5)
@@ -108,10 +115,12 @@ class DesktopPet(QWidget):
         self.state_timer = QTimer(self)
         self.state_timer.setSingleShot(True)
         self.state_timer.timeout.connect(self.change_state)
+        # 首次调度：之后每次用 QTimer.singleShot 链式调度，避免拖拽后 state_timer 不可靠
         self._schedule_state_switch()
 
         self.bubble_timer = QTimer(self)
         self.bubble_timer.timeout.connect(self.hide_bubble)
+        self.bubble_text_ready.connect(self._on_bubble_text_ready)
 
         self.typing_timer = QTimer(self)
         self.typing_timer.timeout.connect(self.type_next_character)
@@ -129,8 +138,10 @@ class DesktopPet(QWidget):
         if first_frame.isNull():
             print(f"[Peko] 无法加载首帧: {first_frame_path}")
             first_frame = QPixmap(1, 1)  # 占位，避免后续 scaled 报错
-        scaled_size = first_frame.size() * self.scale_factor
-        self.setFixedSize(scaled_size)
+        if self._display_width is not None and self._display_height is not None:
+            self.setFixedSize(self._display_width, self._display_height)
+        else:
+            self.setFixedSize(first_frame.size())
 
         self.label = QLabel(self)
         self.label.setFixedSize(self.size())
@@ -177,11 +188,16 @@ class DesktopPet(QWidget):
         self.timer.setInterval(max(50, 1000 // fps))
 
     def _schedule_state_switch(self) -> None:
-        """按当前状态的 stateSwitchInterval 安排下一次状态切换（单次定时）。"""
+        """按当前状态的 stateSwitchInterval 安排下一次状态切换。只使用 state_timer，保证同一时刻只有一个待执行的切换，避免动作串发。"""
         self.state_timer.stop()
+        if self.current_state == "dragged":
+            self.current_state = "stand"
+            self.current_frame_index = 0
         cfg = self._state_config.get(self.current_state, {})
         interval = cfg.get("stateSwitchInterval") or self.state_switch_interval
-        self.state_timer.setInterval(max(500, interval))
+        interval = max(500, int(interval) if isinstance(interval, (int, float)) else self.state_switch_interval)
+        self.state_timer.setSingleShot(True)
+        self.state_timer.setInterval(interval)
         self.state_timer.start()
 
     @pyqtSlot()
@@ -215,7 +231,7 @@ class DesktopPet(QWidget):
             ).start()
 
     def fetch_response(self, user_input: str) -> None:
-        """使用统一 AI 服务（config/secrets.json + api.json 配置 apiKey + modelId）生成回复并流式更新气泡。"""
+        """使用统一 AI 服务（config/secrets.json + api.json 配置 apiKey + modelId）生成回复并流式更新气泡。在子线程中调用 API，UI 更新通过主线程执行避免卡死。"""
         try:
             from ..ai.service import stream_chat, validate_ai_config
             system_prompt = self.character.get("systemPrompt") or (
@@ -226,20 +242,19 @@ class DesktopPet(QWidget):
                 {"role": "user", "content": user_input},
             ]
             if not validate_ai_config():
-                self.update_bubble("请先在 config/secrets.json 中填写 apiKey、config/api.json 中设置 modelId 后再和我对话哦～")
+                self.bubble_text_ready.emit("请先在 config/secrets.json 中填写 apiKey、config/api.json 中设置 modelId 后再和我对话哦～", 5000)
                 return
             current = [""]
 
             def on_token(token: str):
                 current[0] += token
-                self.update_bubble(current[0], duration=5000)
+                self.bubble_text_ready.emit(current[0], 5000)
 
             stream_chat(messages, on_token=on_token)
-            time.sleep(2)
-            self.hide_bubble()
+            self.bubble_text_ready.emit(current[0], 5000)
         except Exception as e:
             err_msg = str(e)
-            self.update_bubble(f"错误: {err_msg}")
+            self.bubble_text_ready.emit(f"错误: {err_msg}", 5000)
             print("[Peko API 错误]", err_msg)
             traceback.print_exc()
 
@@ -335,6 +350,8 @@ class DesktopPet(QWidget):
         self.bubble_window.resize(w, h)
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
+        self.bubble_timer.stop()
+        self.bubble_timer.start(duration)
 
     def show_bubble(self, text: str, duration: int = 3000, typing_speed: int = 50) -> None:
         self.bubble_label.setText("")
@@ -374,6 +391,11 @@ class DesktopPet(QWidget):
         self.bubble_window.hide()
         self.bubble_timer.stop()
 
+    @pyqtSlot(str, int)
+    def _on_bubble_text_ready(self, text: str, duration: int):
+        """由信号触发，保证在主线程更新气泡。"""
+        self.update_bubble(text, duration=duration)
+
     def closeEvent(self, event):
         self.bubble_window.hide()
         super().closeEvent(event)
@@ -399,8 +421,15 @@ class DesktopPet(QWidget):
             self.current_state = self.previous_state
             self.current_frame_index = 0
             self._apply_state_frame_rate()
-            self._schedule_state_switch()
+            # 拖拽结束后在主线程下一帧重新调度，并传入显式回调避免闭包/self 问题
+            QTimer.singleShot(10, self._resume_after_drag)
             event.accept()
+
+    def _resume_after_drag(self) -> None:
+        """拖拽松开后由定时器调用，确保在主线程且状态已恢复后重新调度状态切换。"""
+        if self.current_state == "dragged":
+            self.current_state = "stand"
+        self._schedule_state_switch()
 
     def set_allow_movement(self, allow: bool) -> None:
         self.allow_movement = allow

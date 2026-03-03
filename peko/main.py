@@ -33,9 +33,8 @@ def main():
     app = QApplication(sys.argv)
     default_id = get_default_pet_id()
     pet_package = get_pet(default_id)
-    scale_factor = 1
     frame_rate = 1
-    pet = DesktopPet(pet_package, scale_factor=scale_factor, frame_rate=frame_rate)
+    pet = DesktopPet(pet_package, frame_rate=frame_rate)
     pet_holder = [pet]
 
     tray = TrayIcon(app, pet_holder, on_switch_pet=None)
@@ -43,7 +42,7 @@ def main():
     def switch_pet(pet_id: str):
         old = pet_holder[0]
         pkg = get_pet(pet_id)
-        new_pet = DesktopPet(pkg, scale_factor=scale_factor, frame_rate=frame_rate)
+        new_pet = DesktopPet(pkg, frame_rate=frame_rate)
         was_visible = old.isVisible()
         old.close()
         pet_holder[0] = new_pet
