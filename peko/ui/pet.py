@@ -67,19 +67,34 @@ class DesktopPet(QWidget):
     ):
         super().__init__()
         self.pet_package = pet_package
-        self.animations = pet_package["animations"]
+        raw_animations = pet_package["animations"]
         self.character = pet_package.get("character") or {}
         self.bubble_style_config = pet_package.get("bubbleStyle") or {}
         self.slots = pet_package.get("slots") or {}
         action_cfg = pet_package.get("actionConfig") or {}
 
         self.scale_factor = scale_factor
-        self.frame_rate = action_cfg.get("frameRate") or frame_rate
+        default_frame_rate = action_cfg.get("frameRate") or frame_rate
+        default_switch_interval = action_cfg.get("stateSwitchInterval", 3000)
+        default_move_speed = action_cfg.get("moveSpeed", 5)
+
+        self.animations = {}
+        self._state_config = {}
+        for state_name, state_value in raw_animations.items():
+            frames = state_value.get("frames") or []
+            self.animations[state_name] = frames
+            self._state_config[state_name] = {
+                "frameRate": state_value.get("frameRate") if "frameRate" in state_value else default_frame_rate,
+                "stateSwitchInterval": state_value.get("stateSwitchInterval") if "stateSwitchInterval" in state_value else default_switch_interval,
+                "moveSpeed": state_value.get("moveSpeed") if "moveSpeed" in state_value else default_move_speed,
+            }
+
+        self.frame_rate = default_frame_rate
+        self.state_switch_interval = default_switch_interval
+        self.move_speed = default_move_speed
         self.current_state = "stand"
         self.previous_state = "stand"
         self.current_frame_index = 0
-        self.move_speed = action_cfg.get("moveSpeed", 5)
-        self.state_switch_interval = action_cfg.get("stateSwitchInterval", 3000)
         self.allow_movement = True
         self._input_dialog = None  # 对话输入框，L+Enter 再次按下时关闭
 
@@ -87,11 +102,13 @@ class DesktopPet(QWidget):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.next_frame)
-        self.timer.start(max(50, 1000 // self.frame_rate))
+        self._apply_state_frame_rate()
+        self.timer.start()
 
         self.state_timer = QTimer(self)
+        self.state_timer.setSingleShot(True)
         self.state_timer.timeout.connect(self.change_state)
-        self.state_timer.start(max(500, self.state_switch_interval))
+        self._schedule_state_switch()
 
         self.bubble_timer = QTimer(self)
         self.bubble_timer.timeout.connect(self.hide_bubble)
@@ -149,6 +166,23 @@ class DesktopPet(QWidget):
         self.bubble_window.setVisible(False)
 
         self.update_frame()
+
+    def _get_current_frame_rate(self) -> int:
+        """当前状态使用的帧率（未配置则用 actionConfig.frameRate 默认值）。"""
+        return self._state_config.get(self.current_state, {}).get("frameRate") or self.frame_rate
+
+    def _apply_state_frame_rate(self) -> None:
+        """按当前状态设置动画定时器间隔（帧率）。"""
+        fps = max(1, self._get_current_frame_rate())
+        self.timer.setInterval(max(50, 1000 // fps))
+
+    def _schedule_state_switch(self) -> None:
+        """按当前状态的 stateSwitchInterval 安排下一次状态切换（单次定时）。"""
+        self.state_timer.stop()
+        cfg = self._state_config.get(self.current_state, {})
+        interval = cfg.get("stateSwitchInterval") or self.state_switch_interval
+        self.state_timer.setInterval(max(500, interval))
+        self.state_timer.start()
 
     @pyqtSlot()
     def show_custom_input_dialog(self):
@@ -252,19 +286,23 @@ class DesktopPet(QWidget):
             return
         self.current_state = random.choice(pool)
         self.current_frame_index = 0
+        self._apply_state_frame_rate()
+        self._schedule_state_switch()
 
     def update_position(self):
         x, y = self.x(), self.y()
         if self.current_state not in STANDARD_MOVEMENT_STATES:
             return
+        cfg = self._state_config.get(self.current_state, {})
+        speed = cfg.get("moveSpeed") if "moveSpeed" in cfg else self.move_speed
         if self.current_state == "walk_left":
-            x -= self.move_speed
+            x -= speed
         elif self.current_state == "walk_right":
-            x += self.move_speed
+            x += speed
         elif self.current_state == "walk_up":
-            y -= self.move_speed
+            y -= speed
         elif self.current_state == "walk_down":
-            y += self.move_speed
+            y += speed
         screen_geometry = QApplication.desktop().screenGeometry()
         x = max(0, min(x, screen_geometry.width() - self.width()))
         y = max(0, min(y, screen_geometry.height() - self.height()))
@@ -345,6 +383,8 @@ class DesktopPet(QWidget):
             self.previous_state = self.current_state
             self.current_state = "dragged"
             self.current_frame_index = 0
+            self.state_timer.stop()
+            self._apply_state_frame_rate()
             self.mouse_drag_position = event.globalPos() - self.pos()
             event.accept()
 
@@ -358,6 +398,8 @@ class DesktopPet(QWidget):
         if event.button() == Qt.LeftButton:
             self.current_state = self.previous_state
             self.current_frame_index = 0
+            self._apply_state_frame_rate()
+            self._schedule_state_switch()
             event.accept()
 
     def set_allow_movement(self, allow: bool) -> None:
@@ -365,3 +407,5 @@ class DesktopPet(QWidget):
         if not allow:
             self.current_state = "stand"
             self.current_frame_index = 0
+            self._apply_state_frame_rate()
+            self._schedule_state_switch()

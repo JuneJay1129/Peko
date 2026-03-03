@@ -16,23 +16,29 @@ RESOURCE_DIR = "resource"  # 每个宠物独立 resource 目录名
 _pet_registry: Dict[str, Dict[str, Any]] = {}
 
 
-def _load_animations(pet_dir: str, raw: Any) -> Dict[str, List[str]]:
-    """解析 animations：路径列表，均相对该宠物目录 pets/<id>/ 解析。每个宠物独立 resource，无公共模块。"""
+def _load_animations(pet_dir: str, raw: Any) -> Dict[str, Any]:
+    """
+    解析 animations：每个 state 为 { "frames": [路径列表], "frameRate"?, "stateSwitchInterval"?, "moveSpeed"? }。
+    路径均相对宠物目录解析，其余 key 原样保留。
+    """
     if not isinstance(raw, dict):
         return {}
     out = {}
-    for state, paths in raw.items():
-        if isinstance(paths, list):
-            resolved = []
-            for p in paths:
+    for state, value in raw.items():
+        if not isinstance(value, dict) or "frames" not in value:
+            out[state] = {"frames": []}
+            continue
+        paths = value.get("frames") or []
+        extra = {k: v for k, v in value.items() if k != "frames"}
+        resolved = []
+        for p in paths:
+            if isinstance(p, str):
                 if os.path.isabs(p):
                     resolved.append(p)
                 else:
                     full = os.path.normpath(os.path.join(pet_dir, p))
                     resolved.append(full)
-            out[state] = resolved
-        else:
-            out[state] = []
+        out[state] = {"frames": resolved, **extra}
     return out
 
 

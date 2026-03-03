@@ -19,10 +19,11 @@ def _icon_path_for_pet(pet_holder) -> str:
         icon_path = os.path.join(pet_dir, RESOURCE_DIR, "icon.png")
         if os.path.isfile(icon_path):
             return icon_path
-        # 回退：使用 stand 首帧
-        stand = (pkg.get("animations") or {}).get("stand") or []
-        if stand and os.path.isfile(stand[0]):
-            return stand[0]
+        # 回退：使用 stand 首帧（animations.stand 为 { "frames": [...] }）
+        stand = (pkg.get("animations") or {}).get("stand") or {}
+        frames = stand.get("frames") or []
+        if frames and os.path.isfile(frames[0]):
+            return frames[0]
     return ""
 
 

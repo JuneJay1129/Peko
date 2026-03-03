@@ -55,12 +55,12 @@ def main():
             "systemPrompt": f"你现在正在扮演一个可爱的桌面宠物，名字叫做{pet_name}。请用简短、可爱的语气和用户对话。"
         },
         "animations": {
-            "stand": [f"{RESOURCE_DIR}/stand/0.png", f"{RESOURCE_DIR}/stand/1.png"],
-            "walk_left": [f"{RESOURCE_DIR}/walk_left/0.png", f"{RESOURCE_DIR}/walk_left/1.png"],
-            "walk_right": [f"{RESOURCE_DIR}/walk_right/0.png", f"{RESOURCE_DIR}/walk_right/1.png"],
-            "walk_up": [f"{RESOURCE_DIR}/walk_up/0.png", f"{RESOURCE_DIR}/walk_up/1.png"],
-            "walk_down": [f"{RESOURCE_DIR}/walk_down/0.png", f"{RESOURCE_DIR}/walk_down/1.png"],
-            "dragged": [f"{RESOURCE_DIR}/stand/0.png", f"{RESOURCE_DIR}/stand/1.png"]
+            "stand": {"frames": [f"{RESOURCE_DIR}/stand/0.png", f"{RESOURCE_DIR}/stand/1.png"]},
+            "walk_left": {"frames": [f"{RESOURCE_DIR}/walk_left/0.png", f"{RESOURCE_DIR}/walk_left/1.png"]},
+            "walk_right": {"frames": [f"{RESOURCE_DIR}/walk_right/0.png", f"{RESOURCE_DIR}/walk_right/1.png"]},
+            "walk_up": {"frames": [f"{RESOURCE_DIR}/walk_up/0.png", f"{RESOURCE_DIR}/walk_up/1.png"]},
+            "walk_down": {"frames": [f"{RESOURCE_DIR}/walk_down/0.png", f"{RESOURCE_DIR}/walk_down/1.png"]},
+            "dragged": {"frames": [f"{RESOURCE_DIR}/stand/0.png", f"{RESOURCE_DIR}/stand/1.png"]}
         },
         "actionConfig": {
             "stateSwitchInterval": 3000,

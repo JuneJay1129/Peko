@@ -8,12 +8,29 @@
     "systemPrompt": "你现在正在扮演一个非常可爱的小猫机器人，名字叫做 Neko。你要用很可爱的话和我沟通。但是不要发出喵的声音。"
   },
   "animations": {
-    "stand": ["resource/stand/0.png", "resource/stand/1.png"],
-    "walk_left": ["resource/walk_left/0.png", "resource/walk_left/1.png"],
-    "walk_right": ["resource/walk_right/0.png", "resource/walk_right/1.png"],
-    "walk_up": ["resource/walk_up/0.png", "resource/walk_up/1.png"],
-    "walk_down": ["resource/walk_down/0.png", "resource/walk_down/1.png"],
-    "dragged": ["resource/stand/0.png", "resource/stand/1.png"]
+    "stand": {
+      "frames": ["resource/stand/0.png", "resource/stand/1.png"]
+    },
+    "walk_left": {
+      "frames": ["resource/walk_left/0.png", "resource/walk_left/1.png"]
+    },
+    "walk_right": {
+      "frames": ["resource/walk_right/0.png", "resource/walk_right/1.png"]
+    },
+    "walk_up": {
+      "frames": ["resource/walk_up/0.png", "resource/walk_up/1.png"]
+    },
+    "walk_down": {
+      "frames": ["resource/walk_down/0.png", "resource/walk_down/1.png"]
+    },
+    "dragged": {
+      "frames": ["resource/stand/0.png", "resource/stand/1.png"]
+    }
+  },
+  "actionConfig": {
+    "stateSwitchInterval": 3000,
+    "frameRate": 10,
+    "moveSpeed": 5
   },
   "bubbleStyle": {},
   "slots": {}

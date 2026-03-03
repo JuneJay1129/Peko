@@ -9,34 +9,52 @@
     "systemPrompt": "你现在正在扮演一个可爱的桌面宠物，名字叫做BB鼠，喜欢吃饭睡觉玩手机。请用简短、可爱的语气和用户对话。"
   },
   "animations": {
-    "stand": [
-      "resource/stand/bbstand.png"
-    ],
-    "walk_left": [
-      "resource/walk_left/bbwalkleft1.png",
-      "resource/walk_left/bbwalkleft2.png",
-      "resource/walk_left/bbwalkleft3.png"
-    ],
-    "walk_right": [
-      "resource/walk_right/bbwalkright1.png",
-      "resource/walk_right/bbwalkright2.png"
-    ],
-    "walk_up": [
-      "resource/walk_up/bbwalkup1.png",
-      "resource/walk_up/bbwalkup2.png"
-
-    ],
-    "walk_down": [
-      "resource/walk_down/bbwalkdown1.png",
-      "resource/walk_down/bbwalkdown2.png"
-    ],
-    "dragged": [
-      "resource/stand/bbstand.png"
-    ],
-    "wave": [
-      "resource/wave/bbwave1.png",
-      "resource/wave/bbwave2.png"
-    ]
+    "stand": {
+      "frames": ["resource/stand/bbstand.png"]
+    },
+    "walk_left": {
+      "frames": [
+        "resource/walk_left/bbwalkleft1.png",
+        "resource/walk_left/bbwalkleft2.png",
+        "resource/walk_left/bbwalkleft3.png"
+      ]
+    },
+    "walk_right": {
+      "frames": [
+        "resource/walk_right/bbwalkright1.png",
+        "resource/walk_right/bbwalkright2.png"
+      ]
+    },
+    "walk_up": {
+      "frames": [
+        "resource/walk_up/bbwalkup1.png",
+        "resource/walk_up/bbwalkup2.png"
+      ]
+    },
+    "walk_down": {
+      "frames": [
+        "resource/walk_down/bbwalkdown1.png",
+        "resource/walk_down/bbwalkdown2.png"
+      ]
+    },
+    "dragged": {
+      "frames": ["resource/stand/bbstand.png"]
+    },
+    "wave": {
+      "frames": [
+        "resource/wave/bbwave1.png",
+        "resource/wave/bbwave2.png"
+      ]
+    },
+    "sleep": {
+      "frames": [
+        "resource/sleep/bbsleep1.png",
+        "resource/sleep/bbsleep2.png",
+        "resource/sleep/bbsleep3.png"
+      ],
+      "frameRate": 4,
+      "stateSwitchInterval": 60000
+    }
   },
   "actionConfig": {
     "stateSwitchInterval": 2500,
