@@ -41,14 +41,16 @@ a = Analysis(
 pyz = PYZ(a.pure)
 
 if sys.platform == 'darwin':
-    # macOS：生成 .app 包（COLLECT + BUNDLE），兼容较老系统，避免 NSImage 等系统资源在低版本找不到
+    # macOS：单文件可执行程序（与 Windows 一致），避免 BUNDLE 重组目录后找不到 _internal/Python
     exe = EXE(
         pyz,
         a.scripts,
+        a.binaries,
+        a.datas,
         [],
-        exclude_binaries=True,
         name='Peko',
         debug=False,
+        bootloader_ignore_signals=False,
         strip=False,
         upx=True,
         upx_exclude=[],
@@ -60,27 +62,6 @@ if sys.platform == 'darwin':
         codesign_identity=None,
         entitlements_file=None,
         icon=exe_icon,
-    )
-    coll = COLLECT(
-        exe,
-        a.binaries,
-        a.zipfiles,
-        a.datas,
-        strip=False,
-        upx=True,
-        upx_exclude=[],
-        name='Peko',
-    )
-    app = BUNDLE(
-        coll,
-        name='Peko.app',
-        icon=exe_icon,
-        bundle_identifier='com.peko.desktop',
-        info_plist={
-            'NSHighResolutionCapable': True,
-            'NSRequiresAquaSystemAppearance': False,
-            'LSMinimumSystemVersion': '10.15',
-        },
     )
 else:
     # Windows：单文件 exe
