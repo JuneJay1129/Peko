@@ -55,15 +55,26 @@ class TrayIcon:
         hide_action = QAction("隐藏桌宠", self.app)
         stop_movement_action = QAction("停止移动", self.app, checkable=True)
         talk_action = QAction("与宠物对话", self.app)
+        self._auto_mode_action = QAction("自动模式", self.app, checkable=True)
+        self._control_mode_action = QAction("操控模式", self.app, checkable=True)
         show_action.triggered.connect(lambda: self.pet_holder[0].show() if self.pet_holder else None)
         hide_action.triggered.connect(lambda: self.pet_holder[0].hide() if self.pet_holder else None)
         stop_movement_action.triggered.connect(self.toggle_movement)
         talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
+        self._auto_mode_action.triggered.connect(self._on_auto_mode)
+        self._control_mode_action.triggered.connect(self._on_control_mode)
+
+        # 默认自动模式
+        self._auto_mode_action.setChecked(True)
+        self._control_mode_action.setChecked(False)
 
         menu.addAction(show_action)
         menu.addAction(hide_action)
         menu.addAction(stop_movement_action)
         menu.addAction(talk_action)
+        menu.addSeparator()
+        menu.addAction(self._auto_mode_action)
+        menu.addAction(self._control_mode_action)
         menu.addSeparator()
 
         switch_menu = menu.addMenu("切换宠物")
@@ -85,6 +96,8 @@ class TrayIcon:
         menu.addAction(exit_action)
 
         self.tray_icon.setContextMenu(menu)
+        self._tray_menu = menu
+        menu.aboutToShow.connect(self._update_mode_actions_checked)
         self.tray_icon.show()
 
     def exit_app(self):
@@ -96,3 +109,22 @@ class TrayIcon:
     def toggle_movement(self, checked):
         if self.pet_holder:
             self.pet_holder[0].set_allow_movement(not checked)
+
+    def _on_auto_mode(self):
+        if self.pet_holder:
+            self.pet_holder[0].set_control_mode(False)
+            self._auto_mode_action.setChecked(True)
+            self._control_mode_action.setChecked(False)
+
+    def _on_control_mode(self):
+        if self.pet_holder:
+            self.pet_holder[0].set_control_mode(True)
+            self._auto_mode_action.setChecked(False)
+            self._control_mode_action.setChecked(True)
+
+    def _update_mode_actions_checked(self):
+        """打开托盘菜单时，根据当前宠物是否处于操控模式同步勾选状态。"""
+        if self.pet_holder and hasattr(self, "_auto_mode_action"):
+            cm = self.pet_holder[0].control_mode
+            self._auto_mode_action.setChecked(not cm)
+            self._control_mode_action.setChecked(cm)
