@@ -57,7 +57,7 @@ def main():
         # 欢迎语
         name = pkg.get("name", pet_id)
         new_pet.show_bubble(
-            f"Hi！我是 {name}。用 L+Enter 和我对话吧～\n请在 config/secrets.json 中填写 apiKey，并在 config/api.json 中设置 modelId。",
+            f"Hi！我是 {name}。用 L+Enter 和我对话吧～\n。",
             duration=10000,
             typing_speed=100,
         )

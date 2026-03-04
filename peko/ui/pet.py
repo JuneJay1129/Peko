@@ -20,8 +20,8 @@ from .actions import (
 
 def _default_bubble_style() -> str:
     return """
-        background-color: rgba(255, 255, 255, 0.9);
-        border: 2px solid #4CAF50;
+        background-color: rgba(255, 255, 255, 0.72);
+        border: 2px solid rgba(76, 175, 80, 0.85);
         border-radius: 15px;
         padding: 10px;
         font-size: 14px;
@@ -33,8 +33,8 @@ def _bubble_style_from_config(bubble_style: Dict[str, Any]) -> str:
     """从宠物包的 bubbleStyle 生成 QSS（可扩展）。"""
     if not bubble_style:
         return _default_bubble_style()
-    bg = bubble_style.get("backgroundColor", "rgba(255, 255, 255, 0.9)")
-    border = bubble_style.get("border", "2px solid #4CAF50")
+    bg = bubble_style.get("backgroundColor", "rgba(255, 255, 255, 0.72)")
+    border = bubble_style.get("border", "2px solid rgba(76, 175, 80, 0.85)")
     radius = bubble_style.get("borderRadius", "15px")
     padding = bubble_style.get("padding", "10px")
     font_size = bubble_style.get("fontSize", "14px")
@@ -147,7 +147,7 @@ class DesktopPet(QWidget):
 
         self.bubble_window = QWidget(self)
         self.bubble_window.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
-        self.bubble_window.setAttribute(Qt.WA_TranslucentBackground, False)
+        self.bubble_window.setAttribute(Qt.WA_TranslucentBackground, True)
         self.bubble_label = QLabel(self.bubble_window)
         self.bubble_label.setStyleSheet(_bubble_style_from_config(self.bubble_style_config))
         font = QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14)

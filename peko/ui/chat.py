@@ -8,6 +8,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .pet import DesktopPet
 
+# 宠物回复/错误提示气泡展示时长（毫秒），可在此调整
+REPLY_BUBBLE_DURATION_MS = 10000
+
 
 class ChatHandler:
     """对话：弹出输入框，调用 AI 服务，结果通过宠物的气泡展示。"""
@@ -64,19 +67,19 @@ class ChatHandler:
             if not validate_ai_config():
                 self.pet.bubble_text_ready.emit(
                     "请先在 config/secrets.json 中填写 apiKey、config/api.json 中设置 modelId 后再和我对话哦～",
-                    5000,
+                    REPLY_BUBBLE_DURATION_MS,
                 )
                 return
             current = [""]
 
             def on_token(token: str):
                 current[0] += token
-                self.pet.bubble_text_ready.emit(current[0], 5000)
+                self.pet.bubble_text_ready.emit(current[0], REPLY_BUBBLE_DURATION_MS)
 
             stream_chat(messages, on_token=on_token)
-            self.pet.bubble_text_ready.emit(current[0], 5000)
+            self.pet.bubble_text_ready.emit(current[0], REPLY_BUBBLE_DURATION_MS)
         except Exception as e:
             err_msg = str(e)
-            self.pet.bubble_text_ready.emit(f"错误: {err_msg}", 5000)
+            self.pet.bubble_text_ready.emit(f"错误: {err_msg}", REPLY_BUBBLE_DURATION_MS)
             print("[Peko API 错误]", err_msg)
             traceback.print_exc()
