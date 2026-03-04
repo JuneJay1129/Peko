@@ -28,6 +28,32 @@ python main.py
 
 ---
 
+## 📦 打包为可执行程序（Windows / macOS）
+
+### 一次得到两个平台（推荐）
+
+用 **GitHub Actions** 一次构建出 Windows 和 macOS 两个可执行程序：
+
+1. 把本仓库推送到 GitHub（或已有仓库直接 push）。
+2. 打开仓库 → **Actions** → 选择 **"Build Peko (Windows + macOS)"**。
+3. 若未自动运行，点击 **Run workflow** 手动触发。
+4. 跑完后在本次运行页面下方 **Artifacts** 中下载：
+   - **Peko-Windows**：内含 `Peko.exe`（仅 Windows）
+   - **Peko-macOS**：内含 `Peko`（仅 macOS）
+
+推送 `main` 或 `master` 分支时也会自动触发该构建。
+
+### 本机单独打包
+
+- **Windows**：在项目根目录执行 `pyinstaller main.spec`，或双击 **`build.bat`**。产物：`dist/Peko.exe`。
+- **macOS**：在项目根目录执行 `./build_mac.sh`。产物：`dist/Peko`。
+
+**自定义 exe/应用图标**：在项目根目录放置 **`icon.ico`**（Windows）或 **`icon.icns`**（macOS），重新打包即可；未放置则使用系统默认图标。
+
+首次运行 exe/可执行文件时，会在其**同目录**下自动创建 `config` 并写入 `api.json`、`secrets.json` 模板；在 `config/secrets.json` 中填写 API Key 即可使用。宠物资源已打进包内，无需单独携带 `pets` 目录。
+
+---
+
 ## ⚙️ 配置 AI（config 模板 + 本地配置）
 
 配置分为**可提交的模板**与**本地实际配置**（不提交，避免泄露 API Key）：

@@ -2,19 +2,33 @@
 Peko API 配置加载器
 - 从 config/api.json 读取模型配置；API Key 从 config/secrets.json 读取
 - 用户复制 api.json.example → api.json、secrets.json.example → secrets.json，在 secrets.json 中填写 apiKey 即可
+- 打包为 exe 时：config 目录在 exe 同目录下（可写），模板文件从包内读取
 """
 import json
 import os
+import sys
 import shutil
 from typing import Optional, List, Dict, Any
 
-# 项目根目录（peko/ai/ -> 项目根）
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 项目根目录（peko/ai/ -> 项目根）；打包后 config 放在 exe 同目录
+def _get_root():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+def _get_bundle_root():
+    """打包后资源解压目录；未打包时与项目根一致。"""
+    if getattr(sys, "frozen", False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+_ROOT = _get_root()
+_BUNDLE = _get_bundle_root()
 CONFIG_DIR = os.path.join(_ROOT, "config")
 API_CONFIG_PATH = os.path.join(CONFIG_DIR, "api.json")
-API_CONFIG_EXAMPLE_PATH = os.path.join(CONFIG_DIR, "api.json.example")
+API_CONFIG_EXAMPLE_PATH = os.path.join(_BUNDLE, "config", "api.json.example")
 SECRETS_PATH = os.path.join(CONFIG_DIR, "secrets.json")
-SECRETS_EXAMPLE_PATH = os.path.join(CONFIG_DIR, "secrets.json.example")
+SECRETS_EXAMPLE_PATH = os.path.join(_BUNDLE, "config", "secrets.json.example")
 _USER_API_LEGACY_PATH = os.path.join(CONFIG_DIR, "user_api.json")
 
 _cached_api_config: Optional[Dict[str, Any]] = None
@@ -82,6 +96,14 @@ def load_api_config() -> Dict[str, Any]:
     if _cached_api_config is not None:
         return _cached_api_config
     path = API_CONFIG_PATH if os.path.isfile(API_CONFIG_PATH) else API_CONFIG_EXAMPLE_PATH
+    # 打包 exe 首次运行：将 config 模板复制到 exe 同目录，便于用户编辑
+    if not os.path.isfile(API_CONFIG_PATH) and getattr(sys, "frozen", False) and os.path.isfile(API_CONFIG_EXAMPLE_PATH):
+        try:
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            shutil.copy(API_CONFIG_EXAMPLE_PATH, API_CONFIG_PATH)
+            path = API_CONFIG_PATH
+        except Exception:
+            pass
     data = _load_json(path)
     if data is None:
         _cached_api_config = {

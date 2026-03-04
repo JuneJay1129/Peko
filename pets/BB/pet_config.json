@@ -68,7 +68,7 @@
     "sleep": {
       "frames": [
         "resource/sleep/0.png",
-        "resource/sleep/1.png","resource/walk_left/0.png",
+        "resource/sleep/1.png",
         "resource/sleep/2.png",
         "resource/sleep/3.png"
       ],

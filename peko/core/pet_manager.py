@@ -2,13 +2,20 @@
 宠物包管理器（仿 SimuEngine 的 topicManager）
 - 从 pets/<pet_id>/ 目录加载宠物配置，每个宠物像 topic 一样独立
 - 支持公共插槽（如 AI 模型）与每宠物独立插槽（后续可扩展不同功能）
+- 打包为 exe 时：pets 从包内资源目录读取
 """
 import os
+import sys
 import json
 from typing import Dict, List, Any, Optional
 
-# 项目根目录（peko/core/ -> 项目根）
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 项目根目录（peko/core/ -> 项目根）；打包后使用 PyInstaller 解压目录
+def _get_root():
+    if getattr(sys, "frozen", False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+_ROOT = _get_root()
 PETS_DIR = os.path.join(_ROOT, "pets")
 CONFIG_FILENAME = "pet_config.json"
 RESOURCE_DIR = "resource"  # 每个宠物独立 resource 目录名
