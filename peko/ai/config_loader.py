@@ -10,11 +10,15 @@ import sys
 import shutil
 from typing import Optional, List, Dict, Any
 
-# 项目根目录（peko/ai/ -> 项目根）；打包后 config 放在 exe 同目录
+# 项目根目录（peko/ai/ -> 项目根）；打包后 config 放在 exe/.app 同目录（可写）
 def _get_root():
-    if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if not getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    exe = sys.executable
+    # macOS .app：可执行文件在 Peko.app/Contents/MacOS/Peko，config 应放在 .app 同级目录
+    if sys.platform == "darwin" and ".app/Contents/MacOS" in exe.replace("\\", "/"):
+        return os.path.dirname(os.path.dirname(os.path.dirname(exe)))
+    return os.path.dirname(exe)
 
 def _get_bundle_root():
     """打包后资源解压目录；未打包时与项目根一致。"""

@@ -39,14 +39,14 @@ python main.py
 3. 若未自动运行，点击 **Run workflow** 手动触发。
 4. 跑完后在本次运行页面下方 **Artifacts** 中下载：
    - **Peko-Windows**：内含 `Peko.exe`（仅 Windows）
-   - **Peko-macOS**：内含 `Peko`（仅 macOS）
+   - **Peko-macOS**：内含 **`Peko.app`**（仅 macOS，需 10.15+）
 
 推送 `main` 或 `master` 分支时也会自动触发该构建。
 
 ### 本机单独打包
 
 - **Windows**：在项目根目录执行 `pyinstaller main.spec`，或双击 **`build.bat`**。产物：`dist/Peko.exe`。
-- **macOS**：在项目根目录执行 `./build_mac.sh`。产物：`dist/Peko`。
+- **macOS**：在项目根目录执行 `./build_mac.sh`。产物：**`dist/Peko.app`**（支持 macOS 10.15+）。
 
 **自定义 exe/应用图标**：在项目根目录放置 **`icon.ico`**（Windows）或 **`icon.icns`**（macOS），重新打包即可；未放置则使用系统默认图标。
 

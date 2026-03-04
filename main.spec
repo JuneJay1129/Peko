@@ -40,24 +40,68 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name='Peko',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=exe_icon,
-)
+if sys.platform == 'darwin':
+    # macOS：生成 .app 包（COLLECT + BUNDLE），兼容较老系统，避免 NSImage 等系统资源在低版本找不到
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name='Peko',
+        debug=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=exe_icon,
+    )
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        name='Peko',
+    )
+    app = BUNDLE(
+        coll,
+        name='Peko.app',
+        icon=exe_icon,
+        bundle_identifier='com.peko.desktop',
+        info_plist={
+            'NSHighResolutionCapable': True,
+            'NSRequiresAquaSystemAppearance': False,
+            'LSMinimumSystemVersion': '10.15',
+        },
+    )
+else:
+    # Windows：单文件 exe
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.datas,
+        [],
+        name='Peko',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=exe_icon,
+    )

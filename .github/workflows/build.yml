@@ -52,11 +52,26 @@ jobs:
           pip install pyinstaller Pillow
 
       - name: Build
+        env:
+          # 兼容 macOS 10.15+，避免在较老系统上因 NSImage/系统资源名差异导致崩溃
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
         run: pyinstaller main.spec
+        working-directory: ${{ github.workspace }}
+
+      - name: Verify macOS artifact
+        run: |
+          if [ -d "dist/Peko.app" ]; then
+            echo "OK: dist/Peko.app exists"
+            ls -la dist/
+          else
+            echo "ERROR: dist/Peko.app not found"
+            ls -la dist/ || true
+            exit 1
+          fi
         working-directory: ${{ github.workspace }}
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: Peko-macOS
-          path: dist/Peko
+          path: dist/Peko.app
