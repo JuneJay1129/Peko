@@ -4,6 +4,7 @@
 - 对话使用统一 AI 服务（api_config_loader + ai_service），需在 config/secrets.json 填写 apiKey、config/api.json 设置 modelId
 """
 import random
+import sys
 import threading
 import traceback
 from typing import Any, Dict, Optional
@@ -165,7 +166,7 @@ class DesktopPet(QWidget):
         self.bubble_label.setStyleSheet(
             _bubble_style_from_config(self.bubble_style_config)
         )
-        font = QFont("Microsoft YaHei", 14)
+        font = QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14)
         font.setBold(True)
         self.bubble_label.setFont(font)
         self.bubble_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)

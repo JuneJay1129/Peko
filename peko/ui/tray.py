@@ -54,13 +54,16 @@ class TrayIcon:
         show_action = QAction("显示桌宠", self.app)
         hide_action = QAction("隐藏桌宠", self.app)
         stop_movement_action = QAction("停止移动", self.app, checkable=True)
+        talk_action = QAction("与宠物对话", self.app)
         show_action.triggered.connect(lambda: self.pet_holder[0].show() if self.pet_holder else None)
         hide_action.triggered.connect(lambda: self.pet_holder[0].hide() if self.pet_holder else None)
         stop_movement_action.triggered.connect(self.toggle_movement)
+        talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
 
         menu.addAction(show_action)
         menu.addAction(hide_action)
         menu.addAction(stop_movement_action)
+        menu.addAction(talk_action)
         menu.addSeparator()
 
         switch_menu = menu.addMenu("切换宠物")

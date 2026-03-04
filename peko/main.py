@@ -3,7 +3,6 @@ Peko 桌宠入口：加载宠物包、统一 API 配置（config/api.json + conf
 """
 import sys
 import threading
-import keyboard
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QMetaObject, Qt
 
@@ -13,14 +12,20 @@ from .core.pet_manager import get_pet, get_available_pets, get_default_pet_id, d
 
 
 def global_hotkey_listener(pet_holder):
-    """全局快捷键 L+Enter 唤起对话。"""
-    while True:
-        keyboard.wait("l+enter")
-        QMetaObject.invokeMethod(
-            pet_holder[0],
-            "show_custom_input_dialog",
-            Qt.QueuedConnection,
-        )
+    """全局快捷键 L+Enter 唤起对话（仅 Windows；macOS 上 keyboard 需权限且按键映射不同，改用托盘菜单）。"""
+    if sys.platform == "darwin":
+        return
+    try:
+        import keyboard
+        while True:
+            keyboard.wait("l+enter")
+            QMetaObject.invokeMethod(
+                pet_holder[0],
+                "show_custom_input_dialog",
+                Qt.QueuedConnection,
+            )
+    except Exception:
+        pass
 
 
 def main():
@@ -60,6 +65,8 @@ def main():
     tray.on_switch_pet = switch_pet
     pet.show()
     welcome = pet_package.get("description") or f"我是 {pet_package.get('name', default_id)}，用 L+Enter 和我对话吧！"
+    if sys.platform == "darwin":
+        welcome = pet_package.get("description") or f"我是 {pet_package.get('name', default_id)}，请通过托盘菜单「与宠物对话」和我说话～"
     pet.show_bubble(
         welcome ,
         duration=10000,

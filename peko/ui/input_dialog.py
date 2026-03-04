@@ -4,6 +4,12 @@ from PyQt5.QtWidgets import (
     QFrame,
 )
 from PyQt5.QtGui import QFont
+import sys
+
+
+def _dialog_font():
+    """跨平台字体：Mac 无 Microsoft YaHei，用 PingFang SC。"""
+    return QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14, QFont.Bold)
 
 # 与宠物气泡一致：半透明白底、绿色边框、圆角 15px、padding 10px
 CONTAINER_STYLE = """
@@ -78,7 +84,7 @@ class InputDialog(QDialog):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 4)
         title_label = QLabel("与宠物对话")
-        title_label.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        title_label.setFont(_dialog_font())
         title_label.setStyleSheet("color: black;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
