@@ -82,5 +82,17 @@
     "moveSpeed": 15
   },
   "bubbleStyle": {},
-  "slots": {}
+  "slots": {},
+  "randomSayings": {
+    "enabled": true,
+    "phrases": [
+      "休息一下，喝口水吧～",
+      "不要久坐哦，站起来活动一下吧！",
+      "要不要和我聊聊天？",
+      "吱吱吱吱吱吱吱...."
+    ],
+    "intervalMinMs": 60000,
+    "intervalMaxMs": 180000,
+    "durationMs": 8000
+  }
 }

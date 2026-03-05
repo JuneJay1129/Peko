@@ -2,7 +2,9 @@
 桌宠组件：窗口、动画帧、气泡、拖拽；动作与聊天委托给独立模块。
 - 动作：actions.auto（自动随机）、actions.control（键盘操控）
 - 聊天：chat（输入框 + AI 气泡）
+- 随机文案：配置 randomSayings 后偶尔用气泡弹出句子（复用气泡样式）
 """
+import random
 import sys
 from typing import Any, Dict
 
@@ -23,6 +25,10 @@ def _default_bubble_style() -> str:
         background-color: rgba(255, 255, 255, 0.72);
         border: 2px solid rgba(76, 175, 80, 0.85);
         border-radius: 15px;
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        border-bottom-left-radius: 15px;
+        border-bottom-right-radius: 15px;
         padding: 10px;
         font-size: 14px;
         color: black;
@@ -43,6 +49,10 @@ def _bubble_style_from_config(bubble_style: Dict[str, Any]) -> str:
         background-color: {bg};
         border: {border};
         border-radius: {radius};
+        border-top-left-radius: {radius};
+        border-top-right-radius: {radius};
+        border-bottom-left-radius: {radius};
+        border-bottom-right-radius: {radius};
         padding: {padding};
         font-size: {font_size};
         color: {color};
@@ -120,6 +130,22 @@ class DesktopPet(QWidget):
         from .chat import ChatHandler
         self._chat = ChatHandler(self)
 
+        # 随机文案：从 randomSayings.phrases 随机取一句，用现有气泡弹出（复用气泡样式）
+        sayings_cfg = pet_package.get("randomSayings") or {}
+        self._sayings_phrases = sayings_cfg.get("phrases") or []
+        self._sayings_enabled = sayings_cfg.get("enabled", True) if self._sayings_phrases else False
+        self._sayings_interval_min = max(30000, int(sayings_cfg.get("intervalMinMs", 60000)))
+        self._sayings_interval_max = max(
+            self._sayings_interval_min,
+            int(sayings_cfg.get("intervalMaxMs", 180000)),
+        )
+        self._sayings_duration = max(2000, int(sayings_cfg.get("durationMs", 5000)))
+        self._sayings_timer = QTimer(self)
+        self._sayings_timer.setSingleShot(True)
+        self._sayings_timer.timeout.connect(self._on_sayings_tick)
+        if self._sayings_enabled:
+            self._schedule_next_saying(initial_delay=True)
+
     def init_ui(self):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -153,8 +179,9 @@ class DesktopPet(QWidget):
         font = QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14)
         font.setBold(True)
         self.bubble_label.setFont(font)
-        self.bubble_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.bubble_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.bubble_label.setWordWrap(True)
+        self.bubble_label.setContentsMargins(12, 12, 12, 12)
         self.bubble_label.setVisible(True)
         self.bubble_label.resize(200, 100)
         self.bubble_label.move(0, 0)
@@ -249,10 +276,13 @@ class DesktopPet(QWidget):
         self.bubble_label.setWordWrap(True)
         self.bubble_label.setFixedWidth(max_width)
         metrics = self.bubble_label.fontMetrics()
-        lines = metrics.boundingRect(0, 0, max_width, 0, Qt.TextWordWrap, text)
-        w, h = lines.width() + 20, lines.height() + 50
-        self.bubble_label.resize(w, h)
+        # 用足够大的高度计算换行后的真实尺寸；加 descent 避免汉字下半被裁切
+        br = metrics.boundingRect(0, 0, max_width, 2000, Qt.TextWordWrap, text)
+        w = min(max(br.width() + 24 + 12, 120), 400)  # 左右 contentsMargins 12*2 + 余量
+        h = br.height() + metrics.descent() + 24  # 上下各 12px 留白，descent 防裁切
         self.bubble_window.resize(w, h)
+        self.bubble_label.setFixedSize(w, h)
+        self.bubble_label.move(0, 0)
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
         self.bubble_timer.stop()
@@ -265,10 +295,12 @@ class DesktopPet(QWidget):
         self.bubble_label.setWordWrap(True)
         self.bubble_label.setFixedWidth(max_width)
         metrics = self.bubble_label.fontMetrics()
-        lines = metrics.boundingRect(0, 0, max_width, 0, Qt.TextWordWrap, text)
-        w, h = lines.width() + 20, lines.height() + 50
-        self.bubble_label.resize(w, h)
+        br = metrics.boundingRect(0, 0, max_width, 2000, Qt.TextWordWrap, text)
+        w = min(max(br.width() + 24 + 12, 120), 400)
+        h = br.height() + metrics.descent() + 24
         self.bubble_window.resize(w, h)
+        self.bubble_label.setFixedSize(w, h)
+        self.bubble_label.move(0, 0)
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
         self.full_text = text
@@ -283,10 +315,12 @@ class DesktopPet(QWidget):
             self.bubble_label.setText(self.current_text)
             self.typing_index += 1
             metrics = self.bubble_label.fontMetrics()
-            lines = metrics.boundingRect(0, 0, 200, 0, Qt.TextWordWrap, self.current_text)
-            w, h = lines.width() + 20, lines.height() + 50
-            self.bubble_label.resize(w, h)
+            br = metrics.boundingRect(0, 0, 200, 2000, Qt.TextWordWrap, self.current_text)
+            w = min(max(br.width() + 24 + 12, 120), 400)
+            h = br.height() + metrics.descent() + 24
             self.bubble_window.resize(w, h)
+            self.bubble_label.setFixedSize(w, h)
+            self.bubble_label.move(0, 0)
             self._position_bubble_window()
         else:
             self.typing_timer.stop()
@@ -294,6 +328,28 @@ class DesktopPet(QWidget):
     def hide_bubble(self):
         self.bubble_window.hide()
         self.bubble_timer.stop()
+
+    def _schedule_next_saying(self, initial_delay: bool = False) -> None:
+        """安排下一次随机文案弹出（单次定时器，随机间隔）。"""
+        if not self._sayings_enabled or not self._sayings_phrases:
+            return
+        low, high = self._sayings_interval_min, self._sayings_interval_max
+        delay = random.randint(10000, 30000) if initial_delay else (random.randint(low, high) if low <= high else low)
+        self._sayings_timer.stop()
+        self._sayings_timer.setInterval(delay)
+        self._sayings_timer.start()
+
+    def _on_sayings_tick(self) -> None:
+        """定时到：若当前无气泡则随机选一句用气泡显示，然后安排下一次。"""
+        if not self._sayings_enabled or not self._sayings_phrases:
+            return
+        if self.bubble_window.isVisible():
+            self._schedule_next_saying()
+            return
+        text = random.choice(self._sayings_phrases)
+        if text and isinstance(text, str):
+            self.update_bubble(text.strip(), duration=self._sayings_duration)
+        self._schedule_next_saying()
 
     @pyqtSlot(str, int)
     def _on_bubble_text_ready(self, text: str, duration: int):

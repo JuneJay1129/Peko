@@ -62,6 +62,7 @@ def _load_pet_package(pet_id: str, pet_dir: str) -> Dict[str, Any]:
     data["slots"] = data.get("slots") or {}
     data["bubbleStyle"] = data.get("bubbleStyle") or {}
     data["actionConfig"] = data.get("actionConfig") or {}
+    data["randomSayings"] = data.get("randomSayings") or {}
     data["_pet_dir"] = pet_dir  # 宠物目录，供托盘图标等使用
     return data
 
