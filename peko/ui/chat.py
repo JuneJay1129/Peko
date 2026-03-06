@@ -28,6 +28,13 @@ class ChatHandler:
         from .input_dialog import InputDialog
         from PyQt5.QtWidgets import QApplication
 
+        # 操控模式下宠物会 grabKeyboard，导致对话框内的输入框收不到按键；先释放以便 Backspace 等可用
+        if getattr(self.pet, "releaseKeyboard", None):
+            try:
+                self.pet.releaseKeyboard()
+            except Exception:
+                pass
+
         dialog = InputDialog(self.pet, self._on_submit)
         self._input_dialog = dialog
         dialog.finished.connect(self._on_dialog_finished)
@@ -46,6 +53,12 @@ class ChatHandler:
 
     def _on_dialog_finished(self):
         self._input_dialog = None
+        # 若仍在操控模式，重新抓取键盘以便方向键/空格继续生效
+        if getattr(self.pet, "control_mode", False) and getattr(self.pet, "grabKeyboard", None):
+            try:
+                self.pet.grabKeyboard()
+            except Exception:
+                pass
 
     def _on_submit(self, dialog, text: str) -> None:
         dialog.close()
