@@ -83,6 +83,16 @@
   },
   "bubbleStyle": {},
   "slots": {},
+  "actionDisplayNames": {
+    "stand": "站立",
+    "walk_left": "向左走",
+    "walk_right": "向右走",
+    "walk_up": "向上走",
+    "walk_down": "向下走",
+    "wave": "挥手",
+    "sleep": "睡觉",
+    "dragged": "拖拽时"
+  },
   "randomSayings": {
     "enabled": true,
     "phrases": [

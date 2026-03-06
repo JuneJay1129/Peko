@@ -167,6 +167,8 @@ Peko/
 | `animations` | 各状态对应图片路径列表（相对宠物目录，如 `resource/stand/0.png`） |
 | `actionConfig` | 动作时间配置：`stateSwitchInterval`（状态切换间隔 ms）、`frameRate`（帧率）、`moveSpeed`（移动速度） |
 | `bubbleStyle` | 气泡样式（backgroundColor、border、fontSize 等） |
+| `actionDisplayNames` | 可选。动作 key→显示名映射，用于「动作参数」面板；未配置的 key 显示为 key 本身 |
+| `slots` | 该宠物独立插槽（预留扩展） |
 
 **actionConfig 动作时间**（可选）：
 - `stateSwitchInterval`：状态切换等待时间（毫秒），默认 3000
@@ -176,7 +178,6 @@ Peko/
 **animations 动作说明**：
 - **公共动作**：`stand`（站立）、`walk_left/right/up/down`（行走会位移）、`dragged`（拖拽时）
 - **自定义动作**：在 `animations` 中新增任意 key（如 `wave`、`eat`），配置对应 `resource/` 路径即可参与随机切换，原地播放不位移
-| `slots` | 该宠物独立插槽（预留扩展） |
 
 公共能力（如调用 AI 模型）通过全局配置与 `ai_service` 提供，无需在每个宠物里重复配置。
 

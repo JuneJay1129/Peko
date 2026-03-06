@@ -6,7 +6,7 @@
 """
 import random
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from PyQt5.QtCore import Qt, QTimer, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QPixmap, QFont
@@ -82,6 +82,7 @@ class DesktopPet(QWidget):
             self._display_height = int(pet_package["frameHeight"])
         else:
             self._display_width = self._display_height = None
+        self._display_scale = 1.0
 
         default_frame_rate = action_cfg.get("frameRate") or frame_rate
         default_switch_interval = action_cfg.get("stateSwitchInterval", 3000)
@@ -156,9 +157,14 @@ class DesktopPet(QWidget):
             print(f"[Peko] 无法加载首帧: {first_frame_path}")
             first_frame = QPixmap(1, 1)
         if self._display_width is not None and self._display_height is not None:
-            self.setFixedSize(self._display_width, self._display_height)
+            self._base_display_width = self._display_width
+            self._base_display_height = self._display_height
         else:
-            self.setFixedSize(first_frame.size())
+            self._base_display_width = first_frame.width()
+            self._base_display_height = first_frame.height()
+        w = max(1, int(self._base_display_width * self._display_scale))
+        h = max(1, int(self._base_display_height * self._display_scale))
+        self.setFixedSize(w, h)
 
         self.label = QLabel(self)
         self.label.setFixedSize(self.size())
@@ -207,6 +213,102 @@ class DesktopPet(QWidget):
     def _apply_state_frame_rate(self) -> None:
         fps = max(1, self._get_current_frame_rate())
         self.timer.setInterval(max(50, 1000 // fps))
+
+    def get_action_params(self) -> Dict[str, Any]:
+        """供参数面板读取：当前动作相关参数。"""
+        return {
+            "frameRate": self.frame_rate,
+            "stateSwitchInterval": self.state_switch_interval,
+            "moveSpeed": self.move_speed,
+        }
+
+    def get_action_params_for_state(self, state_name: Optional[str]) -> Dict[str, Any]:
+        """获取指定动作的参数；state_name 为 None 或空时返回全局默认。"""
+        if not state_name or state_name == "__all__":
+            return self.get_action_params()
+        cfg = self._state_config.get(state_name, {})
+        return {
+            "frameRate": cfg.get("frameRate") or self.frame_rate,
+            "stateSwitchInterval": cfg.get("stateSwitchInterval") or self.state_switch_interval,
+            "moveSpeed": cfg.get("moveSpeed") or self.move_speed,
+        }
+
+    def set_action_params_for_state(
+        self,
+        state_name: Optional[str],
+        frame_rate: Optional[int] = None,
+        state_switch_interval: Optional[int] = None,
+        move_speed: Optional[int] = None,
+    ) -> None:
+        """仅更新指定动作的参数；state_name 为 None 或 '__all__' 时更新全局并应用到所有动作。"""
+        if not state_name or state_name == "__all__":
+            self.set_action_params(
+                frame_rate=frame_rate,
+                state_switch_interval=state_switch_interval,
+                move_speed=move_speed,
+                apply_to_all_states=True,
+            )
+            return
+        if state_name not in self._state_config:
+            return
+        cfg = self._state_config[state_name]
+        if frame_rate is not None:
+            cfg["frameRate"] = max(1, min(60, frame_rate))
+        if state_switch_interval is not None:
+            cfg["stateSwitchInterval"] = max(500, min(120000, state_switch_interval))
+        if move_speed is not None:
+            cfg["moveSpeed"] = max(1, min(50, move_speed))
+        self._apply_state_frame_rate()
+        if not self.control_mode and hasattr(self, "_auto_actions"):
+            self._auto_actions.schedule_next()
+
+    def get_display_scale(self) -> float:
+        """当前宠物显示缩放比例，1.0 为配置的原始大小。"""
+        return getattr(self, "_display_scale", 1.0)
+
+    def set_display_scale(self, scale: float) -> None:
+        """设置宠物显示缩放比例（如 0.5～2.0），立即生效。"""
+        scale = max(0.5, min(2.0, float(scale)))
+        self._display_scale = scale
+        if not hasattr(self, "_base_display_width"):
+            return
+        w = max(1, int(self._base_display_width * scale))
+        h = max(1, int(self._base_display_height * scale))
+        self.setFixedSize(w, h)
+        if hasattr(self, "label"):
+            self.label.setFixedSize(self.size())
+        self.update_frame()
+        self._position_bubble_window()
+
+    def set_action_params(
+        self,
+        frame_rate: Optional[int] = None,
+        state_switch_interval: Optional[int] = None,
+        move_speed: Optional[int] = None,
+        apply_to_all_states: bool = True,
+    ) -> None:
+        """
+        实时更新动作参数并生效。
+        apply_to_all_states 为 True 时同时更新各状态覆盖值；会立即刷新帧率与状态切换定时器。
+        """
+        if frame_rate is not None:
+            self.frame_rate = max(1, min(60, frame_rate))
+            if apply_to_all_states:
+                for cfg in self._state_config.values():
+                    cfg["frameRate"] = self.frame_rate
+        if state_switch_interval is not None:
+            self.state_switch_interval = max(500, min(120000, state_switch_interval))
+            if apply_to_all_states:
+                for cfg in self._state_config.values():
+                    cfg["stateSwitchInterval"] = self.state_switch_interval
+        if move_speed is not None:
+            self.move_speed = max(1, min(50, move_speed))
+            if apply_to_all_states:
+                for cfg in self._state_config.values():
+                    cfg["moveSpeed"] = self.move_speed
+        self._apply_state_frame_rate()
+        if not self.control_mode and hasattr(self, "_auto_actions"):
+            self._auto_actions.schedule_next()
 
     @pyqtSlot()
     def show_custom_input_dialog(self):

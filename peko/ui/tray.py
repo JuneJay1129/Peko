@@ -55,12 +55,14 @@ class TrayIcon:
         hide_action = QAction("隐藏桌宠", self.app)
         stop_movement_action = QAction("停止移动", self.app, checkable=True)
         talk_action = QAction("与宠物对话", self.app)
+        params_action = QAction("动作参数", self.app)
         self._auto_mode_action = QAction("自动模式", self.app, checkable=True)
         self._control_mode_action = QAction("操控模式", self.app, checkable=True)
         show_action.triggered.connect(lambda: self.pet_holder[0].show() if self.pet_holder else None)
         hide_action.triggered.connect(lambda: self.pet_holder[0].hide() if self.pet_holder else None)
         stop_movement_action.triggered.connect(self.toggle_movement)
         talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
+        params_action.triggered.connect(self._show_action_params_dialog)
         self._auto_mode_action.triggered.connect(self._on_auto_mode)
         self._control_mode_action.triggered.connect(self._on_control_mode)
 
@@ -72,6 +74,7 @@ class TrayIcon:
         menu.addAction(hide_action)
         menu.addAction(stop_movement_action)
         menu.addAction(talk_action)
+        menu.addAction(params_action)
         menu.addSeparator()
         menu.addAction(self._auto_mode_action)
         menu.addAction(self._control_mode_action)
@@ -109,6 +112,20 @@ class TrayIcon:
     def toggle_movement(self, checked):
         if self.pet_holder:
             self.pet_holder[0].set_allow_movement(not checked)
+
+    def _show_action_params_dialog(self):
+        """打开动作参数面板，居中显示，可拖动。"""
+        if not self.pet_holder:
+            return
+        from .action_params_dialog import ActionParamsDialog
+        from PyQt5.QtWidgets import QApplication
+        pet = self.pet_holder[0]
+        dialog = ActionParamsDialog(pet, pet)
+        screen = QApplication.desktop().availableGeometry()
+        x = (screen.width() - dialog.width()) // 2 + screen.x()
+        y = (screen.height() - dialog.height()) // 2 + screen.y()
+        dialog.move(x, y)
+        dialog.exec_()
 
     def _on_auto_mode(self):
         if self.pet_holder:
