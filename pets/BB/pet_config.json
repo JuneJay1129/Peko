@@ -74,6 +74,68 @@
       ],
       "frameRate": 4,
       "stateSwitchInterval": 20000
+    },
+    "constipated": {
+      "frames": [
+        "resource/constipated/0.png",
+        "resource/constipated/1.png",
+        "resource/constipated/2.png"
+      ]
+    },
+    "angry_fire": {
+      "frames": [
+        "resource/angry_fire/0.png",
+        "resource/angry_fire/1.png",
+        "resource/angry_fire/2.png",
+        "resource/angry_fire/3.png",
+        "resource/angry_fire/4.png",
+        "resource/angry_fire/5.png"
+      ]
+    },
+    "cry": {
+      "frames": [
+        "resource/cry/0.png",
+        "resource/cry/1.png",
+        "resource/cry/2.png",
+        "resource/cry/3.png"
+      ]
+    },
+    "student": {
+      "frames": [
+        "resource/student/0.png",
+        "resource/student/1.png"
+      ]
+    },
+    "guilty": {
+      "frames": [
+        "resource/guilty/0.png",
+        "resource/guilty/1.png",
+        "resource/guilty/2.png",
+        "resource/guilty/3.png"
+      ]
+    },
+    "longing": {
+      "frames": [
+        "resource/longing/0.png",
+        "resource/longing/1.png",
+        "resource/longing/2.png"
+      ]
+    },
+    "obese": {
+      "frames": [
+        "resource/obese/0.png",
+        "resource/obese/1.png"
+      ]
+    },
+    "sulk": {
+      "frames": [
+        "resource/sulk/0.png",
+        "resource/sulk/1.png",
+        "resource/sulk/2.png",
+        "resource/sulk/3.png",
+        "resource/sulk/4.png",
+        "resource/sulk/5.png"
+      ]
     }
   },
   "actionConfig": {
@@ -91,7 +153,15 @@
     "walk_down": "向下走",
     "wave": "挥手",
     "sleep": "睡觉",
-    "dragged": "拖拽时"
+    "dragged": "拖拽时",
+    "constipated": "便秘",
+    "angry_fire": "冒火",
+    "cry": "哭",
+    "student": "学生",
+    "guilty": "心虚",
+    "longing": "憧憬",
+    "obese": "肥胖",
+    "sulk": "赌气"
   },
   "randomSayings": {
     "enabled": true,
