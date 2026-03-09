@@ -79,7 +79,7 @@ class ChatHandler:
             ]
             if not validate_ai_config():
                 self.pet.bubble_text_ready.emit(
-                    "请先在 config/secrets.json 中填写 apiKey、config/api.json 中设置 modelId 后再和我对话哦～",
+                    "请先在任务栏菜单的 AI 设置里填写 API Key 并选择模型，然后再和我对话哦～",
                     REPLY_BUBBLE_DURATION_MS,
                 )
                 return

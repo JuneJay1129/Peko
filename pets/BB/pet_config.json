@@ -143,6 +143,15 @@
     "frameRate": 10,
     "moveSpeed": 15
   },
+  "interactionModes": {
+    "follow_mouse": {
+      "catchRadius": 28,
+      "onCatchAction": "wave",
+      "onCatchDurationMs": 2000,
+      "moveSpeed": 20,
+      "frameRate": 10
+    }
+  },
   "bubbleStyle": {},
   "slots": {},
   "actionDisplayNames": {

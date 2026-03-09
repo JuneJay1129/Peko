@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import QLabel, QWidget, QApplication
 from .actions import (
     AutoActions,
     ControlActions,
+    FollowMouseActions,
     STANDARD_MOVEMENT_STATES,
     RESERVED_STATES,
 )
@@ -107,6 +108,7 @@ class DesktopPet(QWidget):
         self.current_frame_index = 0
         self.allow_movement = True
         self.control_mode = False
+        self.follow_mouse_mode = False
 
         self.init_ui()
 
@@ -118,6 +120,7 @@ class DesktopPet(QWidget):
         self.state_timer = QTimer(self)
         self._auto_actions = AutoActions(self, self.state_timer)
         self._control_actions = ControlActions(self)
+        self._follow_mouse_actions = FollowMouseActions(self)
         self._chat = None  # 在 init 末尾创建，避免循环引用
 
         self._auto_actions.schedule_next()
@@ -198,16 +201,35 @@ class DesktopPet(QWidget):
         self.setFocusPolicy(Qt.StrongFocus)
 
     def set_control_mode(self, on: bool) -> None:
-        """切换为操控模式或自动模式。"""
+        """切换为操控模式或自动/跟随模式。"""
         self.control_mode = on
+        if on:
+            self.set_follow_mouse_mode(False)
         self.state_timer.stop()
         if on:
             self._control_actions.enter()
         else:
             self._control_actions.exit()
-            self._auto_actions.resume()
+            if not self.follow_mouse_mode:
+                self._auto_actions.resume()
+
+    def set_follow_mouse_mode(self, on: bool) -> None:
+        """切换为跟随鼠标模式；与操控模式互斥。"""
+        self.follow_mouse_mode = on
+        if on:
+            self.control_mode = False
+            self._control_actions.exit()
+            self.state_timer.stop()
+            self._follow_mouse_actions.enter()
+        else:
+            self._follow_mouse_actions.exit()
+            self.state_timer.stop()
+            if not self.control_mode:
+                self._auto_actions.resume()
 
     def _get_current_frame_rate(self) -> int:
+        if self.follow_mouse_mode and getattr(self, "_follow_mouse_frame_rate", None) is not None:
+            return max(1, min(60, self._follow_mouse_frame_rate))
         return self._state_config.get(self.current_state, {}).get("frameRate") or self.frame_rate
 
     def _apply_state_frame_rate(self) -> None:
@@ -259,7 +281,7 @@ class DesktopPet(QWidget):
         if move_speed is not None:
             cfg["moveSpeed"] = max(1, min(50, move_speed))
         self._apply_state_frame_rate()
-        if not self.control_mode and hasattr(self, "_auto_actions"):
+        if not self.control_mode and not self.follow_mouse_mode and hasattr(self, "_auto_actions"):
             self._auto_actions.schedule_next()
 
     def get_display_scale(self) -> float:
@@ -307,7 +329,7 @@ class DesktopPet(QWidget):
                 for cfg in self._state_config.values():
                     cfg["moveSpeed"] = self.move_speed
         self._apply_state_frame_rate()
-        if not self.control_mode and hasattr(self, "_auto_actions"):
+        if not self.control_mode and not self.follow_mouse_mode and hasattr(self, "_auto_actions"):
             self._auto_actions.schedule_next()
 
     @pyqtSlot()
@@ -317,12 +339,14 @@ class DesktopPet(QWidget):
             self._chat.show_dialog()
 
     def next_frame(self):
+        if self.follow_mouse_mode:
+            self._follow_mouse_actions.update_direction_to_cursor()
         frames = self.animations.get(self.current_state)
         if not frames:
             return
         self.current_frame_index = (self.current_frame_index + 1) % len(frames)
         self.update_frame()
-        if self.current_state in STANDARD_MOVEMENT_STATES:
+        if self.current_state in STANDARD_MOVEMENT_STATES and not self.follow_mouse_mode:
             self.update_position()
 
     def update_frame(self):
@@ -488,7 +512,7 @@ class DesktopPet(QWidget):
     def _resume_after_drag(self) -> None:
         if self.current_state == "dragged":
             self.current_state = "stand"
-        if not self.control_mode:
+        if not self.control_mode and not self.follow_mouse_mode:
             self._auto_actions.resume()
 
     def keyPressEvent(self, event):

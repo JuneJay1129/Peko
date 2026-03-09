@@ -18,7 +18,7 @@ from ..ai.config_loader import (
 class ApiSettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("编辑 API 配置（config/secrets.json + api.json）")
+        self.setWindowTitle("AI 设置")
         self.setMinimumWidth(400)
         self.setup_ui()
 
@@ -27,7 +27,7 @@ class ApiSettingsDialog(QDialog):
 
         form = QFormLayout()
         self.api_key_edit = QLineEdit(self)
-        self.api_key_edit.setPlaceholderText("请输入 API Key（必填）")
+        self.api_key_edit.setPlaceholderText("请输入 API Key")
         self.api_key_edit.setEchoMode(QLineEdit.Password)
         user = load_user_api_config()
         self.api_key_edit.setText(user.get("apiKey", ""))
@@ -63,12 +63,16 @@ class ApiSettingsDialog(QDialog):
 
     def save_and_close(self):
         api_key = self.api_key_edit.text().strip()
+        existing_api_key = load_user_api_config().get("apiKey", "")
         model_id = self.model_combo.currentData() or self.model_combo.currentText()
-        if not api_key and not load_user_api_config().get("apiKey"):
+        if not api_key and not existing_api_key:
             QMessageBox.warning(
                 self,
                 "提示",
-                "请填写 API Key 后再与宠物对话。也可直接编辑 config/secrets.json。",
+                "请先填写 API Key，再保存设置。",
             )
-        save_user_api_config(api_key=api_key, model_id=model_id)
+            return
+        # 留空时保留已有 key，避免误清空。
+        save_user_api_config(api_key=api_key or existing_api_key, model_id=model_id)
+        QMessageBox.information(self, "已保存", "AI 设置已保存，并会在下次对话时立即生效。")
         self.accept()

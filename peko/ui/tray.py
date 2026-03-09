@@ -55,29 +55,36 @@ class TrayIcon:
         hide_action = QAction("隐藏桌宠", self.app)
         stop_movement_action = QAction("停止移动", self.app, checkable=True)
         talk_action = QAction("与宠物对话", self.app)
+        api_settings_action = QAction("AI 设置", self.app)
         params_action = QAction("动作参数", self.app)
         self._auto_mode_action = QAction("自动模式", self.app, checkable=True)
         self._control_mode_action = QAction("操控模式", self.app, checkable=True)
+        self._follow_mouse_action = QAction("跟随鼠标", self.app, checkable=True)
         show_action.triggered.connect(lambda: self.pet_holder[0].show() if self.pet_holder else None)
         hide_action.triggered.connect(lambda: self.pet_holder[0].hide() if self.pet_holder else None)
         stop_movement_action.triggered.connect(self.toggle_movement)
         talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
+        api_settings_action.triggered.connect(self._show_api_settings_dialog)
         params_action.triggered.connect(self._show_action_params_dialog)
         self._auto_mode_action.triggered.connect(self._on_auto_mode)
         self._control_mode_action.triggered.connect(self._on_control_mode)
+        self._follow_mouse_action.triggered.connect(self._on_follow_mouse_mode)
 
         # 默认自动模式
         self._auto_mode_action.setChecked(True)
         self._control_mode_action.setChecked(False)
+        self._follow_mouse_action.setChecked(False)
 
         menu.addAction(show_action)
         menu.addAction(hide_action)
         menu.addAction(stop_movement_action)
         menu.addAction(talk_action)
+        menu.addAction(api_settings_action)
         menu.addAction(params_action)
         menu.addSeparator()
         menu.addAction(self._auto_mode_action)
         menu.addAction(self._control_mode_action)
+        menu.addAction(self._follow_mouse_action)
         menu.addSeparator()
 
         switch_menu = menu.addMenu("切换宠物")
@@ -127,21 +134,48 @@ class TrayIcon:
         dialog.move(x, y)
         dialog.exec_()
 
+    def _show_api_settings_dialog(self):
+        """打开 AI 设置对话框，保存后立即生效。"""
+        if not self.pet_holder:
+            return
+        from .api_settings_dialog import ApiSettingsDialog
+        from PyQt5.QtWidgets import QApplication
+        pet = self.pet_holder[0]
+        dialog = ApiSettingsDialog(pet)
+        screen = QApplication.desktop().availableGeometry()
+        x = (screen.width() - dialog.width()) // 2 + screen.x()
+        y = (screen.height() - dialog.height()) // 2 + screen.y()
+        dialog.move(x, y)
+        dialog.exec_()
+
     def _on_auto_mode(self):
         if self.pet_holder:
             self.pet_holder[0].set_control_mode(False)
+            self.pet_holder[0].set_follow_mouse_mode(False)
             self._auto_mode_action.setChecked(True)
             self._control_mode_action.setChecked(False)
+            self._follow_mouse_action.setChecked(False)
 
     def _on_control_mode(self):
         if self.pet_holder:
             self.pet_holder[0].set_control_mode(True)
             self._auto_mode_action.setChecked(False)
             self._control_mode_action.setChecked(True)
+            self._follow_mouse_action.setChecked(False)
+
+    def _on_follow_mouse_mode(self):
+        if self.pet_holder:
+            self.pet_holder[0].set_follow_mouse_mode(True)
+            self._auto_mode_action.setChecked(False)
+            self._control_mode_action.setChecked(False)
+            self._follow_mouse_action.setChecked(True)
 
     def _update_mode_actions_checked(self):
-        """打开托盘菜单时，根据当前宠物是否处于操控模式同步勾选状态。"""
+        """打开托盘菜单时，根据当前模式同步勾选状态。"""
         if self.pet_holder and hasattr(self, "_auto_mode_action"):
-            cm = self.pet_holder[0].control_mode
-            self._auto_mode_action.setChecked(not cm)
+            pet = self.pet_holder[0]
+            cm = getattr(pet, "control_mode", False)
+            fm = getattr(pet, "follow_mouse_mode", False)
+            self._auto_mode_action.setChecked(not cm and not fm)
             self._control_mode_action.setChecked(cm)
+            self._follow_mouse_action.setChecked(fm)

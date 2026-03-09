@@ -20,8 +20,8 @@ class AutoActions:
         self.state_timer.timeout.connect(self.on_state_tick)
 
     def schedule_next(self) -> None:
-        """安排下一次状态切换（仅在非操控模式下调用）。"""
-        if self.pet.control_mode:
+        """安排下一次状态切换（仅在非操控、非跟随鼠标模式下调用）。"""
+        if self.pet.control_mode or getattr(self.pet, "follow_mouse_mode", False):
             return
         self.state_timer.stop()
         if self.pet.current_state == "dragged":
@@ -35,7 +35,7 @@ class AutoActions:
 
     def on_state_tick(self) -> None:
         """state_timer 超时：随机选下一个动作。"""
-        if self.pet.control_mode or self.pet.current_state == "dragged" or not self.pet.allow_movement:
+        if self.pet.control_mode or getattr(self.pet, "follow_mouse_mode", False) or self.pet.current_state == "dragged" or not self.pet.allow_movement:
             return
         walk_states = [s for s in STANDARD_MOVEMENT_STATES if s in self.pet.animations]
         custom_states = [
