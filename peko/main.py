@@ -52,32 +52,37 @@ def main():
             pet_holder[0].set_control_mode(False)
             pet_holder[0].set_follow_mouse_mode(False)
             pkg = pet_holder[0].pet_package
-            screen = QApplication.desktop().screenGeometry()
-            sw, sh = screen.width(), screen.height()
+            desktop = QApplication.desktop()
+            screen = desktop.screenGeometry()
+            available = desktop.availableGeometry()
+            sw = screen.width()
             pw = pet_holder[0].width()
             ph = pet_holder[0].height()
-            margin = 24
-            # 15 个位置：5 列 x 3 行网格，均匀分布
-            cols, rows = 5, 3
-            gap_x = (sw - 2 * margin - cols * pw) // max(1, cols - 1) if cols > 1 else 0
-            gap_y = (sh - 2 * margin - rows * ph - 50) // max(1, rows - 1) if rows > 1 else 0
-            positions = []
-            for row in range(rows):
-                for col in range(cols):
-                    x = margin + col * (pw + gap_x)
-                    y = margin + row * (ph + gap_y)
-                    positions.append((min(x, sw - pw - margin), min(y, sh - ph - margin - 50)))
-            for i in range(CLONE_COUNT):
-                pos = positions[i % len(positions)]
-                if i == 0:
-                    pet_holder[0].move(pos[0], pos[1])
-                else:
-                    new_pet = DesktopPet(pkg, frame_rate=frame_rate)
-                    new_pet.move(pos[0], pos[1])
-                    new_pet.set_control_mode(False)
-                    new_pet.set_follow_mouse_mode(False)
-                    new_pet.show()
-                    clone_pets.append(new_pet)
+            # 任务栏上方一行：宠物底边贴住任务栏顶部
+            taskbar_top = available.y() + available.height()
+            row_y = taskbar_top - ph
+            pet_holder[0].clone_mode = True
+            pet_holder[0].clone_mode_row_y = row_y
+            # 15 只沿任务栏上方水平排开，均匀分布
+            margin = 12
+            if CLONE_COUNT <= 1:
+                pet_holder[0].move(margin, row_y)
+            else:
+                step = (sw - 2 * margin - pw) / max(1, CLONE_COUNT - 1)
+                for i in range(CLONE_COUNT):
+                    x = int(margin + i * step)
+                    x = max(0, min(x, sw - pw))
+                    if i == 0:
+                        pet_holder[0].move(x, row_y)
+                    else:
+                        new_pet = DesktopPet(pkg, frame_rate=frame_rate)
+                        new_pet.clone_mode = True
+                        new_pet.clone_mode_row_y = row_y
+                        new_pet.move(x, row_y)
+                        new_pet.set_control_mode(False)
+                        new_pet.set_follow_mouse_mode(False)
+                        new_pet.show()
+                        clone_pets.append(new_pet)
         else:
             for p in clone_pets:
                 try:
@@ -86,6 +91,9 @@ def main():
                 except Exception:
                     pass
             clone_pets.clear()
+            pet_holder[0].clone_mode = False
+            if hasattr(pet_holder[0], "clone_mode_row_y"):
+                del pet_holder[0].clone_mode_row_y
 
     tray = TrayIcon(app, pet_holder, on_switch_pet=None, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
 

@@ -365,6 +365,24 @@ class DesktopPet(QWidget):
 
     def update_position(self):
         x, y = self.x(), self.y()
+        # 分身模式：固定在任务栏上一行，只做水平位移
+        clone_mode = getattr(self, "clone_mode", False)
+        row_y = getattr(self, "clone_mode_row_y", None)
+        if clone_mode and row_y is not None:
+            y = row_y
+            if self.current_state == "walk_left":
+                cfg = self._state_config.get(self.current_state, {})
+                speed = cfg.get("moveSpeed", self.move_speed)
+                x -= speed
+            elif self.current_state == "walk_right":
+                cfg = self._state_config.get(self.current_state, {})
+                speed = cfg.get("moveSpeed", self.move_speed)
+                x += speed
+            screen_geometry = QApplication.desktop().screenGeometry()
+            x = max(0, min(x, screen_geometry.width() - self.width()))
+            self.move(x, y)
+            self._position_bubble_window()
+            return
         if self.current_state not in STANDARD_MOVEMENT_STATES:
             return
         cfg = self._state_config.get(self.current_state, {})
@@ -511,6 +529,14 @@ class DesktopPet(QWidget):
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
+            # 分身模式下松手后把 y 贴回任务栏一行，保持在同一排
+            if getattr(self, "clone_mode", False):
+                row_y = getattr(self, "clone_mode_row_y", None)
+                if row_y is not None:
+                    screen = QApplication.desktop().screenGeometry()
+                    x = max(0, min(self.x(), screen.width() - self.width()))
+                    self.move(x, row_y)
+                    self._position_bubble_window()
             self.current_state = self.previous_state
             self.current_frame_index = 0
             self._apply_state_frame_rate()
