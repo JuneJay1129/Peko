@@ -455,6 +455,18 @@ class DesktopPet(QWidget):
         self.bubble_window.hide()
         self.bubble_timer.stop()
 
+    def _stop_bubble_timers(self):
+        """停止所有与气泡相关的定时器并隐藏气泡，用于关闭窗口前清理，避免关闭后定时器再次弹出气泡。"""
+        self.bubble_timer.stop()
+        self.typing_timer.stop()
+        if hasattr(self, "_sayings_timer") and self._sayings_timer:
+            self._sayings_timer.stop()
+        self.bubble_window.hide()
+
+    def closeEvent(self, event):
+        self._stop_bubble_timers()
+        super().closeEvent(event)
+
     def _schedule_next_saying(self, initial_delay: bool = False) -> None:
         """安排下一次随机文案弹出（单次定时器，随机间隔）。"""
         if not self._sayings_enabled or not self._sayings_phrases:
@@ -480,10 +492,6 @@ class DesktopPet(QWidget):
     @pyqtSlot(str, int)
     def _on_bubble_text_ready(self, text: str, duration: int):
         self.update_bubble(text, duration=duration)
-
-    def closeEvent(self, event):
-        self.bubble_window.hide()
-        super().closeEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

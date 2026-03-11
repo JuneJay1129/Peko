@@ -10,6 +10,9 @@ from .ui.pet import DesktopPet
 from .ui.tray import TrayIcon
 from .core.pet_manager import get_pet, get_available_pets, get_default_pet_id, discover_pets
 
+# 分身模式下的宠物数量（当前主宠 + 14 个分身 = 15 个）
+CLONE_COUNT = 15
+
 
 def global_hotkey_listener(pet_holder):
     """全局快捷键 L+Enter 唤起对话（仅 Windows；macOS 上 keyboard 需权限且按键映射不同，改用托盘菜单）。"""
@@ -38,13 +41,58 @@ def main():
     app = QApplication(sys.argv)
     default_id = get_default_pet_id()
     pet_package = get_pet(default_id)
-    frame_rate = 1
+    frame_rate = 10
     pet = DesktopPet(pet_package, frame_rate=frame_rate)
     pet_holder = [pet]
+    clone_pets = []  # 分身模式下额外 14 个窗口
 
-    tray = TrayIcon(app, pet_holder, on_switch_pet=None)
+    def set_clone_mode(on: bool):
+        nonlocal clone_pets
+        if on:
+            pet_holder[0].set_control_mode(False)
+            pet_holder[0].set_follow_mouse_mode(False)
+            pkg = pet_holder[0].pet_package
+            screen = QApplication.desktop().screenGeometry()
+            sw, sh = screen.width(), screen.height()
+            pw = pet_holder[0].width()
+            ph = pet_holder[0].height()
+            margin = 24
+            # 15 个位置：5 列 x 3 行网格，均匀分布
+            cols, rows = 5, 3
+            gap_x = (sw - 2 * margin - cols * pw) // max(1, cols - 1) if cols > 1 else 0
+            gap_y = (sh - 2 * margin - rows * ph - 50) // max(1, rows - 1) if rows > 1 else 0
+            positions = []
+            for row in range(rows):
+                for col in range(cols):
+                    x = margin + col * (pw + gap_x)
+                    y = margin + row * (ph + gap_y)
+                    positions.append((min(x, sw - pw - margin), min(y, sh - ph - margin - 50)))
+            for i in range(CLONE_COUNT):
+                pos = positions[i % len(positions)]
+                if i == 0:
+                    pet_holder[0].move(pos[0], pos[1])
+                else:
+                    new_pet = DesktopPet(pkg, frame_rate=frame_rate)
+                    new_pet.move(pos[0], pos[1])
+                    new_pet.set_control_mode(False)
+                    new_pet.set_follow_mouse_mode(False)
+                    new_pet.show()
+                    clone_pets.append(new_pet)
+        else:
+            for p in clone_pets:
+                try:
+                    p._stop_bubble_timers()
+                    p.close()
+                except Exception:
+                    pass
+            clone_pets.clear()
+
+    tray = TrayIcon(app, pet_holder, on_switch_pet=None, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
 
     def switch_pet(pet_id: str):
+        nonlocal clone_pets
+        if clone_pets:
+            set_clone_mode(False)
         old = pet_holder[0]
         pkg = get_pet(pet_id)
         new_pet = DesktopPet(pkg, frame_rate=frame_rate)
