@@ -6,7 +6,7 @@
 """
 import random
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from PyQt5.QtCore import Qt, QTimer, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QPixmap, QFont
@@ -19,6 +19,10 @@ from .actions import (
     STANDARD_MOVEMENT_STATES,
     RESERVED_STATES,
 )
+
+# 动作「控制窗口」：走向屏幕四角后对前台窗口最小化/最大化（仅 Windows）
+WINDOW_CONTROL_STATE = "window_control"
+WINDOW_CONTROL_REACH_THRESHOLD = 25
 
 
 def _default_bubble_style() -> str:
@@ -348,6 +352,8 @@ class DesktopPet(QWidget):
         self.update_frame()
         if self.current_state in STANDARD_MOVEMENT_STATES and not self.follow_mouse_mode:
             self.update_position()
+        elif self.current_state == WINDOW_CONTROL_STATE and not getattr(self, "clone_mode", False):
+            self._update_window_control_position()
 
     def update_frame(self):
         frames = self.animations.get(self.current_state)
@@ -400,6 +406,105 @@ class DesktopPet(QWidget):
         y = max(0, min(y, screen_geometry.height() - self.height()))
         self.move(x, y)
         self._position_bubble_window()
+
+    def _get_window_control_target(self) -> Optional[Tuple[int, int]]:
+        """随机选一个屏幕四角坐标（宠物左上角目标），仅 Windows 有效。"""
+        screen = QApplication.desktop().screenGeometry()
+        sw = screen.width()
+        sh = screen.height()
+        pw = self.width()
+        ph = self.height()
+        corners = [
+            (0, 0),
+            (sw - pw, 0),
+            (0, sh - ph),
+            (sw - pw, sh - ph),
+        ]
+        return random.choice(corners)
+
+    def _update_window_control_position(self) -> None:
+        """window_control 动作：朝目标角移动，到达后对前台窗口最小化/最大化并切回 stand。"""
+        target = getattr(self, "_window_control_target", None)
+        if target is None:
+            self._window_control_target = self._get_window_control_target()
+            target = self._window_control_target
+        tx, ty = target
+        x, y = self.x(), self.y()
+        cfg = self._state_config.get(WINDOW_CONTROL_STATE, {})
+        speed = cfg.get("moveSpeed", self.move_speed)
+        dx = tx - x
+        dy = ty - y
+        dist = (dx * dx + dy * dy) ** 0.5
+        if dist <= WINDOW_CONTROL_REACH_THRESHOLD:
+            self._do_window_control_action()
+            self._window_control_target = None
+            self.current_state = "stand"
+            self.current_frame_index = 0
+            self._apply_state_frame_rate()
+            self.update_frame()
+            if not self.control_mode and not self.follow_mouse_mode and hasattr(self, "_auto_actions"):
+                self._auto_actions.schedule_next()
+            return
+        if dist > 0:
+            step = min(speed, dist)
+            x = int(x + (dx / dist) * step)
+            y = int(y + (dy / dist) * step)
+        screen = QApplication.desktop().screenGeometry()
+        x = max(0, min(x, screen.width() - self.width()))
+        y = max(0, min(y, screen.height() - self.height()))
+        self.move(x, y)
+        self._position_bubble_window()
+
+    def _do_window_control_action(self) -> None:
+        """对当前前台窗口执行：最小化、最大化、或缩放（变大/变小）（仅 Windows）。"""
+        if sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            SW_MINIMIZE = 6
+            SW_MAXIMIZE = 3
+            SW_RESTORE = 9
+            hwnd = user32.GetForegroundWindow()
+            if not hwnd:
+                return
+            action = random.choice(["minimize", "maximize", "resize_larger", "resize_smaller"])
+            if action == "minimize":
+                user32.ShowWindow(hwnd, SW_MINIMIZE)
+            elif action == "maximize":
+                user32.ShowWindow(hwnd, SW_RESTORE)
+                user32.ShowWindow(hwnd, SW_MAXIMIZE)
+            else:
+                # 变大或变小：先还原再按当前尺寸缩放
+                if user32.IsZoomed(hwnd):
+                    user32.ShowWindow(hwnd, SW_RESTORE)
+                class RECT(ctypes.Structure):
+                    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                                ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+                rect = RECT()
+                if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                    return
+                w = rect.right - rect.left
+                h = rect.bottom - rect.top
+                screen = QApplication.desktop().screenGeometry()
+                max_w = screen.width()
+                max_h = screen.height()
+                min_w, min_h = 200, 150
+                if action == "resize_larger":
+                    new_w = min(int(w * 1.2), max_w)
+                    new_h = min(int(h * 1.2), max_h)
+                    if new_w <= w and new_h <= h:
+                        new_w = min(w + 80, max_w)
+                        new_h = min(h + 60, max_h)
+                else:
+                    new_w = max(int(w * 0.8), min_w)
+                    new_h = max(int(h * 0.8), min_h)
+                    if new_w >= w and new_h >= h:
+                        new_w = max(w - 80, min_w)
+                        new_h = max(h - 60, min_h)
+                user32.MoveWindow(hwnd, rect.left, rect.top, new_w, new_h, 1)
+        except Exception:
+            pass
 
     def _position_bubble_window(self) -> None:
         if not self.bubble_window.isVisible():

@@ -136,6 +136,15 @@
         "resource/sulk/4.png",
         "resource/sulk/5.png"
       ]
+    },
+    "window_control": {
+      "frames": [
+        "resource/wave/1.png",
+        "resource/wave/2.png",
+        "resource/wave/3.png"
+      ],
+      "frameRate": 8,
+      "stateSwitchInterval": 12000
     }
   },
   "actionConfig": {
@@ -170,7 +179,8 @@
     "guilty": "心虚",
     "longing": "憧憬",
     "obese": "肥胖",
-    "sulk": "赌气"
+    "sulk": "赌气",
+    "window_control": "控制窗口"
   },
   "randomSayings": {
     "enabled": true,
