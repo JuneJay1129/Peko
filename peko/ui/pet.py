@@ -609,6 +609,13 @@ class DesktopPet(QWidget):
             self._sayings_timer.stop()
         self.bubble_window.hide()
 
+    def _cleanup_for_destroy(self) -> None:
+        """彻底清理：停止所有定时器并关闭气泡窗口，用于分身模式退出时，避免气泡残留和卡顿。"""
+        self.timer.stop()
+        self.state_timer.stop()
+        self._stop_bubble_timers()
+        self.bubble_window.close()
+
     def play_exit_animation(self, duration_ms: int = 2000) -> None:
         """退场动画：使用 walk_up 向上移动并逐渐透明，渐行渐远。"""
         self._exit_animating = True

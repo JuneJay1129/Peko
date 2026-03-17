@@ -43,19 +43,23 @@ class AutoActions:
             frames = self.pet.animations.get(state_key) or []
             return len(frames) > 0
 
-        # 分身模式：只做水平移动，可选 stand / walk_left / walk_right，以及所有原地动作（挥手、睡觉、表情等）
+        # 分身模式：若配置了 cloneModeActions 则只用该列表，否则为 stand + walk_left/right + 所有原地动作（除 listen）
         if getattr(self.pet, "clone_mode", False):
-            pool = []
-            if "stand" in self.pet.animations and _has_frames("stand"):
-                pool.append("stand")
-            for s in ("walk_left", "walk_right"):
-                if s in self.pet.animations and _has_frames(s):
-                    pool.append(s)
-            custom_states = [
-                k for k in self.pet.animations.keys()
-                if k not in RESERVED_STATES and k not in STANDARD_MOVEMENT_STATES and k != "listen" and _has_frames(k)
-            ]
-            pool.extend(custom_states)
+            clone_actions = self.pet.pet_package.get("cloneModeActions")
+            if isinstance(clone_actions, list) and len(clone_actions) > 0:
+                pool = [k for k in clone_actions if k in self.pet.animations and _has_frames(k)]
+            else:
+                pool = []
+                if "stand" in self.pet.animations and _has_frames("stand"):
+                    pool.append("stand")
+                for s in ("walk_left", "walk_right"):
+                    if s in self.pet.animations and _has_frames(s):
+                        pool.append(s)
+                custom_states = [
+                    k for k in self.pet.animations.keys()
+                    if k not in RESERVED_STATES and k not in STANDARD_MOVEMENT_STATES and k != "listen" and _has_frames(k)
+                ]
+                pool.extend(custom_states)
             if not pool:
                 return
             self.pet.current_state = random.choice(pool)

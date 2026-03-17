@@ -18,6 +18,11 @@
         "resource/stand/0-3.png"
     ]
     },
+    "stand_1": {
+      "frames": [
+        "resource/stand/1.png"
+    ]
+    },
     "walk_left": {
       "frames": [
         "resource/walk_left/0.png",
@@ -206,6 +211,7 @@
     "frameRate": 10,
     "moveSpeed": 15
   },
+  "cloneModeActions": ["stand_1", "walk_left", "walk_right"],
   "interactionModes": {
     "follow_mouse": {
       "catchRadius": 28,

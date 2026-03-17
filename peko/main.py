@@ -86,8 +86,9 @@ def main():
         else:
             for p in clone_pets:
                 try:
-                    p._stop_bubble_timers()
+                    p._cleanup_for_destroy()
                     p.close()
+                    p.deleteLater()
                 except Exception:
                     pass
             clone_pets.clear()
