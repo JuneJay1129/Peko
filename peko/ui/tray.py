@@ -175,6 +175,23 @@ class TrayIcon:
             p.hide()
 
     def exit_app(self):
+        pets = self._all_pets()
+        if not pets:
+            self.tray_icon.hide()
+            self.app.quit()
+            return
+        for p in pets:
+            try:
+                p.play_exit_animation(duration_ms=2000)
+            except Exception:
+                try:
+                    p.close()
+                except Exception:
+                    pass
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(2500, self._do_quit_after_exit)
+
+    def _do_quit_after_exit(self):
         for p in self._all_pets():
             try:
                 p.close()

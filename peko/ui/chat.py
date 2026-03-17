@@ -39,6 +39,9 @@ class ChatHandler:
         self._input_dialog = dialog
         dialog.finished.connect(self._on_dialog_finished)
 
+        # 自动模式下进入 listen 动作（对话前待机），发送或关闭对话框时由 _on_dialog_finished 调用 exit_listen
+        self.pet.enter_listen()
+
         pet_x, pet_y = self.pet.x(), self.pet.y()
         pet_width, pet_height = self.pet.width(), self.pet.height()
         dialog_x = pet_x + (pet_width - dialog.width()) // 2
@@ -53,6 +56,7 @@ class ChatHandler:
 
     def _on_dialog_finished(self):
         self._input_dialog = None
+        self.pet.exit_listen()
         # 若仍在操控模式，重新抓取键盘以便方向键/空格继续生效
         if getattr(self.pet, "control_mode", False) and getattr(self.pet, "grabKeyboard", None):
             try:

@@ -8,7 +8,7 @@ import random
 import sys
 from typing import Any, Dict, Optional, Tuple
 
-from PyQt5.QtCore import Qt, QTimer, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, pyqtSlot, pyqtSignal, QDateTime, QRect, QPropertyAnimation, QParallelAnimationGroup, QEasingCurve
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtWidgets import QLabel, QWidget, QApplication
 
@@ -153,6 +153,12 @@ class DesktopPet(QWidget):
         self._sayings_timer.timeout.connect(self._on_sayings_tick)
         if self._sayings_enabled:
             self._schedule_next_saying(initial_delay=True)
+
+        # 快速点击计数：用于“连续 3 次及以上点击触发 fight”
+        self._click_count = 0
+        self._last_click_time_ms = 0
+        self._press_global_pos = None
+        self._triple_click_window_ms = 500  # 在此时间内的点击算作连续
 
     def init_ui(self):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
@@ -346,6 +352,10 @@ class DesktopPet(QWidget):
         if self.follow_mouse_mode:
             self._follow_mouse_actions.update_direction_to_cursor()
         frames = self.animations.get(self.current_state)
+        if not frames and self.current_state != "dragged":
+            self.current_state = "stand"
+            self.current_frame_index = 0
+            frames = self.animations.get("stand")
         if not frames:
             return
         self.current_frame_index = (self.current_frame_index + 1) % len(frames)
@@ -359,17 +369,30 @@ class DesktopPet(QWidget):
         frames = self.animations.get(self.current_state)
         if not frames and self.current_state == "dragged":
             frames = self.animations.get("stand")
+        if not frames and self.current_state != "dragged":
+            frames = self.animations.get("stand")
+            if frames:
+                self.current_state = "stand"
+                self.current_frame_index = 0
         if not frames:
             return
         frame_path = frames[self.current_frame_index % len(frames)]
         pixmap = QPixmap(frame_path)
         if pixmap.isNull():
             print(f"[Peko] 无法加载帧: {frame_path}")
+            stand_frames = self.animations.get("stand") or []
+            if stand_frames:
+                fallback_path = stand_frames[0]
+                fallback_pixmap = QPixmap(fallback_path)
+                if not fallback_pixmap.isNull():
+                    self.label.setPixmap(fallback_pixmap.scaled(self.width(), self.height()))
             return
         scaled_pixmap = pixmap.scaled(self.width(), self.height())
         self.label.setPixmap(scaled_pixmap)
 
     def update_position(self):
+        if getattr(self, "_exit_animating", False):
+            return
         x, y = self.x(), self.y()
         # 分身模式：固定在任务栏上一行，只做水平位移
         clone_mode = getattr(self, "clone_mode", False)
@@ -586,6 +609,45 @@ class DesktopPet(QWidget):
             self._sayings_timer.stop()
         self.bubble_window.hide()
 
+    def play_exit_animation(self, duration_ms: int = 2000) -> None:
+        """退场动画：使用 walk_up 向上移动并逐渐透明，渐行渐远。"""
+        self._exit_animating = True
+        self._stop_bubble_timers()
+        self.state_timer.stop()
+        if "walk_up" in self.animations and (self.animations.get("walk_up") or []):
+            self.current_state = "walk_up"
+        else:
+            self.current_state = "stand"
+        self.current_frame_index = 0
+        self._apply_state_frame_rate()
+        self.update_frame()
+
+        start_rect = QRect(self.x(), self.y(), self.width(), self.height())
+        end_y = -self.height() - 100
+        end_rect = QRect(self.x(), end_y, self.width(), self.height())
+
+        anim_geom = QPropertyAnimation(self, b"geometry")
+        anim_geom.setDuration(duration_ms)
+        anim_geom.setStartValue(start_rect)
+        anim_geom.setEndValue(end_rect)
+        anim_geom.setEasingCurve(QEasingCurve.OutCubic)
+
+        anim_opacity = QPropertyAnimation(self, b"windowOpacity")
+        anim_opacity.setDuration(duration_ms)
+        anim_opacity.setStartValue(1.0)
+        anim_opacity.setEndValue(0.0)
+        anim_opacity.setEasingCurve(QEasingCurve.InQuad)
+
+        self._exit_animation_group = QParallelAnimationGroup(self)
+        self._exit_animation_group.addAnimation(anim_geom)
+        self._exit_animation_group.addAnimation(anim_opacity)
+        self._exit_animation_group.start()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.update_frame()
+        self.update()
+
     def closeEvent(self, event):
         self._stop_bubble_timers()
         super().closeEvent(event)
@@ -612,12 +674,28 @@ class DesktopPet(QWidget):
             self.update_bubble(text.strip(), duration=self._sayings_duration)
         self._schedule_next_saying()
 
+    def try_show_action_bubble(self, state_name: str) -> None:
+        """若当前无气泡且该动作配置了专属气泡，则显示。用于随机/分身模式切换动作时，不与 randomSayings 冲突。"""
+        if self.bubble_window.isVisible():
+            return
+        animations = self.pet_package.get("animations") or {}
+        bubble_cfg = animations.get(state_name) or {}
+        raw = bubble_cfg.get("bubbles") if "bubbles" in bubble_cfg else bubble_cfg.get("bubble")
+        if isinstance(raw, list):
+            text = (random.choice(raw).strip() if raw else "")
+        else:
+            text = (raw or "").strip() if isinstance(raw, str) else ""
+        if not text:
+            return
+        self.update_bubble(text, duration=self._sayings_duration)
+
     @pyqtSlot(str, int)
     def _on_bubble_text_ready(self, text: str, duration: int):
         self.update_bubble(text, duration=duration)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
+            self._press_global_pos = event.globalPos()
             self.previous_state = self.current_state
             self.current_state = "dragged"
             self.current_frame_index = 0
@@ -634,24 +712,79 @@ class DesktopPet(QWidget):
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
-            # 分身模式下松手后把 y 贴回任务栏一行，保持在同一排
-            if getattr(self, "clone_mode", False):
-                row_y = getattr(self, "clone_mode_row_y", None)
-                if row_y is not None:
-                    screen = QApplication.desktop().screenGeometry()
-                    x = max(0, min(self.x(), screen.width() - self.width()))
-                    self.move(x, row_y)
-                    self._position_bubble_window()
-            self.current_state = self.previous_state
-            self.current_frame_index = 0
-            self._apply_state_frame_rate()
-            QTimer.singleShot(10, self._resume_after_drag)
+            # 快速三击检测（仅自动模式且该宠物有 fight 动作时）：位移小于阈值视为一次“点击”
+            triggered_fight = False
+            if (
+                self._press_global_pos is not None
+                and "fight" in self.animations
+                and not self.control_mode
+                and not getattr(self, "follow_mouse_mode", False)
+                and self.current_state != "fight"
+            ):
+                release_pos = event.globalPos()
+                dx = release_pos.x() - self._press_global_pos.x()
+                dy = release_pos.y() - self._press_global_pos.y()
+                if dx * dx + dy * dy <= 225:  # 约 15px 内视为点击
+                    now = QDateTime.currentMSecsSinceEpoch()
+                    if now - self._last_click_time_ms > self._triple_click_window_ms:
+                        self._click_count = 0
+                    self._click_count += 1
+                    self._last_click_time_ms = now
+                    if self._click_count >= 3:
+                        self._click_count = 0
+                        self.current_state = "fight"
+                        self.current_frame_index = 0
+                        self._apply_state_frame_rate()
+                        self.update_frame()
+                        cfg = self._state_config.get("fight", {})
+                        interval = cfg.get("stateSwitchInterval") or self.state_switch_interval
+                        interval = max(500, int(interval) if isinstance(interval, (int, float)) else self.state_switch_interval)
+                        self.state_timer.setInterval(interval)
+                        self.state_timer.start()
+                        triggered_fight = True
+            self._press_global_pos = None
+
+            if not triggered_fight:
+                # 分身模式下松手后把 y 贴回任务栏一行，保持在同一排
+                if getattr(self, "clone_mode", False):
+                    row_y = getattr(self, "clone_mode_row_y", None)
+                    if row_y is not None:
+                        screen = QApplication.desktop().screenGeometry()
+                        x = max(0, min(self.x(), screen.width() - self.width()))
+                        self.move(x, row_y)
+                        self._position_bubble_window()
+                self.current_state = self.previous_state
+                self.current_frame_index = 0
+                self._apply_state_frame_rate()
+                QTimer.singleShot(10, self._resume_after_drag)
             event.accept()
 
     def _resume_after_drag(self) -> None:
         if self.current_state == "dragged":
             self.current_state = "stand"
         if not self.control_mode and not self.follow_mouse_mode:
+            self._auto_actions.resume()
+
+    def enter_listen(self) -> None:
+        """进入 listen 动作（对话前待机）。仅自动模式且配置了 listen 时生效；会暂停 state_timer，直到 exit_listen。"""
+        if self.control_mode or getattr(self, "follow_mouse_mode", False) or "listen" not in self.animations:
+            return
+        self.state_timer.stop()
+        self._state_before_listen = self.current_state
+        self.current_state = "listen"
+        self.current_frame_index = 0
+        self._apply_state_frame_rate()
+        self.update_frame()
+
+    def exit_listen(self) -> None:
+        """结束 listen 动作（用户发送消息或关闭对话框后调用），恢复此前状态并继续自动切换。"""
+        if self.current_state != "listen":
+            return
+        self.current_state = getattr(self, "_state_before_listen", "stand")
+        self.current_frame_index = 0
+        self._apply_state_frame_rate()
+        self.update_frame()
+        if not self.control_mode and not getattr(self, "follow_mouse_mode", False):
             self._auto_actions.resume()
 
     def keyPressEvent(self, event):
@@ -672,4 +805,5 @@ class DesktopPet(QWidget):
             self.current_state = "stand"
             self.current_frame_index = 0
             self._apply_state_frame_rate()
+        elif not self.control_mode and not getattr(self, "follow_mouse_mode", False) and self.current_state != "listen":
             self._auto_actions.resume()

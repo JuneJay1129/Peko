@@ -23,6 +23,8 @@ class AutoActions:
         """安排下一次状态切换（仅在非操控、非跟随鼠标模式下调用）。"""
         if self.pet.control_mode or getattr(self.pet, "follow_mouse_mode", False):
             return
+        if self.pet.current_state == "listen":
+            return
         self.state_timer.stop()
         if self.pet.current_state == "dragged":
             self.pet.current_state = "stand"
@@ -37,17 +39,21 @@ class AutoActions:
         """state_timer 超时：随机选下一个动作。"""
         if self.pet.control_mode or getattr(self.pet, "follow_mouse_mode", False) or self.pet.current_state == "dragged" or not self.pet.allow_movement:
             return
+        def _has_frames(state_key):
+            frames = self.pet.animations.get(state_key) or []
+            return len(frames) > 0
+
         # 分身模式：只做水平移动，可选 stand / walk_left / walk_right，以及所有原地动作（挥手、睡觉、表情等）
         if getattr(self.pet, "clone_mode", False):
             pool = []
-            if "stand" in self.pet.animations:
+            if "stand" in self.pet.animations and _has_frames("stand"):
                 pool.append("stand")
             for s in ("walk_left", "walk_right"):
-                if s in self.pet.animations:
+                if s in self.pet.animations and _has_frames(s):
                     pool.append(s)
             custom_states = [
                 k for k in self.pet.animations.keys()
-                if k not in RESERVED_STATES and k not in STANDARD_MOVEMENT_STATES
+                if k not in RESERVED_STATES and k not in STANDARD_MOVEMENT_STATES and k != "listen" and _has_frames(k)
             ]
             pool.extend(custom_states)
             if not pool:
@@ -56,15 +62,16 @@ class AutoActions:
             self.pet.current_frame_index = 0
             self.pet._apply_state_frame_rate()
             self.pet.update_frame()
+            self.pet.try_show_action_bubble(self.pet.current_state)
             self.schedule_next()
             return
-        walk_states = [s for s in STANDARD_MOVEMENT_STATES if s in self.pet.animations]
+        walk_states = [s for s in STANDARD_MOVEMENT_STATES if s in self.pet.animations and _has_frames(s)]
         custom_states = [
             k for k in self.pet.animations.keys()
-            if k not in RESERVED_STATES and k not in STANDARD_MOVEMENT_STATES
+            if k not in RESERVED_STATES and k not in STANDARD_MOVEMENT_STATES and k != "listen" and _has_frames(k)
         ]
         pool = []
-        if "stand" in self.pet.animations:
+        if "stand" in self.pet.animations and _has_frames("stand"):
             pool.append("stand")
         pool.extend(walk_states)
         pool.extend(custom_states)
@@ -74,6 +81,7 @@ class AutoActions:
         self.pet.current_frame_index = 0
         self.pet._apply_state_frame_rate()
         self.pet.update_frame()
+        self.pet.try_show_action_bubble(self.pet.current_state)
         self.schedule_next()
 
     def stop(self) -> None:

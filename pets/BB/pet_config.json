@@ -11,7 +11,12 @@
   },
   "animations": {
     "stand": {
-      "frames": ["resource/stand/1.png"]
+      "frames": [
+        "resource/stand/0-0.png",
+        "resource/stand/0-1.png",
+        "resource/stand/0-2.png",
+        "resource/stand/0-3.png"
+    ]
     },
     "walk_left": {
       "frames": [
@@ -31,39 +36,35 @@
     },
     "walk_up": {
       "frames": [
-        "resource/walk_up/0.png",
-        "resource/walk_up/1.png",
-        "resource/walk_up/2.png",
-        "resource/walk_up/3.png",
-        "resource/walk_up/4.png",
-        "resource/walk_up/5.png",
-        "resource/walk_up/6.png",
-        "resource/walk_up/7.png"
+        "resource/walk_up/0-0.png",
+        "resource/walk_up/0-1.png",
+        "resource/walk_up/0-2.png",
+        "resource/walk_up/0-3.png"
       ],
       "frameRate": 7
     },
     "walk_down": {
       "frames": [
-        "resource/walk_down/0.png",
-        "resource/walk_down/1.png",
-        "resource/walk_down/2.png",
-        "resource/walk_down/3.png",
-        "resource/walk_down/4.png",
-        "resource/walk_down/5.png",
-        "resource/walk_down/6.png",
-        "resource/walk_down/7.png"
+        "resource/walk_down/0-0.png",
+        "resource/walk_down/0-1.png"
       ],
       "frameRate": 7
     },
     "dragged": {
-      "frames": ["resource/drag/1.png"]
+      "frames": [
+        "resource/drag/0-0.png",
+        "resource/drag/0-1.png",
+        "resource/drag/0-2.png",
+        "resource/drag/0-3.png"
+      ]
     },
     "wave": {
       "frames": [
         "resource/wave/1.png",
         "resource/wave/2.png",
         "resource/wave/3.png"
-      ]
+      ],
+      "bubble": "嗨～"
     },
     "sleep": {
       "frames": [
@@ -73,7 +74,8 @@
         "resource/sleep/3.png"
       ],
       "frameRate": 4,
-      "stateSwitchInterval": 20000
+      "stateSwitchInterval": 20000,
+      "bubbles": ["zzz...", "呼噜呼噜..."]
     },
     "constipated": {
       "frames": [
@@ -137,6 +139,58 @@
         "resource/sulk/5.png"
       ]
     },
+    "fight": {
+      "frames": [
+        "resource/fight/0-0.png",
+        "resource/fight/0-1.png",
+        "resource/fight/0-2.png",
+        "resource/fight/0-3.png"
+      ],
+      "frameRate": 10,
+      "stateSwitchInterval": 3000
+    },
+    "listen": {
+      "frames": [
+        "resource/listen/0.png",
+        "resource/listen/1.png",
+        "resource/listen/2.png",
+        "resource/listen/3.png",
+        "resource/listen/4.png"
+      ],
+      "frameRate": 7
+    },
+    "cooking": {
+      "frames": [
+        "resource/cooking/0.png",
+        "resource/cooking/1.png",
+        "resource/cooking/2.png"
+      ],
+      "frameRate": 7,
+      "stateSwitchInterval": 8000,
+      "bubbles": ["“别气馁，吃了我滴炒饭又可以活力满满啦。小的为老大献上炒饭一碗"]
+    },
+    "lieDown": {
+      "frames": [
+        "resource/lieDown/1.png",
+        "resource/lieDown/2.png",
+        "resource/lieDown/3.png",
+        "resource/lieDown/4.png",
+        "resource/lieDown/5.png",
+        "resource/lieDown/6.png",
+        "resource/lieDown/7.png",
+        "resource/lieDown/8.png",
+        "resource/lieDown/9.png",
+        "resource/lieDown/10.png",
+        "resource/lieDown/11.png"
+      ]
+    },
+    "tired": {
+      "frames": [
+        "resource/tired/0.png",
+        "resource/tired/1.png"
+      ],
+      "bubble": "好累呀，想睡觉了"
+    },
     "window_control": {
       "frames": [
         "resource/wave/1.png",
@@ -180,6 +234,11 @@
     "longing": "憧憬",
     "obese": "肥胖",
     "sulk": "赌气",
+    "fight": "打架",
+    "listen": "倾听",
+    "cooking": "炒饭",
+    "lieDown": "躺下",
+    "tired": "疲惫",
     "window_control": "控制窗口"
   },
   "randomSayings": {
