@@ -160,7 +160,13 @@
         "resource/listen/1.png",
         "resource/listen/2.png",
         "resource/listen/3.png",
-        "resource/listen/4.png"
+        "resource/listen/4.png",
+        "resource/listen/5.png",
+        "resource/listen/6.png",
+        "resource/listen/7.png",
+        "resource/listen/8.png",
+        "resource/listen/9.png",
+        "resource/listen/10.png"
       ],
       "frameRate": 7
     },
@@ -186,7 +192,16 @@
         "resource/lieDown/8.png",
         "resource/lieDown/9.png",
         "resource/lieDown/10.png",
-        "resource/lieDown/11.png"
+        "resource/lieDown/11.png",
+        "resource/lieDown/12.png",
+        "resource/lieDown/13.png",
+        "resource/lieDown/14.png",
+        "resource/lieDown/15.png",
+        "resource/lieDown/16.png",
+        "resource/lieDown/17.png",
+        "resource/lieDown/18.png",
+        "resource/lieDown/19.png",
+        "resource/lieDown/20.png"
       ]
     },
     "tired": {
