@@ -160,6 +160,54 @@ class DesktopPet(QWidget):
         self._press_global_pos = None
         self._triple_click_window_ms = 500  # 在此时间内的点击算作连续
 
+        # 分身模式动作覆盖：支持 cloneModeActions 里写入对象形式
+        # 例如：
+        # "cloneModeActions": [
+        #   {"state":"walk_left","frameRate":12,"stateSwitchInterval":1500},
+        #   "walk_right"
+        # ]
+        self._clone_mode_action_overrides: Dict[str, Dict[str, Any]] = {}
+        clone_actions = pet_package.get("cloneModeActions")
+        if isinstance(clone_actions, list):
+            for item in clone_actions:
+                if not isinstance(item, dict):
+                    continue
+                state_key = item.get("state") or item.get("action") or item.get("key") or item.get("name")
+                if not isinstance(state_key, str) or not state_key:
+                    continue
+                ov: Dict[str, Any] = {}
+                if "frameRate" in item:
+                    ov["frameRate"] = item.get("frameRate")
+                if "stateSwitchInterval" in item:
+                    ov["stateSwitchInterval"] = item.get("stateSwitchInterval")
+                if ov:
+                    self._clone_mode_action_overrides[state_key] = ov
+
+        # 分身模式动作属性随机抖动（每个宠物实例一组随机系数），让同一个动作在不同分身上表现不同
+        # 支持配置：
+        # "cloneModeActionJitter": { "frameRatePct": 0.2, "stateSwitchIntervalPct": 0.2, "moveSpeedPct": 0.2 }
+        # 其中 *Pct* 支持 0~1（表示比例）或 0~100（表示百分比）
+        jitter_cfg = pet_package.get("cloneModeActionJitter") or {}
+
+        def _to_ratio(v: Any, default_ratio: float) -> float:
+            try:
+                val = float(v)
+            except (TypeError, ValueError):
+                return default_ratio
+            if val > 1:
+                val = val / 100.0
+            return max(0.0, val)
+
+        frame_rate_jitter_pct = _to_ratio(jitter_cfg.get("frameRatePct"), 0.2)
+        interval_jitter_pct = _to_ratio(jitter_cfg.get("stateSwitchIntervalPct"), 0.2)
+        move_speed_jitter_pct = _to_ratio(jitter_cfg.get("moveSpeedPct"), 0.2)
+
+        self._clone_mode_action_jitter = {
+            "frameRateMul": random.uniform(1.0 - frame_rate_jitter_pct, 1.0 + frame_rate_jitter_pct),
+            "stateSwitchIntervalMul": random.uniform(1.0 - interval_jitter_pct, 1.0 + interval_jitter_pct),
+            "moveSpeedMul": random.uniform(1.0 - move_speed_jitter_pct, 1.0 + move_speed_jitter_pct),
+        }
+
     def init_ui(self):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -240,7 +288,35 @@ class DesktopPet(QWidget):
     def _get_current_frame_rate(self) -> int:
         if self.follow_mouse_mode and getattr(self, "_follow_mouse_frame_rate", None) is not None:
             return max(1, min(60, self._follow_mouse_frame_rate))
-        return self._state_config.get(self.current_state, {}).get("frameRate") or self.frame_rate
+        cfg = self._get_effective_state_config(self.current_state)
+        return cfg.get("frameRate") or self.frame_rate
+
+    def _get_effective_state_config(self, state_name: str) -> Dict[str, Any]:
+        """在分身模式下，为特定动作应用 cloneModeActions 中的 frameRate/stateSwitchInterval 覆盖，并叠加每个分身的随机抖动。"""
+        cfg = self._state_config.get(state_name, {}) or {}
+        if not getattr(self, "clone_mode", False):
+            return cfg
+        ov = self._clone_mode_action_overrides.get(state_name)
+        if not isinstance(ov, dict) or not ov:
+            effective = dict(cfg)
+        else:
+            effective = dict(cfg)
+            effective.update(ov)
+
+        # 叠加分身抖动：让同一个动作在不同宠物实例上表现不同
+        jit = getattr(self, "_clone_mode_action_jitter", None) or {}
+        fr_mul = float(jit.get("frameRateMul", 1.0))
+        si_mul = float(jit.get("stateSwitchIntervalMul", 1.0))
+        ms_mul = float(jit.get("moveSpeedMul", 1.0))
+
+        if "frameRate" in effective and isinstance(effective.get("frameRate"), (int, float)):
+            effective["frameRate"] = int(max(1, min(60, round(float(effective["frameRate"]) * fr_mul))))
+        if "stateSwitchInterval" in effective and isinstance(effective.get("stateSwitchInterval"), (int, float)):
+            effective["stateSwitchInterval"] = int(max(500, min(120000, round(float(effective["stateSwitchInterval"]) * si_mul))))
+        if "moveSpeed" in effective and isinstance(effective.get("moveSpeed"), (int, float)):
+            effective["moveSpeed"] = int(max(1, min(50, round(float(effective["moveSpeed"]) * ms_mul))))
+
+        return effective
 
     def _apply_state_frame_rate(self) -> None:
         fps = max(1, self._get_current_frame_rate())

@@ -166,7 +166,8 @@ Peko/
 | `character.systemPrompt` | 对话人设（系统提示词） |
 | `animations` | 各状态对应图片路径列表（相对宠物目录，如 `resource/stand/0.png`） |
 | `actionConfig` | 动作时间配置：`stateSwitchInterval`（状态切换间隔 ms）、`frameRate`（帧率）、`moveSpeed`（移动速度） |
-| `cloneModeActions` | 分身模式下可随机到的动作列表（如 `["stand","walk_left","walk_right","wave","sleep"]`）；不配置则使用默认：站立 + 左右走 + 所有原地动作 |
+| `cloneModeActions` | 分身模式下可随机到的动作列表。不配置则使用默认：站立 + 左右走 + 所有原地动作。每一项可为字符串（仅指定动作）或对象（可覆写该动作在分身模式下的 `frameRate`/`stateSwitchInterval`）：`{"state":"walk_left","frameRate":12,"stateSwitchInterval":1500}` |
+| `cloneModeActionJitter` | 分身模式动作属性随机抖动（每个分身一组随机系数），用于让同一动作在不同宠物上表现略有差异。字段示例：`{"frameRatePct":0.2,"stateSwitchIntervalPct":0.2,"moveSpeedPct":0.2}`（*Pct* 支持 0~1 或 0~100）|
 | `bubbleStyle` | 气泡样式（backgroundColor、border、fontSize 等） |
 | `actionDisplayNames` | 可选。动作 key→显示名映射，用于「动作参数」面板；未配置的 key 显示为 key 本身 |
 | `slots` | 该宠物独立插槽（预留扩展） |

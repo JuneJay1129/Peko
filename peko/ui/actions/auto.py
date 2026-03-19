@@ -29,7 +29,7 @@ class AutoActions:
         if self.pet.current_state == "dragged":
             self.pet.current_state = "stand"
             self.pet.current_frame_index = 0
-        cfg = self.pet._state_config.get(self.pet.current_state, {})
+        cfg = self.pet._get_effective_state_config(self.pet.current_state)
         interval = cfg.get("stateSwitchInterval") or self.pet.state_switch_interval
         interval = max(500, int(interval) if isinstance(interval, (int, float)) else self.pet.state_switch_interval)
         self.state_timer.setInterval(interval)
@@ -47,7 +47,17 @@ class AutoActions:
         if getattr(self.pet, "clone_mode", False):
             clone_actions = self.pet.pet_package.get("cloneModeActions")
             if isinstance(clone_actions, list) and len(clone_actions) > 0:
-                pool = [k for k in clone_actions if k in self.pet.animations and _has_frames(k)]
+                pool = []
+                for item in clone_actions:
+                    state_key = None
+                    if isinstance(item, str):
+                        state_key = item
+                    elif isinstance(item, dict):
+                        state_key = item.get("state") or item.get("action") or item.get("key") or item.get("name")
+                    if not isinstance(state_key, str) or not state_key or state_key == "listen":
+                        continue
+                    if state_key in self.pet.animations and _has_frames(state_key):
+                        pool.append(state_key)
             else:
                 pool = []
                 if "stand" in self.pet.animations and _has_frames("stand"):

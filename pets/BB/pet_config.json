@@ -226,7 +226,10 @@
     "frameRate": 10,
     "moveSpeed": 15
   },
-  "cloneModeActions": ["stand_1", "walk_left", "walk_right"],
+  "cloneModeActions": [
+  { "state": "walk_left", "frameRate": 10, "stateSwitchInterval": 1000 },
+  { "state": "walk_right", "frameRate": 10, "stateSwitchInterval": 1000 }
+],
   "interactionModes": {
     "follow_mouse": {
       "catchRadius": 28,
