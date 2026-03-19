@@ -26,10 +26,15 @@ class AutoActions:
         if self.pet.current_state == "listen":
             return
         self.state_timer.stop()
+        if getattr(self.pet, "is_interaction_locked", lambda: False)():
+            remaining = max(300, getattr(self.pet, "get_interaction_lock_remaining_ms", lambda: 300)())
+            self.state_timer.setInterval(remaining)
+            self.state_timer.start()
+            return
         if self.pet.current_state == "dragged":
             self.pet.current_state = "stand"
             self.pet.current_frame_index = 0
-        cfg = self.pet._state_config.get(self.pet.current_state, {})
+        cfg = self.pet._get_effective_state_config(self.pet.current_state)
         interval = cfg.get("stateSwitchInterval") or self.pet.state_switch_interval
         interval = max(500, int(interval) if isinstance(interval, (int, float)) else self.pet.state_switch_interval)
         self.state_timer.setInterval(interval)
@@ -39,6 +44,9 @@ class AutoActions:
         """state_timer 超时：随机选下一个动作。"""
         if self.pet.control_mode or getattr(self.pet, "follow_mouse_mode", False) or self.pet.current_state == "dragged" or not self.pet.allow_movement:
             return
+        if getattr(self.pet, "is_interaction_locked", lambda: False)():
+            self.schedule_next()
+            return
         def _has_frames(state_key):
             frames = self.pet.animations.get(state_key) or []
             return len(frames) > 0
@@ -47,7 +55,17 @@ class AutoActions:
         if getattr(self.pet, "clone_mode", False):
             clone_actions = self.pet.pet_package.get("cloneModeActions")
             if isinstance(clone_actions, list) and len(clone_actions) > 0:
-                pool = [k for k in clone_actions if k in self.pet.animations and _has_frames(k)]
+                pool = []
+                for item in clone_actions:
+                    state_key = None
+                    if isinstance(item, str):
+                        state_key = item
+                    elif isinstance(item, dict):
+                        state_key = item.get("state") or item.get("action") or item.get("key") or item.get("name")
+                    if not isinstance(state_key, str) or not state_key or state_key == "listen":
+                        continue
+                    if state_key in self.pet.animations and _has_frames(state_key):
+                        pool.append(state_key)
             else:
                 pool = []
                 if "stand" in self.pet.animations and _has_frames("stand"):
@@ -62,6 +80,7 @@ class AutoActions:
                 pool.extend(custom_states)
             if not pool:
                 return
+            pool = getattr(self.pet, "expand_auto_action_pool", lambda value: value)(pool)
             self.pet.current_state = random.choice(pool)
             self.pet.current_frame_index = 0
             self.pet._apply_state_frame_rate()
@@ -81,6 +100,7 @@ class AutoActions:
         pool.extend(custom_states)
         if not pool:
             return
+        pool = getattr(self.pet, "expand_auto_action_pool", lambda value: value)(pool)
         self.pet.current_state = random.choice(pool)
         self.pet.current_frame_index = 0
         self.pet._apply_state_frame_rate()
