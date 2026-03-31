@@ -77,6 +77,11 @@ class ChatHandler:
             system_prompt = character.get("systemPrompt") or (
                 "你是一个可爱的桌面宠物，用简短、友好的话回复用户。"
             )
+            mood_context = ""
+            if hasattr(self.pet, "get_chat_context"):
+                mood_context = self.pet.get_chat_context()
+            if mood_context:
+                system_prompt = f"{system_prompt}\n\n{mood_context}"
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input},

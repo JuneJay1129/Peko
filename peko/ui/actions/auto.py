@@ -26,6 +26,11 @@ class AutoActions:
         if self.pet.current_state == "listen":
             return
         self.state_timer.stop()
+        if getattr(self.pet, "is_interaction_locked", lambda: False)():
+            remaining = max(300, getattr(self.pet, "get_interaction_lock_remaining_ms", lambda: 300)())
+            self.state_timer.setInterval(remaining)
+            self.state_timer.start()
+            return
         if self.pet.current_state == "dragged":
             self.pet.current_state = "stand"
             self.pet.current_frame_index = 0
@@ -38,6 +43,9 @@ class AutoActions:
     def on_state_tick(self) -> None:
         """state_timer 超时：随机选下一个动作。"""
         if self.pet.control_mode or getattr(self.pet, "follow_mouse_mode", False) or self.pet.current_state == "dragged" or not self.pet.allow_movement:
+            return
+        if getattr(self.pet, "is_interaction_locked", lambda: False)():
+            self.schedule_next()
             return
         def _has_frames(state_key):
             frames = self.pet.animations.get(state_key) or []
@@ -72,6 +80,7 @@ class AutoActions:
                 pool.extend(custom_states)
             if not pool:
                 return
+            pool = getattr(self.pet, "expand_auto_action_pool", lambda value: value)(pool)
             self.pet.current_state = random.choice(pool)
             self.pet.current_frame_index = 0
             self.pet._apply_state_frame_rate()
@@ -91,6 +100,7 @@ class AutoActions:
         pool.extend(custom_states)
         if not pool:
             return
+        pool = getattr(self.pet, "expand_auto_action_pool", lambda value: value)(pool)
         self.pet.current_state = random.choice(pool)
         self.pet.current_frame_index = 0
         self.pet._apply_state_frame_rate()

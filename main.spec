@@ -15,14 +15,19 @@ elif os.path.isfile(os.path.join(_spec_dir, 'inco.ico')):
 else:
     exe_icon = None
 
+_datas = [
+    (os.path.join(_spec_dir, 'pets'), 'pets'),
+    (os.path.join(_spec_dir, 'config'), 'config'),  # 打包配置模板，供首次运行复制到 exe 同目录
+]
+# 托盘图标运行时需与 exe 一致，将同一图标文件打进包内根目录（与 get_app_exe_icon_path 查找一致）
+if exe_icon:
+    _datas.append((exe_icon, '.'))
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        (os.path.join(_spec_dir, 'pets'), 'pets'),
-        (os.path.join(_spec_dir, 'config'), 'config'),  # 打包配置模板，供首次运行复制到 exe 同目录
-    ],
+    datas=_datas,
     hiddenimports=[
         'PyQt5.QtCore',
         'PyQt5.QtGui',

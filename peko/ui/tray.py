@@ -1,13 +1,13 @@
 """
 系统托盘：显示/隐藏桌宠、停止移动、切换宠物、退出
-托盘图标使用当前宠物的 resource/icon.png，每个宠物独立 resource，无公共模块。
+托盘图标优先与可执行文件相同（项目根 / 打包后的 icon.ico 等，与 main.spec 一致），否则使用当前宠物的 resource/icon.png 或 stand 首帧。
 右键菜单使用统一暖色样式。
 """
 import os
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
 from PyQt5.QtGui import QIcon
 
-from ..core.pet_manager import RESOURCE_DIR
+from ..core.pet_manager import RESOURCE_DIR, get_app_exe_icon_path
 
 # 托盘右键菜单样式：暖色圆角，与桌宠面板风格一致
 TRAY_MENU_STYLE = """
@@ -49,8 +49,11 @@ TRAY_MENU_STYLE = """
 """
 
 
-def _icon_path_for_pet(pet_holder) -> str:
-    """从当前宠物的 resource/icon.png 获取托盘图标路径；若无则尝试 stand 首帧。"""
+def _tray_icon_path(pet_holder) -> str:
+    """优先 exe 同款图标；否则当前宠物 resource/icon.png，再否则 stand 首帧。"""
+    app_icon = get_app_exe_icon_path()
+    if app_icon:
+        return app_icon
     if not pet_holder:
         return ""
     pkg = pet_holder[0].pet_package
@@ -81,13 +84,13 @@ class TrayIcon:
         self.on_switch_pet = on_switch_pet
         self.clone_pets = clone_pets if clone_pets is not None else []
         self.set_clone_mode = set_clone_mode
-        icon_path = _icon_path_for_pet(pet_holder)
+        icon_path = _tray_icon_path(pet_holder)
         self.tray_icon = QSystemTrayIcon(QIcon(icon_path) if icon_path else QIcon(), self.app)
         self.create_tray_menu()
 
     def update_icon(self):
-        """切换宠物后更新托盘图标为当前宠物的 resource/icon.png"""
-        icon_path = _icon_path_for_pet(self.pet_holder)
+        """切换宠物后更新托盘图标（仍优先 exe 同款图标）"""
+        icon_path = _tray_icon_path(self.pet_holder)
         if icon_path:
             self.tray_icon.setIcon(QIcon(icon_path))
 

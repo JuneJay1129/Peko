@@ -1,5 +1,6 @@
 {
   "id": "neko",
+  "hidden": true,
   "name": "Neko",
   "description": "默认小猫桌宠，用 L+Enter 和我对话吧",
   "version": "1.0.0",
