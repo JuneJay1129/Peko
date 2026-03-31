@@ -6,10 +6,10 @@ import copy
 import json
 import os
 import random
-import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence
+from .runtime_paths import get_writable_root
 
 BASELINE_MOOD = 58
 DEFAULT_SATIETY = 68
@@ -22,16 +22,7 @@ MAX_RECENT_ACTIONS = 6
 MOOD_FILE_VERSION = 2
 
 
-def _get_root() -> str:
-    if not getattr(sys, "frozen", False):
-        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    exe = sys.executable
-    if sys.platform == "darwin" and ".app/Contents/MacOS" in exe.replace("\\", "/"):
-        return os.path.dirname(os.path.dirname(os.path.dirname(exe)))
-    return os.path.dirname(exe)
-
-
-CONFIG_DIR = os.path.join(_get_root(), "config")
+CONFIG_DIR = os.path.join(get_writable_root(module_file=__file__), "config")
 MOOD_STATE_PATH = os.path.join(CONFIG_DIR, "mood_state.json")
 
 

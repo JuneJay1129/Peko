@@ -72,21 +72,22 @@ class MoodStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = os.path.join(temp_dir, "mood_state.json")
             store = MoodStore(path=path)
+            now = datetime.now().replace(microsecond=0)
             snapshot = MoodSnapshot(
                 pet_id="hamster",
                 mood_score=66,
-                updated_at=datetime(2026, 3, 20, 10, 0, 0).isoformat(timespec="seconds"),
-                daily_date="2026-03-20",
+                updated_at=now.isoformat(timespec="seconds"),
+                daily_date=now.date().isoformat(),
                 daily_interactions=2,
             )
             store.save(snapshot)
-            loaded = store.load("hamster", now=datetime(2026, 3, 20, 10, 5, 0))
+            loaded = store.load("hamster", now=now + timedelta(minutes=5))
             self.assertEqual(loaded.pet_id, "hamster")
             self.assertEqual(loaded.daily_interactions, 2)
 
             with open(path, "w", encoding="utf-8") as handle:
                 handle.write("{ broken json")
-            fallback = store.load("hamster", now=datetime(2026, 3, 20, 10, 5, 0))
+            fallback = store.load("hamster", now=now + timedelta(minutes=5))
             self.assertEqual(fallback.mood_score, BASELINE_MOOD)
 
     def test_engine_persists_interaction(self):

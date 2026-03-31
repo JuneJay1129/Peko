@@ -9,25 +9,11 @@ import os
 import sys
 import shutil
 from typing import Optional, List, Dict, Any
+from ..core.runtime_paths import get_bundle_root, get_writable_root
 
-# 项目根目录（peko/ai/ -> 项目根）；打包后 config 放在 exe/.app 同目录（可写）
-def _get_root():
-    if not getattr(sys, "frozen", False):
-        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    exe = sys.executable
-    # macOS .app：可执行文件在 Peko.app/Contents/MacOS/Peko，config 应放在 .app 同级目录
-    if sys.platform == "darwin" and ".app/Contents/MacOS" in exe.replace("\\", "/"):
-        return os.path.dirname(os.path.dirname(os.path.dirname(exe)))
-    return os.path.dirname(exe)
-
-def _get_bundle_root():
-    """打包后资源解压目录；未打包时与项目根一致。"""
-    if getattr(sys, "frozen", False):
-        return sys._MEIPASS
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-_ROOT = _get_root()
-_BUNDLE = _get_bundle_root()
+# 项目根目录（peko/ai/ -> 项目根）；打包后配置写到 exe 所在目录，macOS .app 写到 .app 外部同级目录。
+_ROOT = get_writable_root(module_file=__file__)
+_BUNDLE = get_bundle_root(module_file=__file__)
 CONFIG_DIR = os.path.join(_ROOT, "config")
 API_CONFIG_PATH = os.path.join(CONFIG_DIR, "api.json")
 API_CONFIG_EXAMPLE_PATH = os.path.join(_BUNDLE, "config", "api.json.example")

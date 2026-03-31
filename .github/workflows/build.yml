@@ -26,7 +26,7 @@ jobs:
           pip install pyinstaller Pillow
 
       - name: Build
-        run: pyinstaller main.spec
+        run: packaging\build.bat
         working-directory: ${{ github.workspace }}
 
       - name: Upload Windows artifact
@@ -54,23 +54,29 @@ jobs:
       - name: Build
         env:
           MACOSX_DEPLOYMENT_TARGET: "10.15"
-        run: pyinstaller main.spec
+        run: bash packaging/build_mac.sh
         working-directory: ${{ github.workspace }}
 
       - name: Verify macOS artifact
         run: |
-          if [ -f "dist/Peko" ]; then
-            echo "OK: dist/Peko exists"
+          if [ -d "dist/Peko.app" ]; then
+            echo "OK: dist/Peko.app exists"
             ls -la dist/
           else
-            echo "ERROR: dist/Peko not found"
+            echo "ERROR: dist/Peko.app not found"
             ls -la dist/ || true
             exit 1
           fi
+        working-directory: ${{ github.workspace }}
+
+      - name: Archive macOS app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "dist/Peko.app" "dist/Peko-macOS.zip"
+          ls -la dist/
         working-directory: ${{ github.workspace }}
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: Peko-macOS
-          path: dist/Peko
+          path: dist/Peko-macOS.zip

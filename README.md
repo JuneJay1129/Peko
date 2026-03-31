@@ -40,20 +40,20 @@ python main.py
 3. 若未自动运行，点击 **Run workflow** 手动触发。
 4. 跑完后在本次运行页面下方 **Artifacts** 中下载：
    - **Peko-Windows**：内含 `Peko.exe`（仅 Windows）
-   - **Peko-macOS**：内含 **`Peko`**（单文件可执行程序，macOS 10.15+）
+   - **Peko-macOS**：内含 **`Peko.app` 的压缩包**（macOS 10.15+）
 
-**macOS 使用**：解压后得到 **一个文件 `Peko`**（无后缀）。请把它放到**桌面**等目录，在终端执行：`chmod +x Peko` 然后 `./Peko`；或把 Peko 拖进终端窗口回车。不要从微信/QQ 下载目录直接运行。
+**macOS 使用**：解压后得到 **`Peko.app`**。请先将它拷贝到本地**可写目录**（如桌面或你自己新建的文件夹），然后直接在 Finder 中双击运行；若首次运行被 Gatekeeper 拦截，请在“系统设置 → 隐私与安全性”中允许后再次打开。不要直接从微信/QQ 下载目录内运行。
 
 推送 `main` 或 `master` 分支时也会自动触发该构建。
 
 ### 本机单独打包
 
-- **Windows**：在项目根目录执行 `pyinstaller main.spec`，或双击 **`build.bat`**。产物：`dist/Peko.exe`。
-- **macOS**：在项目根目录执行 `./build_mac.sh`。产物：**`dist/Peko`**（单文件，macOS 10.15+）。
+- **Windows**：在项目根目录执行 `packaging\build.bat`。产物：`dist/Peko.exe`。
+- **macOS**：在项目根目录执行 `bash packaging/build_mac.sh`。产物：**`dist/Peko.app`**（可双击运行的应用包，macOS 10.15+）。
 
 **自定义 exe/应用图标**：在项目根目录放置 **`icon.ico`**（Windows）或 **`icon.icns`**（macOS），重新打包即可；未放置则使用系统默认图标。
 
-首次运行 exe/可执行文件时，会在其**同目录**下自动创建 `config` 并写入 `api.json`、`secrets.json` 模板；在 `config/secrets.json` 中填写 API Key 即可使用。宠物资源已打进包内，无需单独携带 `pets` 目录。
+首次运行 Windows exe 或 macOS `Peko.app` 时，会在其**所在目录**下自动创建 `config` 并写入 `api.json`、`secrets.json` 模板；在 `config/secrets.json` 中填写 API Key 即可使用。宠物资源已打进包内，无需单独携带 `pets` 目录。
 
 ---
 
@@ -118,6 +118,10 @@ python scripts/scaffold_pet.py dog "小狗" "我"
 ```
 Peko/
 ├── main.py                 # 入口：python main.py
+├── packaging/              # 打包入口：Windows/macOS 本地脚本 + PyInstaller spec
+│   ├── build.bat           # 本地 Windows 打包
+│   ├── build_mac.sh        # 本地 macOS 打包
+│   └── main.spec           # PyInstaller 打包配置
 ├── peko/                   # 主包
 │   ├── main.py             # 应用逻辑入口
 │   ├── ui/                 # UI 组件

@@ -8,14 +8,10 @@ import os
 import sys
 import json
 from typing import Dict, List, Any, Optional
+from .runtime_paths import find_app_icon, get_bundle_root
 
-# 项目根目录（peko/core/ -> 项目根）；打包后使用 PyInstaller 解压目录
-def _get_root():
-    if getattr(sys, "frozen", False):
-        return sys._MEIPASS
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-_ROOT = _get_root()
+# 项目根目录（peko/core/ -> 项目根）；打包后使用 PyInstaller 资源目录
+_ROOT = get_bundle_root(module_file=__file__)
 PETS_DIR = os.path.join(_ROOT, "pets")
 CONFIG_FILENAME = "pet_config.json"
 RESOURCE_DIR = "resource"  # 每个宠物独立 resource 目录名
@@ -26,19 +22,12 @@ def get_app_exe_icon_path() -> str:
     与 main.spec 中打包 exe 所用图标一致的文件路径（开发时为项目根，frozen 时为 _MEIPASS 或 exe 同目录）。
     查找顺序与 spec 一致：macOS 优先 icon.icns，否则 icon.ico、inco.ico；其他平台 icon.ico、inco.ico。
     """
-    if sys.platform == "darwin":
-        names = ("icon.icns", "icon.ico", "inco.ico")
-    else:
-        names = ("icon.ico", "inco.ico")
-    roots = [_ROOT]
-    if getattr(sys, "frozen", False):
-        roots.append(os.path.dirname(os.path.abspath(sys.executable)))
-    for root in roots:
-        for name in names:
-            p = os.path.join(root, name)
-            if os.path.isfile(p):
-                return p
-    return ""
+    return find_app_icon(
+        platform_name=sys.platform,
+        bundle_root=_ROOT,
+        executable=sys.executable,
+        frozen=getattr(sys, "frozen", False),
+    )
 
 
 _pet_registry: Dict[str, Dict[str, Any]] = {}
