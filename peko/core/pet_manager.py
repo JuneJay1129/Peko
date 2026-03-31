@@ -20,6 +20,27 @@ PETS_DIR = os.path.join(_ROOT, "pets")
 CONFIG_FILENAME = "pet_config.json"
 RESOURCE_DIR = "resource"  # 每个宠物独立 resource 目录名
 
+
+def get_app_exe_icon_path() -> str:
+    """
+    与 main.spec 中打包 exe 所用图标一致的文件路径（开发时为项目根，frozen 时为 _MEIPASS 或 exe 同目录）。
+    查找顺序与 spec 一致：macOS 优先 icon.icns，否则 icon.ico、inco.ico；其他平台 icon.ico、inco.ico。
+    """
+    if sys.platform == "darwin":
+        names = ("icon.icns", "icon.ico", "inco.ico")
+    else:
+        names = ("icon.ico", "inco.ico")
+    roots = [_ROOT]
+    if getattr(sys, "frozen", False):
+        roots.append(os.path.dirname(os.path.abspath(sys.executable)))
+    for root in roots:
+        for name in names:
+            p = os.path.join(root, name)
+            if os.path.isfile(p):
+                return p
+    return ""
+
+
 _pet_registry: Dict[str, Dict[str, Any]] = {}
 
 
@@ -49,12 +70,14 @@ def _load_animations(pet_dir: str, raw: Any) -> Dict[str, Any]:
     return out
 
 
-def _load_pet_package(pet_id: str, pet_dir: str) -> Dict[str, Any]:
+def _load_pet_package(pet_id: str, pet_dir: str) -> Optional[Dict[str, Any]]:
     path = os.path.join(pet_dir, CONFIG_FILENAME)
     if not os.path.isfile(path):
         raise FileNotFoundError(f"宠物配置不存在: {path}")
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
+    if data.get("hidden"):
+        return None
     data["id"] = data.get("id") or pet_id
     data["name"] = data.get("name") or pet_id
     data["animations"] = _load_animations(pet_dir, data.get("animations", {}))
@@ -82,6 +105,8 @@ def discover_pets() -> None:
             continue
         try:
             pkg = _load_pet_package(name, pet_dir)
+            if pkg is None:
+                continue
             pid = pkg["id"]
             _pet_registry[pid] = pkg
         except Exception as e:
@@ -121,4 +146,6 @@ def get_default_pet_id() -> str:
 def register_pet(pet_id: str, pet_dir: str) -> None:
     """手动注册一个宠物包（用于脚手架后或自定义路径）。"""
     pkg = _load_pet_package(pet_id, pet_dir)
+    if pkg is None:
+        return
     _pet_registry[pkg["id"]] = pkg

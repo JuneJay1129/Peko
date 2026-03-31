@@ -207,8 +207,8 @@ def stream_chat(
         print("[Peko API 返回]", result)
         return result
     else:
-        # 硅基等第三方：用完整 URL 直接 POST，与官方 curl 一致，避免 404
-        if _HAS_REQUESTS and "siliconflow" in (cfg.get("apiUrl") or "").lower():
+        # 所有带 apiUrl 的 OpenAI 兼容接口均用 HTTP 直接发送，确保请求体（model、messages、temperature、max_tokens、stream）完整带上
+        if _HAS_REQUESTS and cfg.get("apiUrl"):
             result = _stream_chat_http(
                 api_url=cfg["apiUrl"],
                 api_key=cfg["apiKey"],

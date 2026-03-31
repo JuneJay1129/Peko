@@ -71,6 +71,17 @@
       "enabled": true
     },
     {
+      "id": "doubao-seed-2-mini",
+      "name": "豆包 Seed 2.0 Mini",
+      "provider": "openai",
+      "model": "doubao-seed-2-0-mini-260215",
+      "apiUrl": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+      "description": "豆包种子模型 2.0 Mini，适合对话与事件生成",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
+    },
+    {
       "id": "spark-lite",
       "name": "讯飞星火 Lite",
       "provider": "spark",
