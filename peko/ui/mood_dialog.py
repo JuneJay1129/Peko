@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from PyQt5.QtCore import Qt, QPoint, QRect, pyqtSignal
+from PyQt5.QtCore import Qt, QPoint, QRect, pyqtSignal, QEvent
 from PyQt5.QtWidgets import (
     QApplication,
     QDialog,
@@ -126,10 +126,21 @@ class MoodDialog(QDialog):
 
     def __init__(self, parent=None, interaction_options: Optional[List[Dict[str, str]]] = None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        import sys
+        self._is_mac = sys.platform == "darwin"
+        # macOS 上 Qt.Popup + WA_TranslucentBackground 会崩溃，改用 Tool 窗口
+        # 并手动处理点击外部关闭的行为
+        if self._is_mac:
+            self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setAttribute(Qt.WA_TranslucentBackground, True)
+            # macOS 上 Tool 窗口需要这个属性才能正常显示
+            self.setAttribute(Qt.WA_MacAlwaysFocusToolWindow, True)
+        else:
+            self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setAttribute(Qt.WA_TranslucentBackground, True)
         self._interaction_options = interaction_options or []
         self._drag_offset: Optional[QPoint] = None
+        self._event_filter_installed = False  # 跟踪事件过滤器状态
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -268,6 +279,10 @@ class MoodDialog(QDialog):
         target_x = max(screen.x(), min(target_x, screen.right() - self.width()))
         target_y = max(screen.y(), min(target_y, screen.bottom() - self.height()))
         self.move(target_x, target_y)
+        # macOS 上显示时安装事件过滤器
+        if self._is_mac and not self._event_filter_installed:
+            QApplication.instance().installEventFilter(self)
+            self._event_filter_installed = True
         self.show()
         self.raise_()
         self.activateWindow()
@@ -292,3 +307,24 @@ class MoodDialog(QDialog):
             event.accept()
             return
         super().mouseReleaseEvent(event)
+
+    def eventFilter(self, obj, event):
+        """macOS 上监听全局鼠标点击，点击对话框外部则关闭。"""
+        if self._is_mac and self.isVisible():
+            if event.type() == QEvent.MouseButtonPress:
+                # 检查点击是否在对话框外部
+                click_pos = event.globalPos()
+                dialog_rect = self.rect()
+                dialog_top_left = self.mapToGlobal(dialog_rect.topLeft())
+                global_rect = QRect(dialog_top_left, dialog_rect.size())
+                if not global_rect.contains(click_pos):
+                    self.hide()
+                    return True  # 过滤该事件
+        return super().eventFilter(obj, event)
+
+    def hideEvent(self, event):
+        """隐藏时移除事件过滤器。"""
+        if self._is_mac and self._event_filter_installed:
+            QApplication.instance().removeEventFilter(self)
+            self._event_filter_installed = False
+        super().hideEvent(event)
