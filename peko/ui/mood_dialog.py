@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QProgressBar,
     QVBoxLayout,
+    QWidget,
 )
 
 
@@ -131,10 +132,11 @@ class MoodDialog(QDialog):
         # macOS 上 Qt.Popup + WA_TranslucentBackground 会崩溃，改用 Tool 窗口
         # 并手动处理点击外部关闭的行为
         if self._is_mac:
-            self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            # 与桌宠主窗一致：避免 Qt.Tool（NSPanel）在失焦时被系统隐藏
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             self.setAttribute(Qt.WA_TranslucentBackground, True)
-            # macOS 上 Tool 窗口需要这个属性才能正常显示
-            self.setAttribute(Qt.WA_MacAlwaysFocusToolWindow, True)
+            # 不抢前台，避免部分 macOS/Qt 版本在 activateWindow + 透明无边框时崩溃
+            self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         else:
             self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             self.setAttribute(Qt.WA_TranslucentBackground, True)
@@ -285,7 +287,8 @@ class MoodDialog(QDialog):
             self._event_filter_installed = True
         self.show()
         self.raise_()
-        self.activateWindow()
+        if not self._is_mac:
+            self.activateWindow()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -312,7 +315,12 @@ class MoodDialog(QDialog):
         """macOS 上监听全局鼠标点击，点击对话框外部则关闭。"""
         if self._is_mac and self.isVisible():
             if event.type() == QEvent.MouseButtonPress:
-                # 检查点击是否在对话框外部
+                pet = self.parent()
+                if pet is not None and isinstance(obj, QWidget):
+                    if obj is pet or pet.isAncestorOf(obj):
+                        # 点击仍落在桌宠窗口上（含用右键再次呼出面板）：勿当成「点外部」关闭，
+                        # 否则会与 show 打架并可能触发闪退。
+                        return False
                 click_pos = event.globalPos()
                 dialog_rect = self.rect()
                 dialog_top_left = self.mapToGlobal(dialog_rect.topLeft())

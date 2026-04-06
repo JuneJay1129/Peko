@@ -217,7 +217,16 @@ class DesktopPet(QWidget):
         }
 
     def init_ui(self):
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
+        # macOS：Qt.Tool 多为 NSPanel，会在应用失焦时被系统隐藏，看起来像「切走程序桌宠就没了」。
+        # 使用普通 Window + 无边框 + 置顶，切换焦点时仍留在桌面上。
+        if sys.platform == "darwin":
+            self.setWindowFlags(
+                Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+            )
+        else:
+            self.setWindowFlags(
+                Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
+            )
         self.setAttribute(Qt.WA_TranslucentBackground)
 
         first_frame_path = self.animations["stand"][0]
@@ -247,7 +256,14 @@ class DesktopPet(QWidget):
         self.move(initial_x, initial_y)
 
         self.bubble_window = QWidget(self)
-        self.bubble_window.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
+        if sys.platform == "darwin":
+            self.bubble_window.setWindowFlags(
+                Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint
+            )
+        else:
+            self.bubble_window.setWindowFlags(
+                Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
+            )
         self.bubble_window.setAttribute(Qt.WA_TranslucentBackground, True)
         self.bubble_label = QLabel(self.bubble_window)
         self.bubble_label.setStyleSheet(_bubble_style_from_config(self.bubble_style_config))

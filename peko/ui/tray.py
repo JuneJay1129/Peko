@@ -102,22 +102,22 @@ class TrayIcon:
         menu.setMinimumWidth(180)
         pet = self.pet_holder[0] if self.pet_holder else None
 
-        show_action = QAction("显示桌宠", self.app)
-        hide_action = QAction("隐藏桌宠", self.app)
-        stop_movement_action = QAction("停止移动", self.app, checkable=True)
-        talk_action = QAction("与宠物对话", self.app)
-        api_settings_action = QAction("AI 设置", self.app)
-        params_action = QAction("动作参数", self.app)
+        self._show_action = QAction("显示桌宠", self.app)
+        self._hide_action = QAction("隐藏桌宠", self.app)
+        self._stop_movement_action = QAction("停止移动", self.app, checkable=True)
+        self._talk_action = QAction("与宠物对话", self.app)
+        self._api_settings_action = QAction("AI 设置", self.app)
+        self._params_action = QAction("动作参数", self.app)
         self._auto_mode_action = QAction("自动模式", self.app, checkable=True)
         self._control_mode_action = QAction("操控模式", self.app, checkable=True)
         self._follow_mouse_action = QAction("跟随鼠标", self.app, checkable=True)
         self._clone_mode_action = QAction("分身模式", self.app, checkable=True)
-        show_action.triggered.connect(self._on_show_pets)
-        hide_action.triggered.connect(self._on_hide_pets)
-        stop_movement_action.triggered.connect(self.toggle_movement)
-        talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
-        api_settings_action.triggered.connect(self._show_api_settings_dialog)
-        params_action.triggered.connect(self._show_action_params_dialog)
+        self._show_action.triggered.connect(self._on_show_pets)
+        self._hide_action.triggered.connect(self._on_hide_pets)
+        self._stop_movement_action.triggered.connect(self.toggle_movement)
+        self._talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
+        self._api_settings_action.triggered.connect(self._show_api_settings_dialog)
+        self._params_action.triggered.connect(self._show_action_params_dialog)
         self._auto_mode_action.triggered.connect(self._on_auto_mode)
         self._control_mode_action.triggered.connect(self._on_control_mode)
         self._follow_mouse_action.triggered.connect(self._on_follow_mouse_mode)
@@ -129,12 +129,12 @@ class TrayIcon:
         self._follow_mouse_action.setChecked(False)
         self._clone_mode_action.setChecked(False)
 
-        menu.addAction(show_action)
-        menu.addAction(hide_action)
-        menu.addAction(stop_movement_action)
-        menu.addAction(talk_action)
-        menu.addAction(api_settings_action)
-        menu.addAction(params_action)
+        menu.addAction(self._show_action)
+        menu.addAction(self._hide_action)
+        menu.addAction(self._stop_movement_action)
+        menu.addAction(self._talk_action)
+        menu.addAction(self._api_settings_action)
+        menu.addAction(self._params_action)
         menu.addSeparator()
         menu.addAction(self._auto_mode_action)
         menu.addAction(self._control_mode_action)
@@ -142,9 +142,33 @@ class TrayIcon:
         menu.addAction(self._clone_mode_action)
         menu.addSeparator()
 
-        switch_menu = menu.addMenu("切换宠物")
-        switch_menu.setStyleSheet(TRAY_MENU_STYLE)
-        switch_menu.setMinimumWidth(180)
+        self._tray_switch_menu = menu.addMenu("切换宠物")
+        self._tray_switch_menu.setStyleSheet(TRAY_MENU_STYLE)
+        self._tray_switch_menu.setMinimumWidth(180)
+        self._populate_switch_menu(self._tray_switch_menu)
+
+        menu.addSeparator()
+
+        self._exit_action = QAction("退出", self.app)
+        self._exit_action.triggered.connect(self.exit_app)
+        menu.addAction(self._exit_action)
+
+        self.tray_icon.setContextMenu(menu)
+        self._tray_menu = menu
+        menu.aboutToShow.connect(self._on_tray_menu_about_to_show)
+        if sys.platform == "darwin":
+            self.tray_icon.activated.connect(self._on_tray_activated_macos)
+            self._install_macos_dock_menu()
+        self.tray_icon.show()
+
+    def _on_tray_menu_about_to_show(self) -> None:
+        self._update_mode_actions_checked()
+        if getattr(self, "_tray_switch_menu", None):
+            self._populate_switch_menu(self._tray_switch_menu)
+
+    def _populate_switch_menu(self, switch_menu: QMenu) -> None:
+        """填充「切换宠物」子菜单（托盘与 Dock 共用逻辑）。"""
+        switch_menu.clear()
         try:
             from ..core.pet_manager import get_available_pets, get_pet
             for pid in get_available_pets():
@@ -156,18 +180,37 @@ class TrayIcon:
         except Exception:
             pass
 
-        menu.addSeparator()
+    def _install_macos_dock_menu(self) -> None:
+        """Dock 图标菜单：与托盘相同项。Qt 文档：setAsDockMenu 仅 macOS。"""
+        dock = QMenu()
+        if not hasattr(dock, "setAsDockMenu"):
+            return
+        dock.setStyleSheet(TRAY_MENU_STYLE)
+        dock.addAction(self._show_action)
+        dock.addAction(self._hide_action)
+        dock.addAction(self._stop_movement_action)
+        dock.addAction(self._talk_action)
+        dock.addAction(self._api_settings_action)
+        dock.addAction(self._params_action)
+        dock.addSeparator()
+        dock.addAction(self._auto_mode_action)
+        dock.addAction(self._control_mode_action)
+        dock.addAction(self._follow_mouse_action)
+        dock.addAction(self._clone_mode_action)
+        dock.addSeparator()
+        self._dock_switch_menu = dock.addMenu("切换宠物")
+        self._dock_switch_menu.setStyleSheet(TRAY_MENU_STYLE)
+        self._populate_switch_menu(self._dock_switch_menu)
+        dock.addSeparator()
+        dock.addAction(self._exit_action)
 
-        exit_action = QAction("退出", self.app)
-        exit_action.triggered.connect(self.exit_app)
-        menu.addAction(exit_action)
+        def _dock_about_to_show():
+            self._update_mode_actions_checked()
+            if getattr(self, "_dock_switch_menu", None):
+                self._populate_switch_menu(self._dock_switch_menu)
 
-        self.tray_icon.setContextMenu(menu)
-        self._tray_menu = menu
-        menu.aboutToShow.connect(self._update_mode_actions_checked)
-        if sys.platform == "darwin":
-            self.tray_icon.activated.connect(self._on_tray_activated_macos)
-        self.tray_icon.show()
+        dock.aboutToShow.connect(_dock_about_to_show)
+        dock.setAsDockMenu()
 
     def _on_tray_activated_macos(self, reason):
         """macOS 上 Qt 往往不把右键映射为 Context，需在 Trigger 等场景手动弹出菜单。"""
