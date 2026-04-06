@@ -18,42 +18,30 @@ CLONE_COUNT = 15
 
 
 def global_hotkey_listener(pet_holder):
-    """使用 pynput 监听 L+Enter 快捷键（跨平台）。"""
+    """使用 pynput 监听 L+Enter 快捷键（跨平台）。
+
+    使用 HotKey + Listener.canonical：各平台虚拟键不同（如 Windows 上 L 为 vk 76，
+    macOS ANSI L 为 vk 37），手写 vk 判断会在 Mac 上失效。
+    """
     try:
         from pynput import keyboard
-        from pynput.keyboard import Key, KeyCode
 
-        # 记录当前按键状态
-        pressed_keys = set()
-
-        def on_press(key):
-            pressed_keys.add(key)
-            # 检查是否按下 L + Enter 组合键
-            # L 键可能是 KeyCode(vk=76) 或 KeyCode.from_char('l')
-            has_l = any(
-                (hasattr(k, 'char') and k.char and k.char.lower() == 'l') or
-                (hasattr(k, 'vk') and k.vk == 76)  # L 的虚拟键码
-                for k in pressed_keys
+        def invoke_dialog():
+            QMetaObject.invokeMethod(
+                pet_holder[0],
+                "show_custom_input_dialog",
+                Qt.QueuedConnection,
             )
-            has_enter = Key.enter in pressed_keys or any(
-                hasattr(k, 'vk') and k.vk in (13, 36)  # Enter 的虚拟键码（Windows/macOS）
-                for k in pressed_keys
-            )
-            if has_l and has_enter:
-                # 清除按键状态，避免重复触发
-                pressed_keys.clear()
-                # 在主线程中调用对话框
-                QMetaObject.invokeMethod(
-                    pet_holder[0],
-                    "show_custom_input_dialog",
-                    Qt.QueuedConnection,
-                )
 
-        def on_release(key):
-            if key in pressed_keys:
-                pressed_keys.discard(key)
+        hotkey = keyboard.HotKey(
+            frozenset(keyboard.HotKey.parse("l+<enter>")),
+            invoke_dialog,
+        )
 
-        listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+        listener = keyboard.Listener(
+            on_press=lambda k: hotkey.press(listener.canonical(k)),
+            on_release=lambda k: hotkey.release(listener.canonical(k)),
+        )
         listener.start()
         listener.join()  # 保持线程运行
     except ImportError:

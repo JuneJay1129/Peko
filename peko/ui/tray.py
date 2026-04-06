@@ -2,10 +2,12 @@
 系统托盘：显示/隐藏桌宠、停止移动、切换宠物、退出
 托盘图标优先与可执行文件相同（项目根 / 打包后的 icon.ico 等，与 main.spec 一致），否则使用当前宠物的 resource/icon.png 或 stand 首帧。
 右键菜单使用统一暖色样式。
+macOS：菜单栏托盘上左右键常会统一为 Trigger，需监听 activated 再弹出菜单（否则右键无反应）。
 """
 import os
+import sys
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QCursor
 
 from ..core.pet_manager import RESOURCE_DIR, get_app_exe_icon_path
 
@@ -163,7 +165,20 @@ class TrayIcon:
         self.tray_icon.setContextMenu(menu)
         self._tray_menu = menu
         menu.aboutToShow.connect(self._update_mode_actions_checked)
+        if sys.platform == "darwin":
+            self.tray_icon.activated.connect(self._on_tray_activated_macos)
         self.tray_icon.show()
+
+    def _on_tray_activated_macos(self, reason):
+        """macOS 上 Qt 往往不把右键映射为 Context，需在 Trigger 等场景手动弹出菜单。"""
+        if reason == QSystemTrayIcon.DoubleClick:
+            return
+        if reason in (
+            QSystemTrayIcon.Trigger,
+            QSystemTrayIcon.Context,
+            QSystemTrayIcon.MiddleClick,
+        ):
+            self._tray_menu.popup(QCursor.pos())
 
     def _all_pets(self):
         """当前所有宠物窗口（主宠 + 分身），用于显示/隐藏/退出等。"""
