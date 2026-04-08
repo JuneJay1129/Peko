@@ -6,7 +6,7 @@ L+Enter 唤起对话。
 """
 import sys
 import threading
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon
 from PyQt5.QtCore import QMetaObject, Qt, QTimer
 
 from .ui.pet import DesktopPet
@@ -17,7 +17,7 @@ from .core.pet_manager import get_pet, get_available_pets, get_default_pet_id, d
 CLONE_COUNT = 15
 
 
-def _schedule_hotkey_warning(pet_holder, message: str, duration: int = 9000) -> None:
+def _schedule_pet_warning(pet_holder, message: str, duration: int = 9000) -> None:
     pet = pet_holder[0] if pet_holder else None
     if pet is None:
         return
@@ -29,6 +29,21 @@ def _schedule_hotkey_warning(pet_holder, message: str, duration: int = 9000) -> 
             pass
 
     QTimer.singleShot(0, _show_warning)
+
+
+
+def _tray_is_available() -> bool:
+    try:
+        return bool(QSystemTrayIcon.isSystemTrayAvailable())
+    except Exception:
+        return False
+
+
+
+def _create_tray_icon(app, pet_holder, on_switch_pet=None, clone_pets=None, set_clone_mode=None):
+    if not _tray_is_available():
+        return None
+    return TrayIcon(app, pet_holder, on_switch_pet=on_switch_pet, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
 
 
 
@@ -74,7 +89,7 @@ def global_hotkey_listener(pet_holder):
             except Exception:
                 pass
         elif sys.platform == "darwin":
-            _schedule_hotkey_warning(
+            _schedule_pet_warning(
                 pet_holder,
                 "快捷键监听组件未安装，先用托盘里的“与宠物对话”吧。",
             )
@@ -82,7 +97,7 @@ def global_hotkey_listener(pet_holder):
         print(f"[Peko] 快捷键监听启动失败: {e}")
         if sys.platform == "darwin":
             print("[Peko] macOS 提示：请在「系统偏好设置 > 安全性与隐私 > 辅助功能」中授权本应用")
-            _schedule_hotkey_warning(
+            _schedule_pet_warning(
                 pet_holder,
                 "L+Enter 需要辅助功能权限；你也可以先用托盘里的“与宠物对话”。",
             )
@@ -96,6 +111,7 @@ def main():
         sys.exit(1)
 
     app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
     default_id = get_default_pet_id()
     pet_package = get_pet(default_id)
     frame_rate = 10
@@ -153,7 +169,13 @@ def main():
             if hasattr(pet_holder[0], "clone_mode_row_y"):
                 del pet_holder[0].clone_mode_row_y
 
-    tray = TrayIcon(app, pet_holder, on_switch_pet=None, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
+    tray = _create_tray_icon(app, pet_holder, on_switch_pet=None, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
+    if tray is None:
+        _schedule_pet_warning(
+            pet_holder,
+            "当前系统托盘不可用；桌宠会继续运行，但请不要关闭主窗口。",
+            duration=12000,
+        )
 
     def switch_pet(pet_id: str):
         nonlocal clone_pets
@@ -165,7 +187,8 @@ def main():
         was_visible = old.isVisible()
         old.close()
         pet_holder[0] = new_pet
-        tray.update_icon()
+        if tray is not None:
+            tray.update_icon()
         if was_visible:
             new_pet.show()
         # 欢迎语
