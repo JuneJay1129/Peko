@@ -11,7 +11,7 @@ import shutil
 from typing import Optional, List, Dict, Any
 from ..core.runtime_paths import get_bundle_root, get_writable_root
 
-# 项目根目录（peko/ai/ -> 项目根）；打包后配置写到 exe 所在目录，macOS .app 写到 .app 外部同级目录。
+# 项目根目录（peko/ai/ -> 项目根）；打包后配置写到可写运行目录：Windows 为 exe 所在目录，macOS 为 ~/Library/Application Support/Peko。
 _ROOT = get_writable_root(module_file=__file__)
 _BUNDLE = get_bundle_root(module_file=__file__)
 CONFIG_DIR = os.path.join(_ROOT, "config")

@@ -13,6 +13,6 @@ pyinstaller packaging/main.spec
 
 echo ""
 echo "打包完成。应用包：dist/Peko.app"
-echo "使用方式：将 Peko.app 解压/拷贝到本地可写目录后，直接在 Finder 中双击运行。"
+echo "使用方式：将 Peko.app 解压/拷贝到本地后，直接在 Finder 中双击运行。"
 echo "若首次运行被 Gatekeeper 拦截，请在“系统设置 -> 隐私与安全性”中允许后再次打开。"
-echo "首次运行后，会在 Peko.app 同级目录自动创建 config，并写入 api.json / secrets.json 模板。"
+echo "首次运行后，会在 ~/Library/Application Support/Peko/config 自动创建配置，并写入 api.json / secrets.json 模板。"

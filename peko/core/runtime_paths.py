@@ -7,6 +7,10 @@ import sys
 from pathlib import PurePosixPath
 from typing import Optional
 
+APP_NAME = "Peko"
+APP_SUPPORT_ENV_VAR = "PEKO_APP_SUPPORT_DIR"
+APP_SUPPORT_RELATIVE_DIR = os.path.join("Library", "Application Support", APP_NAME)
+
 
 def _project_root_from(module_file: Optional[str] = None) -> str:
     path = os.path.abspath(module_file or __file__)
@@ -42,6 +46,15 @@ def _parent_dir(path: str) -> str:
     return os.path.dirname(os.path.abspath(path))
 
 
+def _get_macos_app_support_dir() -> str:
+    override = os.environ.get(APP_SUPPORT_ENV_VAR)
+    if override:
+        return _normalize_path(override)
+    home = str(PurePosixPath(os.path.expanduser("~")))
+    return str(PurePosixPath(home) / "Library" / "Application Support" / APP_NAME)
+
+
+
 def get_writable_root(
     module_file: Optional[str] = None,
     *,
@@ -57,9 +70,7 @@ def get_writable_root(
     exe_path = _normalize_path(executable or sys.executable)
     platform_name = platform_name or sys.platform
     if platform_name == "darwin":
-        bundle_path = _find_macos_app_bundle(exe_path)
-        if bundle_path:
-            return _parent_dir(bundle_path)
+        return _get_macos_app_support_dir()
     return _parent_dir(exe_path)
 
 

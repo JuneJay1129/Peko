@@ -42,7 +42,7 @@ python main.py
    - **Peko-Windows**：内含 `Peko.exe`（仅 Windows）
    - **Peko-macOS**：内含 **`Peko.app` 的压缩包**（macOS 10.15+）
 
-**macOS 使用**：解压后得到 **`Peko.app`**。请先将它拷贝到本地**可写目录**（如桌面或你自己新建的文件夹），然后直接在 Finder 中双击运行；若首次运行被 Gatekeeper 拦截，请在“系统设置 → 隐私与安全性”中允许后再次打开。不要直接从微信/QQ 下载目录内运行。
+**macOS 使用**：解压后得到 **`Peko.app`**。将它拷贝到本地后直接在 Finder 中双击运行即可；若首次运行被 Gatekeeper 拦截，请在“系统设置 → 隐私与安全性”中允许后再次打开。不要直接从微信/QQ 下载目录内运行。
 
 推送 `main` 或 `master` 分支时也会自动触发该构建。
 
@@ -53,7 +53,7 @@ python main.py
 
 **自定义 exe/应用图标**：在项目根目录放置 **`icon.ico`**（Windows）或 **`icon.icns`**（macOS），重新打包即可；未放置则使用系统默认图标。
 
-首次运行 Windows exe 或 macOS `Peko.app` 时，会在其**所在目录**下自动创建 `config` 并写入 `api.json`、`secrets.json` 模板；在 `config/secrets.json` 中填写 API Key 即可使用。宠物资源已打进包内，无需单独携带 `pets` 目录。
+首次运行 Windows exe 时，会在其**所在目录**下自动创建 `config` 并写入 `api.json`、`secrets.json` 模板；首次运行 macOS `Peko.app` 时，会在 `~/Library/Application Support/Peko/config` 自动创建配置模板；在对应的 `secrets.json` 中填写 API Key 即可使用。宠物资源已打进包内，无需单独携带 `pets` 目录。
 
 ---
 
