@@ -7,7 +7,7 @@ L+Enter 唤起对话。
 import sys
 import threading
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QMetaObject, Qt
+from PyQt5.QtCore import QMetaObject, Qt, QTimer
 
 from .ui.pet import DesktopPet
 from .ui.tray import TrayIcon
@@ -15,6 +15,21 @@ from .core.pet_manager import get_pet, get_available_pets, get_default_pet_id, d
 
 # 分身模式下的宠物数量（当前主宠 + 14 个分身 = 15 个）
 CLONE_COUNT = 15
+
+
+def _schedule_hotkey_warning(pet_holder, message: str, duration: int = 9000) -> None:
+    pet = pet_holder[0] if pet_holder else None
+    if pet is None:
+        return
+
+    def _show_warning():
+        try:
+            pet.update_bubble(message, duration=duration)
+        except Exception:
+            pass
+
+    QTimer.singleShot(0, _show_warning)
+
 
 
 def global_hotkey_listener(pet_holder):
@@ -58,10 +73,19 @@ def global_hotkey_listener(pet_holder):
                     )
             except Exception:
                 pass
+        elif sys.platform == "darwin":
+            _schedule_hotkey_warning(
+                pet_holder,
+                "快捷键监听组件未安装，先用托盘里的“与宠物对话”吧。",
+            )
     except Exception as e:
         print(f"[Peko] 快捷键监听启动失败: {e}")
         if sys.platform == "darwin":
             print("[Peko] macOS 提示：请在「系统偏好设置 > 安全性与隐私 > 辅助功能」中授权本应用")
+            _schedule_hotkey_warning(
+                pet_holder,
+                "L+Enter 需要辅助功能权限；你也可以先用托盘里的“与宠物对话”。",
+            )
 
 
 def main():
