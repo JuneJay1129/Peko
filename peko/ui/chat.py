@@ -1,5 +1,5 @@
 """
-聊天模块：与宠物对话（输入框 + AI 回复 + 气泡展示）。
+聊天模块：与宠物对话（输入框 + AI 回复 + 气泡展示 + Agent 工具调用）。
 """
 import threading
 import traceback
@@ -18,6 +18,38 @@ class ChatHandler:
     def __init__(self, pet: "DesktopPet"):
         self.pet = pet
         self._input_dialog = None
+        self._full_chat_window = None
+        self._agent = None  # 懒加载 AgentLoop
+
+    def _get_system_prompt(self) -> str:
+        """构建系统提示词（含情绪上下文）。"""
+        character = self.pet.character
+        system_prompt = character.get("systemPrompt") or (
+            "你是一个可爱的桌面宠物，用简短、友好的话回复用户。"
+        )
+        mood_context = ""
+        if hasattr(self.pet, "get_chat_context"):
+            mood_context = self.pet.get_chat_context()
+        if mood_context:
+            system_prompt = f"{system_prompt}\n\n{mood_context}"
+        return system_prompt
+
+    def _get_or_create_agent(self):
+        """获取或创建 AgentLoop 实例（懒加载）。"""
+        if self._agent is None:
+            from ..ai.agent import AgentLoop
+            from ..ai.service import validate_ai_config
+            if not validate_ai_config():
+                return None
+            self._agent = AgentLoop(
+                system_prompt=self._get_system_prompt(),
+                on_status=lambda s: self.pet.bubble_text_ready.emit(s, REPLY_BUBBLE_DURATION_MS),
+                on_token=lambda t: None,  # token 通过下面的 local closure 传
+            )
+        else:
+            # 更新系统提示词（情绪可能变化）
+            self._agent.set_system_prompt(self._get_system_prompt())
+        return self._agent
 
     def show_dialog(self) -> None:
         """显示与宠物对话的输入框；若已打开则关闭。"""
@@ -35,7 +67,7 @@ class ChatHandler:
             except Exception:
                 pass
 
-        dialog = InputDialog(self.pet, self._on_submit)
+        dialog = InputDialog(self.pet, self._on_submit, on_expand=self._open_full_chat)
         self._input_dialog = dialog
         dialog.finished.connect(self._on_dialog_finished)
 
@@ -54,6 +86,31 @@ class ChatHandler:
         dialog.move(dialog_x, dialog_y)
         dialog.exec_()
 
+    def _open_full_chat(self) -> None:
+        """关闭小输入框，打开完整聊天窗口。"""
+        if self._input_dialog is not None:
+            self._input_dialog.close()
+            self._input_dialog = None
+
+        if self._full_chat_window is not None and self._full_chat_window.isVisible():
+            self._full_chat_window.activateWindow()
+            return
+
+        from .full_chat import FullChatWindow
+
+        agent = self._get_or_create_agent()
+        window = FullChatWindow(
+            agent_loop=agent,
+            system_prompt=self._get_system_prompt(),
+        )
+        self._full_chat_window = window
+        window.closed.connect(self._on_full_chat_closed)
+        window.show()
+        window.activateWindow()
+
+    def _on_full_chat_closed(self):
+        self._full_chat_window = None
+
     def _on_dialog_finished(self):
         self._input_dialog = None
         self.pet.exit_listen()
@@ -70,36 +127,38 @@ class ChatHandler:
             threading.Thread(target=self._fetch_response, args=(text.strip(),), daemon=True).start()
 
     def _fetch_response(self, user_input: str) -> None:
-        """子线程中调用 AI，结果通过 pet.bubble_text_ready 在主线程更新气泡。"""
+        """子线程中调用 AI（含工具调用），结果通过 pet.bubble_text_ready 在主线程更新气泡。"""
         try:
-            from ..ai.service import stream_chat, validate_ai_config
-            character = self.pet.character
-            system_prompt = character.get("systemPrompt") or (
-                "你是一个可爱的桌面宠物，用简短、友好的话回复用户。"
-            )
-            mood_context = ""
-            if hasattr(self.pet, "get_chat_context"):
-                mood_context = self.pet.get_chat_context()
-            if mood_context:
-                system_prompt = f"{system_prompt}\n\n{mood_context}"
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input},
-            ]
+            from ..ai.service import validate_ai_config
             if not validate_ai_config():
                 self.pet.bubble_text_ready.emit(
                     "请先在任务栏菜单的 AI 设置里填写 API Key 并选择模型，然后再和我对话哦～",
                     REPLY_BUBBLE_DURATION_MS,
                 )
                 return
-            current = [""]
+
+            agent = self._get_or_create_agent()
+            if agent is None:
+                self.pet.bubble_text_ready.emit("AI 初始化失败，请检查配置。", REPLY_BUBBLE_DURATION_MS)
+                return
+
+            accumulated = [""]
+            has_streamed = [False]
 
             def on_token(token: str):
-                current[0] += token
-                self.pet.bubble_text_ready.emit(current[0], REPLY_BUBBLE_DURATION_MS)
+                accumulated[0] += token
+                has_streamed[0] = True
+                self.pet.bubble_text_ready.emit(accumulated[0], REPLY_BUBBLE_DURATION_MS)
 
-            stream_chat(messages, on_token=on_token)
-            self.pet.bubble_text_ready.emit(current[0], REPLY_BUBBLE_DURATION_MS)
+            def on_status(status: str):
+                self.pet.bubble_text_ready.emit(status, REPLY_BUBBLE_DURATION_MS)
+
+            agent._on_token = on_token
+            agent._on_status = on_status
+            result = agent.chat(user_input)
+            # 流式模式下 accumulated 已有内容，用 result 兜底非流式情况
+            final = accumulated[0] if has_streamed[0] else result
+            self.pet.bubble_text_ready.emit(final, REPLY_BUBBLE_DURATION_MS)
         except Exception as e:
             err_msg = str(e)
             self.pet.bubble_text_ready.emit(f"错误: {err_msg}", REPLY_BUBBLE_DURATION_MS)

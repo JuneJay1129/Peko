@@ -4,8 +4,20 @@ Peko AI 服务：统一封装对话调用（仿 SimuEngine 风格）
 - 支持 OpenAI 兼容接口（SiliconFlow / OpenAI / 豆包等）与讯飞星火
 """
 import json
+from dataclasses import dataclass, field
 from typing import Any, Callable, List, Dict, Optional
 from .config_loader import get_ai_config, validate_ai_config, load_user_api_config, get_model_by_id
+
+
+@dataclass
+class AgentResponse:
+    """LLM 响应，可能是文本回复或工具调用。"""
+    content: str = ""
+    tool_calls: List[Dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def has_tool_calls(self) -> bool:
+        return bool(self.tool_calls)
 
 # 可选：使用 openai 包兼容任意 base_url（SiliconFlow、豆包等）
 try:
@@ -152,6 +164,53 @@ def messages_to_spark(messages: List[Dict[str, str]]) -> List[Any]:
         content = m.get("content", "")
         out.append(ChatMessage(role=role, content=content))
     return out
+
+
+def chat_with_tools(
+    messages: List[Dict[str, str]],
+    tools: Optional[List[Dict[str, Any]]] = None,
+) -> AgentResponse:
+    """非流式调用，支持 function calling。Agent loop 专用。"""
+    if not validate_ai_config():
+        raise ValueError("AI 未配置")
+    cfg = get_ai_config()
+    provider = cfg.get("provider", "openai")
+    temperature = cfg.get("temperature", 0.8)
+    max_tokens = cfg.get("maxTokens", 2000)
+    if provider == "spark":
+        raise NotImplementedError("讯飞星火暂不支持 function calling")
+    if not _HAS_REQUESTS:
+        raise RuntimeError("请安装 requests 包: pip install requests")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {cfg['apiKey']}",
+    }
+    body = {
+        "model": cfg["model"],
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+    if tools:
+        body["tools"] = tools
+        body["tool_choice"] = "auto"
+    resp = requests.post(cfg["apiUrl"], headers=headers, json=body, timeout=60)
+    resp.raise_for_status()
+    data = resp.json()
+    choice = (data.get("choices") or [{}])[0]
+    message = choice.get("message") or {}
+    result = AgentResponse(content=message.get("content") or "")
+    for tc in (message.get("tool_calls") or []):
+        result.tool_calls.append({
+            "id": tc.get("id", ""),
+            "type": "function",
+            "function": {
+                "name": tc["function"]["name"],
+                "arguments": tc["function"]["arguments"],
+            }
+        })
+    return result
 
 
 def stream_chat(

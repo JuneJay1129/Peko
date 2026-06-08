@@ -43,6 +43,21 @@ CONTENT_STYLE = """
     QPushButton#sendBtn:hover {
         background-color: #45A049;
     }
+    QPushButton#expandBtn {
+        font-size: 14px;
+        font-weight: 300;
+        background: transparent;
+        color: #888;
+        border: none;
+        border-radius: 10px;
+        padding: 2px 8px;
+        min-width: 28px;
+        min-height: 28px;
+    }
+    QPushButton#expandBtn:hover {
+        background-color: rgba(76, 175, 80, 0.12);
+        color: #4CAF50;
+    }
     QPushButton#closeBtn {
         font-size: 16px;
         font-weight: 300;
@@ -62,11 +77,13 @@ CONTENT_STYLE = """
 
 
 class InputDialog(QDialog):
-    def __init__(self, parent, on_submit):
+    def __init__(self, parent, on_submit, on_expand=None):
         """
-        与宠物对话对话框：四周圆角、右上角 × 关闭。
+        与宠物对话对话框：四周圆角、右上角 ⤢ 展开 + × 关闭。
+        on_expand: 可选回调，点击展开按钮时调用（打开完整聊天窗口）。
         """
         super().__init__(parent)
+        self._on_expand = on_expand
         self.setWindowTitle("与宠物对话")
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -80,7 +97,7 @@ class InputDialog(QDialog):
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(10, 10, 10, 10)
 
-        # 标题行：左侧标题 + 右侧 × 关闭
+        # 标题行：左侧标题 + 右侧 ⤢ 展开 + × 关闭
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 4)
         title_label = QLabel("与宠物对话")
@@ -88,6 +105,12 @@ class InputDialog(QDialog):
         title_label.setStyleSheet("color: black;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
+        expand_btn = QPushButton("⤢", self)
+        expand_btn.setObjectName("expandBtn")
+        expand_btn.setCursor(Qt.PointingHandCursor)
+        expand_btn.setToolTip("展开完整聊天窗口")
+        expand_btn.clicked.connect(self._expand)
+        header_layout.addWidget(expand_btn)
         close_btn = QPushButton("×", self)
         close_btn.setObjectName("closeBtn")
         close_btn.setCursor(Qt.PointingHandCursor)
@@ -126,4 +149,10 @@ class InputDialog(QDialog):
         text = self.input_field.text().strip()
         if text:
             on_submit(self, text)  # 调用回调函数
+        self.close()
+
+    def _expand(self):
+        """关闭小输入框，打开完整聊天窗口。"""
+        if self._on_expand:
+            self._on_expand()
         self.close()
