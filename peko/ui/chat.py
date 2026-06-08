@@ -1,6 +1,7 @@
 """
 聊天模块：与宠物对话（输入框 + AI 回复 + 气泡展示 + Agent 工具调用）。
 """
+import os
 import threading
 import traceback
 from typing import TYPE_CHECKING
@@ -98,10 +99,25 @@ class ChatHandler:
 
         from .full_chat import FullChatWindow
 
+        pkg = self.pet.pet_package
+        pet_dir = pkg.get("_pet_dir", "")
+        pet_icon_path = ""
+        if pet_dir:
+            icon_path = os.path.join(pet_dir, "resource", "icon.png")
+            if os.path.isfile(icon_path):
+                pet_icon_path = icon_path
+            else:
+                stand = (pkg.get("animations") or {}).get("stand") or {}
+                frames = stand.get("frames") or []
+                if frames and os.path.isfile(frames[0]):
+                    pet_icon_path = frames[0]
+
         agent = self._get_or_create_agent()
         window = FullChatWindow(
             agent_loop=agent,
             system_prompt=self._get_system_prompt(),
+            pet_name=str(pkg.get("name") or pkg.get("id") or "Peko"),
+            pet_icon_path=pet_icon_path,
         )
         self._full_chat_window = window
         window.closed.connect(self._on_full_chat_closed)

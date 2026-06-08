@@ -63,24 +63,27 @@ class AgentLoop:
             self._messages.append(assistant_msg)
 
             if not resp.has_tool_calls:
-                # 无工具调用 → 最终回复
+                # 无工具调用 → 最终回复（chat_with_tools 已拿到完整文本）
+                content = resp.content or ""
                 if self._on_token:
-                    # 有 token 回调 → 流式输出
-                    current = [""]
+                    if content:
+                        self._on_token(content)
+                    else:
+                        # 非流式无内容时，去掉占位 assistant 再流式重试
+                        self._messages.pop()
+                        current = [""]
 
-                    def _on_token(token: str):
-                        current[0] += token
-                        if self._on_token:
-                            self._on_token(token)
+                        def _on_token(token: str):
+                            current[0] += token
+                            if self._on_token:
+                                self._on_token(token)
 
-                    result_text = stream_chat(self._messages, on_token=_on_token)
-                    # 用流式累积的结果覆盖（stream_chat 的返回值可能为空）
-                    final = current[0] if current[0] else result_text
-                    # 替换最后一条 assistant 消息为流式结果
-                    self._messages[-1]["content"] = final
-                    return final
-                else:
-                    return resp.content
+                        result_text = stream_chat(self._messages, on_token=_on_token)
+                        content = current[0] or result_text
+                        self._messages.append({"role": "assistant", "content": content})
+                        return content
+                self._messages[-1]["content"] = content
+                return content
 
             # 有工具调用 → 执行工具 → 继续下一轮
             for tc in resp.tool_calls:

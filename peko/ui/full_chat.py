@@ -2,6 +2,7 @@
 完整聊天窗口：左侧对话列表 + 右侧聊天记录，支持多轮对话记忆和持久化。
 """
 from __future__ import annotations
+import base64
 import json
 import os
 import uuid
@@ -9,8 +10,8 @@ import threading
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from PyQt5.QtCore import Qt, pyqtSignal, QObject
-from PyQt5.QtGui import QFont, QColor, QIcon
+from PyQt5.QtCore import Qt, pyqtSignal, QObject, QUrl, QBuffer, QIODevice, QRectF
+from PyQt5.QtGui import QFont, QColor, QIcon, QImage, QPainter, QPen, QPainterPath
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
     QLineEdit, QPushButton, QListWidget, QListWidgetItem,
@@ -20,6 +21,161 @@ from PyQt5.QtWidgets import (
 
 if TYPE_CHECKING:
     from ..ai.agent import AgentLoop
+
+
+# ─── 头像与 HTML 工具 ───────────────────────────────────────────
+
+def _escape_html(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br>")
+    )
+
+
+AVATAR_SIZE = 48          # HTML 显示尺寸（略放大，细节更易辨认）
+AVATAR_FRAME_SIZE = 52    # 外框固定尺寸
+
+
+def _svg_avatar_uri(
+    label: str,
+    bg_color: str,
+    text_color: str = "#ffffff",
+    size: int = AVATAR_SIZE,
+) -> str:
+    """生成圆形文字头像的 data URI（QTextBrowser 兼容）。"""
+    char = (label or "?")[0]
+    half = size / 2
+    font_size = max(14, int(size * 0.42))
+    text_y = half + font_size * 0.35
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
+        f'viewBox="0 0 {size} {size}">'
+        f'<circle cx="{half}" cy="{half}" r="{half}" fill="{bg_color}"/>'
+        f'<text x="{half}" y="{text_y}" text-anchor="middle" fill="{text_color}" '
+        f'font-size="{font_size}" font-family="Microsoft YaHei, PingFang SC, sans-serif">'
+        f"{char}</text>"
+        f"</svg>"
+    )
+    encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{encoded}"
+
+
+def _pixel_visible(color: QColor) -> bool:
+    if color.alpha() < 20:
+        return False
+    return color.red() + color.green() + color.blue() > 40
+
+
+def _crop_to_content(img: QImage) -> QImage:
+    """裁掉透明/纯黑留白，让主体尽量铺满头像区域。"""
+    src = img.convertToFormat(QImage.Format_ARGB32)
+    w, h = src.width(), src.height()
+    min_x, min_y = w, h
+    max_x, max_y = 0, 0
+    for y in range(h):
+        for x in range(w):
+            if _pixel_visible(src.pixelColor(x, y)):
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+    if max_x <= min_x or max_y <= min_y:
+        return src
+    pad = max(2, int(min(max_x - min_x, max_y - min_y) * 0.04))
+    left = max(0, min_x - pad)
+    top = max(0, min_y - pad)
+    right = min(w - 1, max_x + pad)
+    bottom = min(h - 1, max_y + pad)
+    return src.copy(left, top, right - left + 1, bottom - top + 1)
+
+
+def _scale_down_sharp(img: QImage, size: int) -> QImage:
+    """分步缩小；中间步骤平滑，最后一步用快速算法保留卡通线条锐度。"""
+    current = img
+    while max(current.width(), current.height()) > size * 2:
+        nw = max(size, int(current.width() * 0.5))
+        nh = max(size, int(current.height() * 0.5))
+        current = current.scaled(nw, nh, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    return current.scaled(size, size, Qt.KeepAspectRatio, Qt.FastTransformation)
+
+
+def _raster_avatar_data_uri(path: str, raster_size: int, *, circular: bool = False) -> str:
+    """预渲染为固定尺寸 PNG data URI，配合显示尺寸 1:1 或接近 1:1 使用。"""
+    img = QImage(path)
+    if img.isNull():
+        return ""
+    cropped = _crop_to_content(img)
+    canvas = QImage(raster_size, raster_size, QImage.Format_ARGB32)
+    canvas.fill(Qt.transparent)
+    painter = QPainter(canvas)
+    painter.setRenderHint(QPainter.Antialiasing, True)
+    painter.setRenderHint(QPainter.SmoothPixmapTransform, False)
+
+    if circular:
+        border = max(1, int(round(raster_size / 48)))
+        outer_diameter = raster_size - border
+        outer = QRectF(border / 2, border / 2, outer_diameter, outer_diameter)
+        painter.setBrush(QColor("#FFFFFF"))
+        painter.setPen(QPen(QColor("#E8E8E8"), border))
+        painter.drawEllipse(outer)
+
+        inset = border + max(1, int(round(raster_size / 64)))
+        inner_diameter = raster_size - inset * 2
+        fitted = _scale_down_sharp(cropped, inner_diameter)
+        clip = QPainterPath()
+        clip.addEllipse(QRectF(inset, inset, inner_diameter, inner_diameter))
+        painter.setClipPath(clip)
+        x = inset + (inner_diameter - fitted.width()) // 2
+        y = inset + (inner_diameter - fitted.height()) // 2
+        painter.drawImage(x, y, fitted)
+    else:
+        fitted = _scale_down_sharp(cropped, raster_size)
+        painter.fillRect(0, 0, raster_size, raster_size, QColor("#FFFFFF"))
+        x = (raster_size - fitted.width()) // 2
+        y = (raster_size - fitted.height()) // 2
+        painter.drawImage(x, y, fitted)
+
+    painter.end()
+
+    buffer = QBuffer()
+    buffer.open(QIODevice.WriteOnly)
+    canvas.save(buffer, "PNG")
+    encoded = base64.b64encode(bytes(buffer.data())).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def _avatar_raster_size(device_pixel_ratio: float) -> int:
+    """按屏幕 DPI 生成栅格尺寸，减少 QTextBrowser 二次缩放。"""
+    dpr = max(2.0, float(device_pixel_ratio or 1.0))
+    return int(round(AVATAR_SIZE * dpr))
+
+
+def _image_uri(
+    path: str,
+    fallback_label: str,
+    fallback_color: str,
+    raster_size: int,
+    *,
+    circular: bool = False,
+) -> str:
+    if path and os.path.isfile(path):
+        data_uri = _raster_avatar_data_uri(path, raster_size, circular=circular)
+        if data_uri:
+            return data_uri
+        return QUrl.fromLocalFile(os.path.normpath(path)).toString()
+    return _svg_avatar_uri(fallback_label, fallback_color, size=AVATAR_SIZE)
+
+
+def get_ai_chat_avatar_path() -> str:
+    """聊天窗口 AI 侧头像（优先使用内置资源）。"""
+    bundled = os.path.join(os.path.dirname(__file__), "assets", "ai_chat_avatar.png")
+    return bundled if os.path.isfile(bundled) else ""
+
+
+def _resolve_ai_avatar_path(pet_icon_path: str) -> str:
+    return get_ai_chat_avatar_path() or pet_icon_path
 
 
 # ─── 聊天历史存储 ───────────────────────────────────────────────
@@ -197,10 +353,10 @@ QLineEdit#chatInput:focus {
 
 /* ── 聊天显示区 ── */
 QTextBrowser#chatDisplay {
-    background: #fafafa;
+    background: #f3f4f6;
     border: none;
     font-size: 14px;
-    padding: 8px 12px;
+    padding: 12px 16px;
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
@@ -269,10 +425,32 @@ class FullChatWindow(QWidget):
     """
     closed = pyqtSignal()
 
-    def __init__(self, parent=None, agent_loop: Optional["AgentLoop"] = None, system_prompt: str = ""):
+    def __init__(
+        self,
+        parent=None,
+        agent_loop: Optional["AgentLoop"] = None,
+        system_prompt: str = "",
+        pet_name: str = "Peko",
+        pet_icon_path: str = "",
+    ):
         super().__init__(parent)
         self._agent = agent_loop
         self._system_prompt = system_prompt
+        self._pet_name = pet_name or "Peko"
+        dpr = (
+            float(self.devicePixelRatioF())
+            if hasattr(self, "devicePixelRatioF")
+            else float(self.devicePixelRatio())
+        )
+        raster_size = _avatar_raster_size(dpr)
+        self._pet_avatar_uri = _image_uri(
+            _resolve_ai_avatar_path(pet_icon_path),
+            self._pet_name,
+            "#FFB74D",
+            raster_size,
+            circular=True,
+        )
+        self._user_avatar_uri = _svg_avatar_uri("我", "#66BB6A", size=AVATAR_SIZE)
         self._current_conv: Optional[Dict[str, Any]] = None
         self._is_streaming = False
         self._suppress_item_changed = False  # 防止重命名时触发 itemChanged
@@ -519,53 +697,115 @@ class FullChatWindow(QWidget):
 
     def _build_welcome_html(self) -> str:
         return """
-        <style>
-            body { margin: 0; padding: 0; }
-        </style>
+        <body style="margin:0; padding:4px 0; font-family:'Microsoft YaHei','PingFang SC',sans-serif;">
+        </body>
         """
 
     def _append_bubble(self, text: str, is_user: bool):
-        safe_text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        safe_text = safe_text.replace("\n", "<br>")
-
+        safe_text = _escape_html(text)
         if is_user:
-            # 用户消息：绿色气泡，右对齐
             html = f"""
-            <div style="text-align:right; margin:10px 8px;">
-                <span style="display:inline-block; background:#E8F5E9; color:#1b5e20;
-                             border-radius:16px 16px 4px 16px;
-                             padding:10px 16px; max-width:75%; text-align:left;
-                             font-size:14px; line-height:1.6;
-                             box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-                    {safe_text}
-                </span>
-            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;">
+              <tr>
+                <td width="18%"></td>
+                <td align="right" valign="top">
+                  <table cellpadding="0" cellspacing="0" align="right">
+                    <tr>
+                      <td valign="top" align="right" style="padding-right:10px;">
+                        <table cellpadding="0" cellspacing="0" align="right">
+                          <tr>
+                            <td bgcolor="#43A047" style="color:#ffffff; font-size:14px;
+                                line-height:1.6; padding:11px 15px;">
+                              {safe_text}
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td valign="top" width="{AVATAR_FRAME_SIZE}">
+                        <table cellpadding="0" cellspacing="0" width="{AVATAR_FRAME_SIZE}"
+                               height="{AVATAR_FRAME_SIZE}">
+                          <tr>
+                            <td width="{AVATAR_FRAME_SIZE}" height="{AVATAR_FRAME_SIZE}"
+                                align="center" valign="middle">
+                              <img src="{self._user_avatar_uri}" width="{AVATAR_SIZE}"
+                                   height="{AVATAR_SIZE}"/>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
             """
         else:
-            # AI 消息：白色卡片气泡，左对齐
+            safe_name = _escape_html(self._pet_name)
             html = f"""
-            <div style="text-align:left; margin:10px 8px;">
-                <span style="display:inline-block; background:#ffffff; color:#333;
-                             border-radius:16px 16px 16px 4px;
-                             padding:10px 16px; max-width:75%; text-align:left;
-                             font-size:14px; line-height:1.6;
-                             border:1px solid #f0f0f0;
-                             box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-                    {safe_text}
-                </span>
-            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;">
+              <tr>
+                <td align="left" valign="top" width="82%">
+                  <table cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td valign="top" width="{AVATAR_FRAME_SIZE}">
+                        <table cellpadding="0" cellspacing="0" width="{AVATAR_FRAME_SIZE}"
+                               height="{AVATAR_FRAME_SIZE}">
+                          <tr>
+                            <td width="{AVATAR_FRAME_SIZE}" height="{AVATAR_FRAME_SIZE}"
+                                align="center" valign="middle">
+                              <img src="{self._pet_avatar_uri}" width="{AVATAR_SIZE}"
+                                   height="{AVATAR_SIZE}"/>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td valign="top" style="padding-left:10px;">
+                        <table cellpadding="0" cellspacing="0" width="100%">
+                          <tr>
+                            <td style="color:#888; font-size:12px; padding-bottom:5px;">
+                              {safe_name}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td bgcolor="#FFFFFF" style="color:#333; font-size:14px;
+                                line-height:1.6; padding:11px 15px; border:1px solid #E0E0E0;">
+                              {safe_text}
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                <td></td>
+              </tr>
+            </table>
             """
         self._display.append(html)
-        self._display.moveCursor(self._display.textCursor().End)
+        self._scroll_to_bottom()
 
     def _append_tool_status(self, text: str):
+        safe_text = _escape_html(text)
         html = f"""
-        <div style="text-align:center; margin:6px 0;">
-            <span style="color:#999; font-size:12px; font-style:italic;
-                         background:#f5f5f5; padding:3px 12px; border-radius:10px;">{text}</span>
-        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 12px 0;">
+          <tr>
+            <td align="center">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td bgcolor="#F1F3F4" style="color:#888; font-size:12px;
+                      padding:5px 14px;">
+                    {safe_text}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
         """
         self._display.append(html)
+        self._scroll_to_bottom()
+
+    def _scroll_to_bottom(self) -> None:
         self._display.moveCursor(self._display.textCursor().End)
 
     # ─── 发送消息 ────────────────────────────────────────────────
@@ -583,17 +823,19 @@ class FullChatWindow(QWidget):
         self._append_bubble(text, is_user=True)
         self._current_conv["messages"].append({"role": "user", "content": text})
 
-        # 自动标题：首条消息的前 15 个字
+        # 自动标题：首条消息的前 15 个字（就地更新列表，避免 setCurrentRow 重载清空聊天区）
         user_msgs = [m for m in self._current_conv["messages"] if m.get("role") == "user"]
         if len(user_msgs) == 1:
             self._current_conv["title"] = text[:15] + ("..." if len(text) > 15 else "")
-            self._suppress_item_changed = True
-            self._load_conv_list()
-            self._suppress_item_changed = False
+            self._chat_header.setText(self._current_conv["title"])
             for i in range(self._conv_list.count()):
-                if self._conv_list.item(i).data(Qt.UserRole) == self._current_conv["id"]:
-                    self._conv_list.setCurrentRow(i)
+                item = self._conv_list.item(i)
+                if item.data(Qt.UserRole) == self._current_conv["id"]:
+                    self._suppress_item_changed = True
+                    item.setText(self._current_conv["title"])
+                    self._suppress_item_changed = False
                     break
+        _save_conversation(self._current_conv)
 
         self._input.clear()
         self._is_streaming = True
@@ -644,14 +886,15 @@ class FullChatWindow(QWidget):
         if not self._current_conv:
             return
 
-        self._append_bubble(full_text, is_user=False)
         self._current_conv["messages"].append({"role": "assistant", "content": full_text})
         _save_conversation(self._current_conv)
+        self._render_messages()
 
     def _on_error(self, error: str):
         self._is_streaming = False
         self._send_btn.setEnabled(True)
         self._append_bubble(f"⚠️ 出错了: {error}", is_user=False)
+        self._scroll_to_bottom()
 
     # ─── 窗口事件 ────────────────────────────────────────────────
 

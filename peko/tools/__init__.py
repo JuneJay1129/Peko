@@ -41,5 +41,10 @@ def call_tool(name: str, arguments: str | Dict[str, Any]) -> ToolResult:
 
 # Auto-register built-in tools
 from .web_search import WebSearchTool  # noqa: E402, F401
+from .weather import WeatherTool  # noqa: E402, F401
+from .file_summary import ReadFileTool, SummarizeFileTool  # noqa: E402, F401
 
 register(WebSearchTool())
+register(WeatherTool())
+register(ReadFileTool())
+register(SummarizeFileTool())
