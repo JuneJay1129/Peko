@@ -1,11 +1,10 @@
 """set_timer 工具：设置定时提醒，到时通过宠物气泡通知用户。"""
 from __future__ import annotations
 import threading
-import time
 from typing import Callable, Optional
 from .base import BaseTool, ToolResult
 
-# 全局通知回调，由 pet.py / full_chat.py 初始化时注入
+# 全局通知回调，由 pet.py 初始化时注入
 _notify_callback: Optional[Callable[[str, int], None]] = None
 _timer_start_callback: Optional[Callable[[float, str, float], None]] = None
 _timer_fire_callback: Optional[Callable[[str], None]] = None
@@ -29,11 +28,28 @@ def set_timer_fire_callback(callback: Callable[[str], None]) -> None:
     _timer_fire_callback = callback
 
 
-def _fire(msg: str):
-    if _notify_callback:
-        _notify_callback(msg)
-    if _timer_fire_callback:
-        _timer_fire_callback(msg)
+def _fire(msg: str) -> None:
+    """定时器到期时在后台线程调用。
+    PyQt5 的 QTimer.singleShot 静态方法会将 callable 投递到主线程事件循环，
+    因此从后台线程调用是安全的。
+    """
+    cb_notify = _notify_callback
+    cb_fire = _timer_fire_callback
+    try:
+        from PyQt5.QtCore import QCoreApplication, QTimer
+        if QCoreApplication.instance() is not None:
+            if cb_notify is not None:
+                QTimer.singleShot(0, lambda m=msg: cb_notify(m, 8000))
+            if cb_fire is not None:
+                QTimer.singleShot(0, lambda m=msg: cb_fire(m))
+        else:
+            # 无 Qt 事件循环（测试环境），直接同步调用
+            if cb_notify is not None:
+                cb_notify(msg, 8000)
+            if cb_fire is not None:
+                cb_fire(msg)
+    except Exception:
+        pass
 
 
 class SetTimerTool(BaseTool):

@@ -24,6 +24,13 @@ if TYPE_CHECKING:
     from ..ai.agent import AgentLoop
 
 
+# ─── Sentinel 常量 ──────────────────────────────────────────────
+# 使用 Unicode 私有区字符作为不可见标记，写进文本内容，
+# 用 QTextDocument.find() 可以可靠定位；不会出现在 LLM 输出中。
+_SENTINEL_THINKING = "\uE001"  # "思考中..." 块标记
+_SENTINEL_STREAM   = "\uE002"  # 流式内容块标记（写入文本，随文本同步更新）
+
+
 # ─── 头像与 HTML 工具 ───────────────────────────────────────────
 
 def _escape_html(text: str) -> str:
@@ -407,6 +414,7 @@ class FullChatWindow(QWidget):
         self._current_conv: Optional[Dict[str, Any]] = None
         self._is_streaming = False
         self._streaming_row: Optional[str] = None
+        self._streaming_block_num: Optional[int] = None  # 流式块的 blockNumber
         self._suppress_item_changed = False
 
         self._signals = _SignalBridge()
@@ -882,13 +890,16 @@ class FullChatWindow(QWidget):
         self._scroll_to_bottom()
 
     def _remove_last_block(self):
-        """移除 QTextBrowser 最后一个 block（用于清除"思考中"状态）。"""
+        """移除 QTextBrowser 最后一个 block（保留以防外部调用，内部已改用 sentinel 方案）。"""
         doc = self._display.document()
         cursor = QTextCursor(doc)
         cursor.movePosition(QTextCursor.End)
         cursor.movePosition(QTextCursor.PreviousBlock, QTextCursor.MoveAnchor)
+        cursor.movePosition(QTextCursor.StartOfBlock)
         cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
         cursor.removeSelectedText()
+        if not cursor.block().text().strip():
+            cursor.deleteChar()
 
     def _scroll_to_bottom(self):
         sb = self._display.verticalScrollBar()
@@ -909,23 +920,27 @@ class FullChatWindow(QWidget):
         self._append_bubble(text, is_user=True, ts=_now)
         self._current_conv["messages"].append({"role": "user", "content": text})
 
+        # 首条消息：就地更新列表项标题，不触发 setCurrentRow → _on_conv_selected → _render_messages
         user_msgs = [m for m in self._current_conv["messages"] if m.get("role") == "user"]
         if len(user_msgs) == 1:
-            self._current_conv["title"] = text[:15] + ("..." if len(text) > 15 else "")
-            _save_conversation(self._current_conv)
+            title = text[:15] + ("..." if len(text) > 15 else "")
+            self._current_conv["title"] = title
+            self._chat_header.setText(title)
             self._suppress_item_changed = True
-            self._load_conv_list()
-            self._suppress_item_changed = True  # keep suppressed through setCurrentRow
             for i in range(self._conv_list.count()):
-                if self._conv_list.item(i).data(Qt.UserRole) == self._current_conv["id"]:
-                    self._conv_list.setCurrentRow(i)
+                item = self._conv_list.item(i)
+                if item.data(Qt.UserRole) == self._current_conv["id"]:
+                    item.setText(title)
                     break
             self._suppress_item_changed = False
+            _save_conversation(self._current_conv)
+        else:
+            _save_conversation(self._current_conv)
 
         self._input.clear()
         self._is_streaming = True
         self._send_btn.setEnabled(False)
-        self._append_tool_status("💭 思考中...")
+        self._append_thinking_status()
 
         threading.Thread(target=self._run_agent, args=(text,), daemon=True).start()
 
@@ -958,22 +973,20 @@ class FullChatWindow(QWidget):
     def _on_token(self, token: str):
         if not self._current_conv:
             return
-        # 首个 token：移除"思考中"状态，插入轻量流式占位块
+        # 首个 token：移除"思考中"状态，插入流式占位块
         if not self._streaming_row:
-            self._remove_last_block()
-            self._append_streaming_block("...")
+            self._remove_thinking_status()
+            self._append_streaming_block()
 
-        self._streaming_row = self._streaming_row or ""
-        self._streaming_row += token
-        # 更新当前对话的消息列表
+        self._streaming_row = (self._streaming_row or "") + token
+        # 更新当前对话的消息列表（用 streaming 角色区分）
         msgs = self._current_conv["messages"]
-        if msgs and msgs[-1].get("role") == "assistant":
+        if msgs and msgs[-1].get("role") == "streaming":
             msgs[-1]["content"] = self._streaming_row
         else:
-            msgs.append({"role": "assistant", "content": self._streaming_row})
-        # 更新文档中的流式块（轻量，无 PNG 生成）
-        safe_text = _escape_html(self._streaming_row).replace("\n", "<br/>")
-        self._update_streaming_block(safe_text)
+            msgs.append({"role": "streaming", "content": self._streaming_row})
+        # 就地更新流式块文本
+        self._update_streaming_block(self._streaming_row)
 
     def _on_status(self, status: str):
         self._append_tool_status(status)
@@ -981,7 +994,6 @@ class FullChatWindow(QWidget):
     def _on_reply_done(self, full_text: str):
         self._is_streaming = False
         self._send_btn.setEnabled(True)
-        # 移除流式占位块，插入最终气泡
         self._remove_streaming_block()
         self._streaming_row = None
 
@@ -990,12 +1002,18 @@ class FullChatWindow(QWidget):
 
         _now = datetime.now().strftime("%H:%M")
         self._append_bubble(full_text, is_user=False, ts=_now)
-        self._current_conv["messages"][-1]["content"] = full_text
+        # 把 streaming 占位消息替换为正式的 assistant 消息
+        msgs = self._current_conv["messages"]
+        if msgs and msgs[-1].get("role") in ("streaming", "assistant"):
+            msgs[-1] = {"role": "assistant", "content": full_text}
+        else:
+            msgs.append({"role": "assistant", "content": full_text})
         _save_conversation(self._current_conv)
 
     def _on_error(self, error: str):
         self._is_streaming = False
         self._send_btn.setEnabled(True)
+        self._remove_thinking_status()
         self._remove_streaming_block()
         self._streaming_row = None
         _now = datetime.now().strftime("%H:%M")
@@ -1003,69 +1021,86 @@ class FullChatWindow(QWidget):
 
     # ─── 流式占位块操作 ──────────────────────────────────────────
 
-    def _append_streaming_block(self, text: str):
-        """在 QTextBrowser 末尾追加一个轻量流式占位块（带头像）。"""
-        vw = self._display.viewport().width() if self._display.viewport().width() > 100 else 500
-        max_bubble_w = int(vw * 0.65)
-        safe_text = _escape_html(text).replace("\n", "<br/>")
-        uri = self._pet_avatar_uri
-        html = f"""
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
-          <tr>
-            <td valign="top" width="{AVATAR_FRAME_SIZE}">
-              <img src="{uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>
-            </td>
-            <td align="left" valign="top" style="padding-left:8px;">
-              <div id="streaming-block" style="background:{BG_INPUT}; border:2px solid {BORDER_LIGHT}; border-radius:16px; padding:12px 14px; font-size:13px; color:{TEXT_PRIMARY}; font-family:{FONT_FAMILY}; max-width:{max_bubble_w}px;">
-                {safe_text}
-              </div>
-            </td>
-            <td width="10%"></td>
-          </tr>
-        </table>
-        """
+    # ─── 流式块操作（Sentinel + block number 方案）─────────────────
+
+    def _append_thinking_status(self):
+        """追加"思考中..."状态块，写入 sentinel 字符使其可被 doc.find() 定位。"""
+        safe = _escape_html("💭 思考中...")
+        html = (
+            f'<p align="center" style="margin:6px 0; padding:5px 0; '
+            f'color:{TEXT_MUTED}; font-size:12px; font-style:italic; '
+            f'font-family:{FONT_FAMILY};">{_SENTINEL_THINKING}{safe}</p>'
+        )
         self._display.append(html)
         self._scroll_to_bottom()
 
-    def _update_streaming_block(self, safe_text: str):
-        """更新文档中最后一个流式块的文本内容。"""
+    def _remove_thinking_status(self):
+        """通过 sentinel 定位并删除"思考中..."块。"""
+        cursor = self._display.document().find(_SENTINEL_THINKING)
+        if cursor.isNull():
+            return
+        bc = QTextCursor(cursor.block())
+        bc.movePosition(QTextCursor.StartOfBlock)
+        bc.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        bc.removeSelectedText()
+        # 删除剩余的空块分隔符
+        if not bc.block().text().strip():
+            bc.deleteChar()
+
+    def _append_streaming_block(self):
+        """追加流式内容占位块（简单 <p>），记录 blockNumber 供后续更新/删除。"""
+        # 用 \uE002 sentinel 作为初始文本，让 _update_streaming_block 可以定位
+        html = (
+            f'<p style="margin:8px 8px 8px 64px; padding:12px 14px; '
+            f'background:{BG_INPUT}; border:2px solid {BORDER_LIGHT}; '
+            f'border-radius:16px; font-size:13px; color:{TEXT_PRIMARY}; '
+            f'font-family:{FONT_FAMILY};">{_SENTINEL_STREAM}✍️</p>'
+        )
+        self._display.append(html)
         doc = self._display.document()
-        # 从末尾向前搜索包含 id="streaming-block" 的 block
-        block = doc.lastBlock()
-        while block.isValid():
-            if "streaming-block" in block.text():
-                cursor = QTextCursor(block)
-                cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
-                # 获取当前 block 的 HTML 并替换文本部分
-                # 由于 QTextBrowser 的 block 结构较复杂，直接整体替换
-                vw = self._display.viewport().width() if self._display.viewport().width() > 100 else 500
-                max_bubble_w = int(vw * 0.65)
-                new_html = (
-                    f'<div id="streaming-block" style="background:{BG_INPUT}; border:2px solid {BORDER_LIGHT}; '
-                    f'border-radius:16px; padding:12px 14px; font-size:13px; color:{TEXT_PRIMARY}; '
-                    f'font-family:{FONT_FAMILY}; max-width:{max_bubble_w}px;">'
-                    f'{safe_text}</div>'
-                )
-                cursor.insertHtml(new_html)
-                break
-            block = block.previous()
+        self._streaming_block_num = doc.lastBlock().blockNumber()
+        self._scroll_to_bottom()
+
+    def _update_streaming_block(self, text: str):
+        """用 block number 定位流式块，原地替换文本内容。
+        使用 \\u2028（Line Separator）代替 \\n，保持单块内换行。
+        """
+        if self._streaming_block_num is None:
+            return
+        doc = self._display.document()
+        block = doc.findBlockByNumber(self._streaming_block_num)
+        if not block.isValid():
+            return
+        cursor = QTextCursor(block)
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        # \u2028 = Unicode Line Separator：在块内换行，不产生新 block
+        display_text = _SENTINEL_STREAM + text.replace("\n", "\u2028")
+        cursor.insertText(display_text)
         self._scroll_to_bottom()
 
     def _remove_streaming_block(self):
-        """移除文档中最后一个流式占位块所在的整个 table。"""
+        """删除流式块（先按 block number，找不到再用 sentinel 兜底）。"""
         doc = self._display.document()
-        block = doc.lastBlock()
-        while block.isValid():
-            if "streaming-block" in block.text():
-                cursor = QTextCursor(block)
-                # 选中整个 block（包括前面的 table 行）
-                cursor.movePosition(QTextCursor.StartOfBlock, QTextCursor.MoveAnchor)
-                cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
-                cursor.removeSelectedText()
-                # 也移除空行
-                cursor.deletePreviousChar()
-                break
-            block = block.previous()
+        block = None
+        if self._streaming_block_num is not None:
+            b = doc.findBlockByNumber(self._streaming_block_num)
+            if b.isValid():
+                block = b
+        if block is None:
+            # 兜底：用 sentinel 搜索
+            cursor = doc.find(_SENTINEL_STREAM)
+            if not cursor.isNull():
+                block = cursor.block()
+        self._streaming_block_num = None
+        if block is None or not block.isValid():
+            return
+        bc = QTextCursor(block)
+        bc.movePosition(QTextCursor.StartOfBlock)
+        bc.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        bc.removeSelectedText()
+        if not bc.block().text().strip():
+            bc.deleteChar()
 
     # ─── 窗口事件 ────────────────────────────────────────────────
 
