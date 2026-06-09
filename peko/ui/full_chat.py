@@ -1,5 +1,6 @@
 """
 完整聊天窗口：左侧对话列表 + 右侧聊天记录，支持多轮对话记忆和持久化。
+UI 风格：动物森友会 (Animal Island) — 温暖奶油色调、圆润、自然感。
 """
 from __future__ import annotations
 import base64
@@ -34,328 +35,189 @@ def _escape_html(text: str) -> str:
     )
 
 
-AVATAR_SIZE = 48          # HTML 显示尺寸（略放大，细节更易辨认）
-AVATAR_FRAME_SIZE = 52    # 外框固定尺寸
+AVATAR_SIZE = 48
+AVATAR_FRAME_SIZE = 52
 
 
-def _svg_avatar_uri(
-    label: str,
-    bg_color: str,
-    text_color: str = "#ffffff",
-    size: int = AVATAR_SIZE,
-) -> str:
-    """生成圆形文字头像的 data URI（QTextBrowser 兼容）。"""
-    char = (label or "?")[0]
-    half = size / 2
-    font_size = max(14, int(size * 0.42))
-    text_y = half + font_size * 0.35
-    svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
-        f'viewBox="0 0 {size} {size}">'
-        f'<circle cx="{half}" cy="{half}" r="{half}" fill="{bg_color}"/>'
-        f'<text x="{half}" y="{text_y}" text-anchor="middle" fill="{text_color}" '
-        f'font-size="{font_size}" font-family="Microsoft YaHei, PingFang SC, sans-serif">'
-        f"{char}</text>"
-        f"</svg>"
-    )
-    encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
-    return f"data:image/svg+xml;base64,{encoded}"
+def _png_avatar_uri(name: str, bg: str, size: int = AVATAR_SIZE) -> str:
+    """用 QPainter 画方形圆角头像 PNG → data URI（QTextBrowser 兼容性好）。"""
+    letter = (name or "?")[0]
+    img = QImage(size, size, QImage.Format_ARGB32)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing)
+    # 方形圆角背景
+    r = int(size * 0.22)
+    path = QPainterPath()
+    path.addRoundedRect(QRectF(0, 0, size, size), r, r)
+    p.fillPath(path, QColor(bg))
+    # 居中字母
+    p.setPen(QPen(QColor("#ffffff")))
+    font = QFont("Microsoft YaHei", max(10, size // 3), QFont.Bold)
+    p.setFont(font)
+    p.drawText(QRectF(0, 0, size, size), Qt.AlignCenter, letter)
+    p.end()
+    buf = QBuffer()
+    buf.open(QBuffer.ReadWrite)
+    img.save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(bytes(buf.data())).decode("ascii")
 
 
-def _pixel_visible(color: QColor) -> bool:
-    if color.alpha() < 20:
-        return False
-    return color.red() + color.green() + color.blue() > 40
+def _resolve_ai_avatar_path(icon_path: str) -> str:
+    if not icon_path:
+        return ""
+    if os.path.isabs(icon_path):
+        return icon_path
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(root, icon_path)
 
 
-def _crop_to_content(img: QImage) -> QImage:
-    """裁掉透明/纯黑留白，让主体尽量铺满头像区域。"""
-    src = img.convertToFormat(QImage.Format_ARGB32)
-    w, h = src.width(), src.height()
-    min_x, min_y = w, h
-    max_x, max_y = 0, 0
-    for y in range(h):
-        for x in range(w):
-            if _pixel_visible(src.pixelColor(x, y)):
-                min_x = min(min_x, x)
-                min_y = min(min_y, y)
-                max_x = max(max_x, x)
-                max_y = max(max_y, y)
-    if max_x <= min_x or max_y <= min_y:
-        return src
-    pad = max(2, int(min(max_x - min_x, max_y - min_y) * 0.04))
-    left = max(0, min_x - pad)
-    top = max(0, min_y - pad)
-    right = min(w - 1, max_x + pad)
-    bottom = min(h - 1, max_y + pad)
-    return src.copy(left, top, right - left + 1, bottom - top + 1)
+def _image_uri(path: str, fallback_name: str, fallback_bg: str, size: int, rounded_rect: bool = False) -> str:
+    if not path or not os.path.exists(path):
+        return _png_avatar_uri(fallback_name, fallback_bg, size)
+    try:
+        pil = _pil_load_and_fit(path, size, rounded_rect)
+        if pil is not None:
+            return _pil_data_uri(pil)
+    except Exception:
+        pass
+    return _pilqt_data_uri(path, size, rounded_rect)
 
 
-def _scale_down_sharp(img: QImage, size: int) -> QImage:
-    """分步缩小；中间步骤平滑，最后一步用快速算法保留卡通线条锐度。"""
-    current = img
-    while max(current.width(), current.height()) > size * 2:
-        nw = max(size, int(current.width() * 0.5))
-        nh = max(size, int(current.height() * 0.5))
-        current = current.scaled(nw, nh, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-    return current.scaled(size, size, Qt.KeepAspectRatio, Qt.FastTransformation)
+def _pil_load_and_fit(path: str, size: int, rounded_rect: bool):
+    try:
+        from PIL import Image, ImageDraw, ImageFilter
+    except ImportError:
+        return None
+    img = Image.open(path).convert("RGBA")
+    img.thumbnail((size, size), Image.LANCZOS)
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    x, y = (size - img.width) // 2, (size - img.height) // 2
+    canvas.paste(img, (x, y), img if img.mode == "RGBA" else None)
+    if rounded_rect:
+        mask = Image.new("L", (size, size), 0)
+        draw = ImageDraw.Draw(mask)
+        r = int(size * 0.22)
+        draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=r, fill=255)
+        bg = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        bg.paste(canvas, mask=mask)
+        canvas = bg
+    return canvas
 
 
-def _raster_avatar_data_uri(path: str, raster_size: int, *, circular: bool = False) -> str:
-    """预渲染为固定尺寸 PNG data URI，配合显示尺寸 1:1 或接近 1:1 使用。"""
+def _pil_data_uri(pil_image) -> str:
+    from io import BytesIO
+    buf = BytesIO()
+    pil_image.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _pilqt_data_uri(path: str, size: int, rounded_rect: bool = False) -> str:
     img = QImage(path)
     if img.isNull():
-        return ""
-    cropped = _crop_to_content(img)
-    canvas = QImage(raster_size, raster_size, QImage.Format_ARGB32)
+        return _png_avatar_uri("?", "#FFB74D", size)
+    img = img.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    canvas = QImage(size, size, QImage.Format_ARGB32)
     canvas.fill(Qt.transparent)
-    painter = QPainter(canvas)
-    painter.setRenderHint(QPainter.Antialiasing, True)
-    painter.setRenderHint(QPainter.SmoothPixmapTransform, False)
-
-    if circular:
-        border = max(1, int(round(raster_size / 48)))
-        outer_diameter = raster_size - border
-        outer = QRectF(border / 2, border / 2, outer_diameter, outer_diameter)
-        painter.setBrush(QColor("#FFFFFF"))
-        painter.setPen(QPen(QColor("#E8E8E8"), border))
-        painter.drawEllipse(outer)
-
-        inset = border + max(1, int(round(raster_size / 64)))
-        inner_diameter = raster_size - inset * 2
-        fitted = _scale_down_sharp(cropped, inner_diameter)
-        clip = QPainterPath()
-        clip.addEllipse(QRectF(inset, inset, inner_diameter, inner_diameter))
-        painter.setClipPath(clip)
-        x = inset + (inner_diameter - fitted.width()) // 2
-        y = inset + (inner_diameter - fitted.height()) // 2
-        painter.drawImage(x, y, fitted)
-    else:
-        fitted = _scale_down_sharp(cropped, raster_size)
-        painter.fillRect(0, 0, raster_size, raster_size, QColor("#FFFFFF"))
-        x = (raster_size - fitted.width()) // 2
-        y = (raster_size - fitted.height()) // 2
-        painter.drawImage(x, y, fitted)
-
-    painter.end()
-
-    buffer = QBuffer()
-    buffer.open(QIODevice.WriteOnly)
-    canvas.save(buffer, "PNG")
-    encoded = base64.b64encode(bytes(buffer.data())).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
+    p = QPainter(canvas)
+    p.setRenderHint(QPainter.Antialiasing)
+    cx, cy = (size - img.width()) // 2, (size - img.height()) // 2
+    if rounded_rect:
+        r = int(size * 0.22)
+        path_clip = QPainterPath()
+        path_clip.addRoundedRect(QRectF(0, 0, size, size), r, r)
+        p.setClipPath(path_clip)
+    p.drawImage(cx, cy, img)
+    p.end()
+    buf = QBuffer()
+    buf.open(QBuffer.ReadWrite)
+    canvas.save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(bytes(buf.data())).decode("ascii")
 
 
-def _avatar_raster_size(device_pixel_ratio: float) -> int:
-    """按屏幕 DPI 生成栅格尺寸，减少 QTextBrowser 二次缩放。"""
-    dpr = max(2.0, float(device_pixel_ratio or 1.0))
-    return int(round(AVATAR_SIZE * dpr))
+def _avatar_raster_size(dpr: float) -> int:
+    return max(64, int(AVATAR_SIZE * max(1.0, dpr)))
 
 
-def _image_uri(
-    path: str,
-    fallback_label: str,
-    fallback_color: str,
-    raster_size: int,
-    *,
-    circular: bool = False,
-) -> str:
-    if path and os.path.isfile(path):
-        data_uri = _raster_avatar_data_uri(path, raster_size, circular=circular)
-        if data_uri:
-            return data_uri
-        return QUrl.fromLocalFile(os.path.normpath(path)).toString()
-    return _svg_avatar_uri(fallback_label, fallback_color, size=AVATAR_SIZE)
-
-
-def get_ai_chat_avatar_path() -> str:
-    """聊天窗口 AI 侧头像（优先使用内置资源）。"""
-    bundled = os.path.join(os.path.dirname(__file__), "assets", "ai_chat_avatar.png")
-    return bundled if os.path.isfile(bundled) else ""
-
-
-def _resolve_ai_avatar_path(pet_icon_path: str) -> str:
-    return get_ai_chat_avatar_path() or pet_icon_path
-
-
-# ─── 聊天历史存储 ───────────────────────────────────────────────
-
-def _get_history_dir() -> str:
-    """获取聊天历史存储目录。"""
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    path = os.path.join(root, "data", "chat_history")
-    os.makedirs(path, exist_ok=True)
-    return path
-
-
-def _load_conversations() -> List[Dict[str, Any]]:
-    """加载所有对话的索引。"""
-    idx_path = os.path.join(_get_history_dir(), "index.json")
-    if os.path.exists(idx_path):
-        try:
-            with open(idx_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return sorted(data, key=lambda c: c.get("updated_at", ""), reverse=True)
-        except Exception:
-            pass
-    return []
-
-
-def _save_conversations_index(convs: List[Dict[str, Any]]) -> None:
-    idx_path = os.path.join(_get_history_dir(), "index.json")
-    with open(idx_path, "w", encoding="utf-8") as f:
-        json.dump(convs, f, ensure_ascii=False, indent=2)
-
-
-def _load_conversation(conv_id: str) -> Dict[str, Any]:
-    path = os.path.join(_get_history_dir(), f"{conv_id}.json")
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {
-        "id": conv_id,
-        "title": "新对话",
-        "messages": [],
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat(),
-    }
-
-
-def _save_conversation(conv: Dict[str, Any]) -> None:
-    conv["updated_at"] = datetime.now().isoformat()
-    path = os.path.join(_get_history_dir(), f"{conv['id']}.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(conv, f, ensure_ascii=False, indent=2)
-    # 更新索引
-    convs = _load_conversations()
-    found = False
-    for c in convs:
-        if c["id"] == conv["id"]:
-            c["title"] = conv["title"]
-            c["updated_at"] = conv["updated_at"]
-            found = True
-            break
-    if not found:
-        convs.insert(0, {
-            "id": conv["id"],
-            "title": conv["title"],
-            "created_at": conv["created_at"],
-            "updated_at": conv["updated_at"],
-        })
-    _save_conversations_index(convs)
-
-
-def _delete_conversation(conv_id: str) -> None:
-    path = os.path.join(_get_history_dir(), f"{conv_id}.json")
-    if os.path.exists(path):
-        os.remove(path)
-    convs = _load_conversations()
-    convs = [c for c in convs if c["id"] != conv_id]
-    _save_conversations_index(convs)
-
-
-def _rename_conversation(conv_id: str, new_title: str) -> None:
-    """重命名对话标题。"""
-    convs = _load_conversations()
-    for c in convs:
-        if c["id"] == conv_id:
-            c["title"] = new_title
-            break
-    _save_conversations_index(convs)
-    path = os.path.join(_get_history_dir(), f"{conv_id}.json")
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                conv = json.load(f)
-            conv["title"] = new_title
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(conv, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-
-
-# ─── 样式 ───────────────────────────────────────────────────────
+# ─── Animal Island UI 样式 ──────────────────────────────────────
 
 _WINDOW_STYLE = """
 QWidget#fullChatWindow {
-    background: #fafafa;
+    background: #FFF8F0;
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
 /* ── 侧边栏 ── */
 QFrame#sidebar {
-    background: #ffffff;
-    border-right: 1px solid #e8e8e8;
+    background: #F5EDE3;
+    border: none;
 }
 
 /* ── 通用按钮 ── */
 QPushButton {
-    font-size: 13px;
-    border-radius: 8px;
-    padding: 7px 16px;
+    font-size: 15px;
+    border-radius: 25px;
+    padding: 8px 18px;
     border: none;
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
 /* ── 新对话按钮 ── */
 QPushButton#newChatBtn {
-    background: #4CAF50;
-    color: white;
+    background: #9AB98C;
+    color: #ffffff;
     font-weight: bold;
-    font-size: 13px;
-    padding: 9px 16px;
-    border-radius: 10px;
+    font-size: 15px;
+    padding: 10px 18px;
+    border-radius: 25px;
 }
 QPushButton#newChatBtn:hover {
-    background: #43a047;
+    background: #B5CCA8;
 }
 QPushButton#newChatBtn:pressed {
-    background: #388e3c;
+    background: #8AAE7A;
 }
 
 /* ── 发送按钮 ── */
 QPushButton#sendBtn {
-    background: #4CAF50;
-    color: white;
+    background: #9AB98C;
+    color: #ffffff;
     font-weight: bold;
-    font-size: 13px;
-    padding: 9px 22px;
-    border-radius: 10px;
+    font-size: 15px;
+    padding: 10px 24px;
+    border-radius: 25px;
 }
 QPushButton#sendBtn:hover {
-    background: #43a047;
+    background: #B5CCA8;
 }
 QPushButton#sendBtn:pressed {
-    background: #388e3c;
+    background: #8AAE7A;
 }
 QPushButton#sendBtn:disabled {
-    background: #c8e6c9;
-    color: #a5d6a7;
+    background: #D5C9BA;
+    color: #E8DDD1;
 }
 
 /* ── 输入框 ── */
 QLineEdit#chatInput {
-    font-size: 14px;
-    border: 1.5px solid #e0e0e0;
+    font-size: 15px;
+    border: 2px solid #E8DDD1;
     border-radius: 20px;
     padding: 10px 18px;
-    background: white;
+    background: #FFFCF7;
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-    selection-background-color: #c8e6c9;
+    selection-background-color: #F6C9B4;
 }
 QLineEdit#chatInput:focus {
-    border-color: #81c784;
-    background: #fcfcfc;
+    border-color: #9AB98C;
+    background: #ffffff;
 }
 
 /* ── 聊天显示区 ── */
 QTextBrowser#chatDisplay {
-    background: #f3f4f6;
+    background: #FFF8F0;
     border: none;
-    font-size: 14px;
+    font-size: 15px;
     padding: 12px 16px;
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
@@ -364,43 +226,43 @@ QTextBrowser#chatDisplay {
 QListWidget#convList {
     background: transparent;
     border: none;
-    font-size: 13px;
+    font-size: 15px;
     outline: none;
     padding: 4px 6px;
 }
 QListWidget#convList::item {
-    padding: 10px 12px;
+    padding: 12px 14px;
     border: none;
-    border-radius: 10px;
-    margin: 2px 4px;
-    color: #444;
+    border-radius: 16px;
+    margin: 3px 4px;
+    color: #5C4B3A;
 }
 QListWidget#convList::item:selected {
-    background: #e8f5e9;
-    color: #2e7d32;
+    background: #F4E4D0;
+    color: #5C4B3A;
     font-weight: bold;
 }
 QListWidget#convList::item:hover:!selected {
-    background: #f5f5f5;
+    background: #F0E8DC;
 }
 
 /* ── 标题标签 ── */
 QLabel#titleLabel {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: bold;
-    color: #333;
-    padding: 10px 0;
+    color: #5C4B3A;
+    padding: 12px 0;
 }
 QLabel#emptyHint {
-    color: #aaa;
-    font-size: 13px;
+    color: #A89880;
+    font-size: 14px;
 }
 QLabel#chatHeader {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: bold;
-    color: #333;
-    padding: 6px 4px;
-    border-bottom: 1px solid #eee;
+    color: #5C4B3A;
+    padding: 8px 4px;
+    border-bottom: 2px solid #F0E8DC;
 }
 """
 
@@ -419,7 +281,7 @@ class _SignalBridge(QObject):
 
 class FullChatWindow(QWidget):
     """
-    完整聊天窗口。
+    完整聊天窗口 (Animal Island 风格)。
     左侧：对话列表（右键重命名/删除）
     右侧：气泡聊天记录 + 输入框
     """
@@ -444,16 +306,16 @@ class FullChatWindow(QWidget):
         )
         raster_size = _avatar_raster_size(dpr)
         self._pet_avatar_uri = _image_uri(
-            _resolve_ai_avatar_path(pet_icon_path),
+            _resolve_ai_avatar_path("peko/resource/ai_chat_avatar.png"),
             self._pet_name,
             "#FFB74D",
             raster_size,
-            circular=True,
+            rounded_rect=True,
         )
-        self._user_avatar_uri = _svg_avatar_uri("我", "#66BB6A", size=AVATAR_SIZE)
+        self._user_avatar_uri = _png_avatar_uri("我", "#66BB6A", size=AVATAR_SIZE)
         self._current_conv: Optional[Dict[str, Any]] = None
         self._is_streaming = False
-        self._suppress_item_changed = False  # 防止重命名时触发 itemChanged
+        self._suppress_item_changed = False
 
         self._signals = _SignalBridge()
         self._signals.token_received.connect(self._on_token)
@@ -476,7 +338,7 @@ class FullChatWindow(QWidget):
         root_layout.setSpacing(0)
 
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setHandleWidth(1)
+        splitter.setHandleWidth(0)
         root_layout.addWidget(splitter)
 
         # ── 左侧栏 ──
@@ -485,10 +347,10 @@ class FullChatWindow(QWidget):
         sidebar.setMinimumWidth(200)
         sidebar.setMaximumWidth(280)
         sb_layout = QVBoxLayout(sidebar)
-        sb_layout.setContentsMargins(10, 12, 10, 12)
-        sb_layout.setSpacing(10)
+        sb_layout.setContentsMargins(12, 16, 12, 16)
+        sb_layout.setSpacing(12)
 
-        title = QLabel("💬 对话列表")
+        title = QLabel("🍃 对话列表")
         title.setObjectName("titleLabel")
         sb_layout.addWidget(title)
 
@@ -506,8 +368,7 @@ class FullChatWindow(QWidget):
         self._conv_list.itemChanged.connect(self._on_item_changed)
         sb_layout.addWidget(self._conv_list, 1)
 
-        # 删除提示
-        hint = QLabel("右键可重命名/删除")
+        hint = QLabel("右键可重命名 / 删除")
         hint.setObjectName("emptyHint")
         hint.setAlignment(Qt.AlignCenter)
         sb_layout.addWidget(hint)
@@ -517,7 +378,7 @@ class FullChatWindow(QWidget):
         # ── 右侧聊天区 ──
         chat_area = QWidget()
         ca_layout = QVBoxLayout(chat_area)
-        ca_layout.setContentsMargins(16, 12, 16, 12)
+        ca_layout.setContentsMargins(16, 14, 16, 14)
         ca_layout.setSpacing(10)
 
         self._chat_header = QLabel("选择或新建一个对话")
@@ -570,10 +431,16 @@ class FullChatWindow(QWidget):
         self._suppress_item_changed = False
 
     def _on_conv_selected(self, row: int):
+        if self._suppress_item_changed:
+            return
         if row < 0:
             return
         item = self._conv_list.item(row)
+        if not item:
+            return
         conv_id = item.data(Qt.UserRole)
+        if self._current_conv and self._current_conv.get("id") == conv_id:
+            return
         self._current_conv = _load_conversation(conv_id)
         self._render_messages()
         self._chat_header.setText(self._current_conv.get("title", "对话"))
@@ -589,8 +456,14 @@ class FullChatWindow(QWidget):
             "updated_at": datetime.now().isoformat(),
         }
         _save_conversation(conv)
+        self._current_conv = conv
+        self._suppress_item_changed = True
         self._load_conv_list()
-        self._conv_list.setCurrentRow(0)
+        self._suppress_item_changed = True  # keep suppressed through setCurrentRow
+        if self._conv_list.count() > 0:
+            self._conv_list.setCurrentRow(0)
+        self._suppress_item_changed = False
+        self._render_messages()
         self._input.setFocus()
         if self._agent:
             self._agent.clear()
@@ -604,19 +477,21 @@ class FullChatWindow(QWidget):
         menu = QMenu(self)
         menu.setStyleSheet("""
             QMenu {
-                background: white;
-                border: 1px solid #e0e0e0;
-                border-radius: 8px;
-                padding: 4px 0px;
-                font-size: 13px;
+                background: #FFFCF7;
+                border: 2px solid #F0E8DC;
+                border-radius: 16px;
+                padding: 6px 0px;
+                font-size: 15px;
             }
             QMenu::item {
-                padding: 8px 24px;
-                color: #333;
+                padding: 10px 28px;
+                color: #5C4B3A;
+                border-radius: 12px;
+                margin: 2px 6px;
             }
             QMenu::item:selected {
-                background: #e8f5e9;
-                color: #2e7d32;
+                background: #F4E4D0;
+                color: #5C4B3A;
             }
         """)
 
@@ -631,11 +506,9 @@ class FullChatWindow(QWidget):
         menu.exec_(self._conv_list.viewport().mapToGlobal(pos))
 
     def _rename_selected(self, item: QListWidgetItem):
-        """就地编辑重命名。"""
         self._conv_list.editItem(item)
 
     def _on_item_changed(self, item: QListWidgetItem):
-        """就地编辑完成，保存新标题。"""
         if self._suppress_item_changed:
             return
         conv_id = item.data(Qt.UserRole)
@@ -643,13 +516,11 @@ class FullChatWindow(QWidget):
         if not new_title:
             return
         _rename_conversation(conv_id, new_title)
-        # 同步更新当前对话
         if self._current_conv and self._current_conv["id"] == conv_id:
             self._current_conv["title"] = new_title
             self._chat_header.setText(new_title)
 
     def _delete_selected(self, item: QListWidgetItem):
-        """删除对话（二次确认）。"""
         conv_id = item.data(Qt.UserRole)
         title = item.text()
         reply = QMessageBox.question(
@@ -663,7 +534,6 @@ class FullChatWindow(QWidget):
 
         _delete_conversation(conv_id)
 
-        # 如果删除的是当前对话，清空右侧
         if self._current_conv and self._current_conv["id"] == conv_id:
             self._current_conv = None
             self._display.clear()
@@ -672,7 +542,6 @@ class FullChatWindow(QWidget):
 
         self._load_conv_list()
 
-        # 自动选中下一个
         if self._conv_list.count() > 0:
             self._conv_list.setCurrentRow(0)
         if self._agent:
@@ -703,6 +572,7 @@ class FullChatWindow(QWidget):
 
     def _append_bubble(self, text: str, is_user: bool):
         safe_text = _escape_html(text)
+        br = "border-radius:12px;"
         if is_user:
             html = f"""
             <table width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;">
@@ -715,7 +585,7 @@ class FullChatWindow(QWidget):
                         <table cellpadding="0" cellspacing="0" align="right">
                           <tr>
                             <td bgcolor="#43A047" style="color:#ffffff; font-size:14px;
-                                line-height:1.6; padding:11px 15px;">
+                                line-height:1.6; padding:11px 15px; {br}">
                               {safe_text}
                             </td>
                           </tr>
@@ -768,7 +638,8 @@ class FullChatWindow(QWidget):
                           </tr>
                           <tr>
                             <td bgcolor="#FFFFFF" style="color:#333; font-size:14px;
-                                line-height:1.6; padding:11px 15px; border:1px solid #E0E0E0;">
+                                line-height:1.6; padding:11px 15px; border:1px solid #E0E0E0;
+                                {br}">
                               {safe_text}
                             </td>
                           </tr>
@@ -805,8 +676,9 @@ class FullChatWindow(QWidget):
         self._display.append(html)
         self._scroll_to_bottom()
 
-    def _scroll_to_bottom(self) -> None:
-        self._display.moveCursor(self._display.textCursor().End)
+    def _scroll_to_bottom(self):
+        sb = self._display.verticalScrollBar()
+        sb.setValue(sb.maximum())
 
     # ─── 发送消息 ────────────────────────────────────────────────
 
@@ -819,28 +691,26 @@ class FullChatWindow(QWidget):
         if not self._current_conv:
             self._new_conversation()
 
-        # 显示用户消息气泡
         self._append_bubble(text, is_user=True)
         self._current_conv["messages"].append({"role": "user", "content": text})
 
-        # 自动标题：首条消息的前 15 个字（就地更新列表，避免 setCurrentRow 重载清空聊天区）
         user_msgs = [m for m in self._current_conv["messages"] if m.get("role") == "user"]
         if len(user_msgs) == 1:
             self._current_conv["title"] = text[:15] + ("..." if len(text) > 15 else "")
-            self._chat_header.setText(self._current_conv["title"])
+            _save_conversation(self._current_conv)
+            self._suppress_item_changed = True
+            self._load_conv_list()
+            self._suppress_item_changed = True  # keep suppressed through setCurrentRow
             for i in range(self._conv_list.count()):
-                item = self._conv_list.item(i)
-                if item.data(Qt.UserRole) == self._current_conv["id"]:
-                    self._suppress_item_changed = True
-                    item.setText(self._current_conv["title"])
-                    self._suppress_item_changed = False
+                if self._conv_list.item(i).data(Qt.UserRole) == self._current_conv["id"]:
+                    self._conv_list.setCurrentRow(i)
                     break
-        _save_conversation(self._current_conv)
+            self._suppress_item_changed = False
 
         self._input.clear()
         self._is_streaming = True
         self._send_btn.setEnabled(False)
-        self._append_tool_status("思考中...")
+        self._append_tool_status("💭 思考中...")
 
         threading.Thread(target=self._run_agent, args=(text,), daemon=True).start()
 
@@ -871,33 +741,124 @@ class FullChatWindow(QWidget):
     # ─── 信号槽 ──────────────────────────────────────────────────
 
     def _on_token(self, token: str):
-        """流式 token 到达（暂不逐步更新气泡，最后统一渲染）。"""
         pass
 
     def _on_status(self, status: str):
-        """工具状态提示。"""
         self._append_tool_status(status)
 
     def _on_reply_done(self, full_text: str):
-        """AI 回复完成，追加最终气泡并保存。"""
         self._is_streaming = False
         self._send_btn.setEnabled(True)
 
         if not self._current_conv:
             return
 
+        self._append_bubble(full_text, is_user=False)
         self._current_conv["messages"].append({"role": "assistant", "content": full_text})
         _save_conversation(self._current_conv)
-        self._render_messages()
 
     def _on_error(self, error: str):
         self._is_streaming = False
         self._send_btn.setEnabled(True)
         self._append_bubble(f"⚠️ 出错了: {error}", is_user=False)
-        self._scroll_to_bottom()
 
     # ─── 窗口事件 ────────────────────────────────────────────────
 
     def closeEvent(self, event):
         self.closed.emit()
         super().closeEvent(event)
+
+
+# ─── 聊天历史存储 ───────────────────────────────────────────────
+
+def _get_history_dir() -> str:
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    path = os.path.join(root, "data", "chat_history")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _load_conversations() -> List[Dict[str, Any]]:
+    idx_path = os.path.join(_get_history_dir(), "index.json")
+    if os.path.exists(idx_path):
+        try:
+            with open(idx_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return sorted(data, key=lambda c: c.get("updated_at", ""), reverse=True)
+        except Exception:
+            pass
+    return []
+
+
+def _save_conversations_index(convs: List[Dict[str, Any]]) -> None:
+    idx_path = os.path.join(_get_history_dir(), "index.json")
+    with open(idx_path, "w", encoding="utf-8") as f:
+        json.dump(convs, f, ensure_ascii=False, indent=2)
+
+
+def _load_conversation(conv_id: str) -> Dict[str, Any]:
+    path = os.path.join(_get_history_dir(), f"{conv_id}.json")
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "id": conv_id,
+        "title": "新对话",
+        "messages": [],
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+    }
+
+
+def _save_conversation(conv: Dict[str, Any]) -> None:
+    conv["updated_at"] = datetime.now().isoformat()
+    path = os.path.join(_get_history_dir(), f"{conv['id']}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(conv, f, ensure_ascii=False, indent=2)
+    convs = _load_conversations()
+    found = False
+    for c in convs:
+        if c["id"] == conv["id"]:
+            c["title"] = conv["title"]
+            c["updated_at"] = conv["updated_at"]
+            found = True
+            break
+    if not found:
+        convs.insert(0, {
+            "id": conv["id"],
+            "title": conv["title"],
+            "created_at": conv["created_at"],
+            "updated_at": conv["updated_at"],
+        })
+    _save_conversations_index(convs)
+
+
+def _delete_conversation(conv_id: str) -> None:
+    path = os.path.join(_get_history_dir(), f"{conv_id}.json")
+    if os.path.exists(path):
+        os.remove(path)
+    convs = _load_conversations()
+    convs = [c for c in convs if c["id"] != conv_id]
+    _save_conversations_index(convs)
+
+
+def _rename_conversation(conv_id: str, new_title: str) -> None:
+    convs = _load_conversations()
+    for c in convs:
+        if c["id"] == conv_id:
+            c["title"] = new_title
+            break
+    _save_conversations_index(convs)
+    path = os.path.join(_get_history_dir(), f"{conv_id}.json")
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                conv = json.load(f)
+            conv["title"] = new_title
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(conv, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
