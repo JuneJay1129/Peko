@@ -16,6 +16,55 @@ class ToolRegistryTests(unittest.TestCase):
         self.assertIn("get_weather", names)
         self.assertIn("read_file", names)
         self.assertIn("summarize_file", names)
+        self.assertIn("get_datetime", names)
+        self.assertIn("set_timer", names)
+        self.assertIn("update_mood", names)
+
+    def test_get_datetime_returns_current_time(self):
+        from peko.tools.datetime_tool import GetDatetimeTool
+        tool = GetDatetimeTool()
+        result = tool.execute()
+        self.assertTrue(result.success)
+        self.assertIn("当前时间", result.output)
+
+    def test_set_timer_rejects_zero_delay(self):
+        from peko.tools.timer_tool import SetTimerTool
+        tool = SetTimerTool()
+        result = tool.execute(message="test", seconds=0, minutes=0)
+        self.assertFalse(result.success)
+
+    def test_set_timer_accepts_valid_delay(self):
+        from peko.tools.timer_tool import SetTimerTool
+        tool = SetTimerTool()
+        result = tool.execute(message="喝水", seconds=5)
+        self.assertTrue(result.success)
+        self.assertIn("5秒", result.output)
+
+    def test_update_mood_without_engine_fails(self):
+        from peko.tools.mood_tool import UpdateMoodTool, set_mood_engine
+        set_mood_engine(None)
+        tool = UpdateMoodTool()
+        result = tool.execute(mood_delta=10)
+        self.assertFalse(result.success)
+
+    def test_update_mood_with_engine(self):
+        from peko.tools.mood_tool import UpdateMoodTool, set_mood_engine
+        from peko.core.mood import MoodEngine, MoodSnapshot, MoodStore
+        import tempfile, os
+        with tempfile.TemporaryDirectory() as tmp:
+            store_path = os.path.join(tmp, "test_mood.json")
+            engine = MoodEngine.__new__(MoodEngine)
+            engine.snapshot = MoodSnapshot(pet_id="test_pet")
+            engine.store = MoodStore.__new__(MoodStore)
+            engine.store._path = store_path
+            engine.store.save = lambda snap: None
+            set_mood_engine(engine)
+            tool = UpdateMoodTool()
+            result = tool.execute(mood_delta=15, reason="被夸奖")
+            self.assertTrue(result.success)
+            self.assertIn("心情", result.output)
+            self.assertEqual(engine.snapshot.mood_score, 73)  # 58 + 15
+            set_mood_engine(None)
 
     def test_openai_schemas_have_required_fields(self):
         for schema in get_openai_tools():

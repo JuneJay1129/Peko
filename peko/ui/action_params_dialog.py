@@ -19,89 +19,85 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QWidget,
 )
+from .theme import (
+    BG_CREAM, BG_CONTENT, BG_INPUT,
+    TEXT_PRIMARY, TEXT_BODY, TEXT_SECONDARY,
+    BORDER_LIGHT, BORDER_WARM, ACCENT, ACCENT_HOVER,
+    RADIUS_SM, RADIUS_LG, RADIUS_PILL,
+    FONT_SIZE_BASE, FONT_SIZE_TITLE,
+    DIALOG_CONTAINER_QSS, COMBOBOX_QSS, SLIDER_QSS,
+)
 if TYPE_CHECKING:
     from .pet import DesktopPet
 
 # 标题栏高度，此区域内按下可拖动窗口
 HEADER_DRAG_HEIGHT = 52
 
-CONTAINER_STYLE = """
-    QFrame#dialogContainer {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #fefce8, stop:1 #faf3e0);
-        border: 1px solid #e8dcc4;
-        border-radius: 22px;
+CONTAINER_STYLE = f"""
+    QFrame#dialogContainer {{
+        {DIALOG_CONTAINER_QSS}
         padding: 38px;
-    }
+    }}
 """
 
 # 每一行的小容器：居中于大容器内，边距统一
-ROW_CONTAINER_STYLE = """
-    QFrame#rowContainer {
+ROW_CONTAINER_STYLE = f"""
+    QFrame#rowContainer {{
         background: rgba(255, 255, 255, 0.5);
-        border: 1px solid rgba(232, 220, 196, 0.8);
-        border-radius: 14px;
+        border: 2px solid rgba(196, 184, 158, 0.5);
+        border-radius: {RADIUS_SM}px;
         padding: 14px 18px;
         margin: 10px;
         min-height: 44px;
-    }
+    }}
 """
 ROW_MARGIN = 18   # 小容器之间的间距（布局 spacing）
 ROW_MIN_WIDTH = 480  # 小容器最小宽度，保证对齐且居中一致
 
-CONTENT_STYLE = """
-    QLabel { font-size: 14px; color: #5c4a3d; }
-    QLabel.paramLabel { font-weight: bold; }
-    QComboBox {
-        font-size: 14px;
-        border: 1px solid #e0d4c0;
+CONTENT_STYLE = f"""
+    QLabel {{ font-size: {FONT_SIZE_BASE}px; color: {TEXT_BODY}; }}
+    QLabel.paramLabel {{ font-weight: bold; }}
+    QComboBox {{
+        {COMBOBOX_QSS}
+    }}
+    QComboBox QAbstractItemView {{
+        background: {BG_INPUT};
+        border: 2px solid {BORDER_LIGHT};
         border-radius: 10px;
-        padding: 4px 14px;
-        background: #fffef8;
-        min-height: 24px;
-        max-width: 160px;
-        text-align: center;
-    }
-    QComboBox:focus { border-color: #c4a574; }
-    QComboBox:hover { border-color: #d4c4a0; }
-    QComboBox::drop-down {
-        subcontrol-origin: padding;
-        subcontrol-position: right center;
-        width: 24px;
-        border: none;
-        background: transparent;
-    }
-    QSlider::groove:horizontal {
+        selection-background-color: {BG_CONTENT};
+        selection-color: {TEXT_PRIMARY};
+    }}
+    QSlider::groove:horizontal {{
         height: 8px;
-        background: #f0ead8;
+        background: {BG_CONTENT};
         border-radius: 4px;
-    }
-    QSlider::handle:horizontal {
+    }}
+    QSlider::handle:horizontal {{
         width: 18px;
         height: 18px;
         margin: -5px 0;
-        background: #d4b896;
+        background: {BORDER_WARM};
         border-radius: 9px;
-    }
-    QSlider::handle:horizontal:hover { background: #c4a574; }
-    QPushButton#closeBtn {
+    }}
+    QSlider::handle:horizontal:hover {{ background: {ACCENT}; }}
+    QPushButton#closeBtn {{
         font-size: 18px;
         font-weight: 300;
-        background: #faf3e0;
-        color: #6b5b4f;
-        border: 1px solid #e8dcc4;
+        background: {BG_INPUT};
+        color: {TEXT_SECONDARY};
+        border: 2px solid {BORDER_WARM};
         border-radius: 18px;
         padding: 0;
         min-width: 36px;
         max-width: 36px;
         min-height: 36px;
         max-height: 36px;
-    }
-    QPushButton#closeBtn:hover {
-        background: #f0ead8;
-        color: #5c4a3d;
-        border-color: #e0d4c0;
-    }
+    }}
+    QPushButton#closeBtn:hover {{
+        background: {BG_CREAM};
+        color: {TEXT_PRIMARY};
+        border-color: {ACCENT};
+    }}
 """
 
 # 参数范围 (min, max, 步长)

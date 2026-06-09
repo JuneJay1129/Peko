@@ -13,6 +13,7 @@ from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtWidgets import QLabel, QWidget, QApplication, QGraphicsOpacityEffect
 
 from ..core.mood import MoodEngine
+from .particle_overlay import ParticleOverlay
 from .actions import (
     AutoActions,
     ControlActions,
@@ -28,16 +29,16 @@ WINDOW_CONTROL_REACH_THRESHOLD = 25
 
 def _default_bubble_style() -> str:
     return """
-        background-color: rgba(255, 255, 255, 0.72);
-        border: 2px solid rgba(76, 175, 80, 0.85);
-        border-radius: 15px;
-        border-top-left-radius: 15px;
-        border-top-right-radius: 15px;
-        border-bottom-left-radius: 15px;
-        border-bottom-right-radius: 15px;
+        background-color: rgba(255, 254, 248, 0.92);
+        border: 2px solid rgba(196, 184, 158, 0.85);
+        border-radius: 18px;
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
+        border-bottom-left-radius: 18px;
+        border-bottom-right-radius: 18px;
         padding: 10px;
         font-size: 14px;
-        color: black;
+        color: #794f27;
     """
 
 
@@ -70,6 +71,8 @@ class DesktopPet(QWidget):
     桌宠窗口。动作与聊天委托给 actions 与 chat 模块。
     """
     bubble_text_ready = pyqtSignal(str, int)  # text, duration；供 chat 模块 emit 后主线程更新气泡
+    _sig_timer_start = pyqtSignal(float, str, float)  # end_time, msg, total_minutes
+    _sig_timer_fire = pyqtSignal(str)  # msg
 
     def __init__(self, pet_package: Dict[str, Any], frame_rate: int = 10):
         super().__init__()
@@ -115,6 +118,43 @@ class DesktopPet(QWidget):
         self.control_mode = False
         self.follow_mouse_mode = False
         self._mood_engine = MoodEngine(str(pet_package.get("id") or pet_package.get("name") or "pet"))
+        # 注入 MoodEngine 和定时器通知到 Agent 工具
+        from ..tools.mood_tool import set_mood_engine
+        from ..tools.timer_tool import set_notify_callback, set_timer_start_callback, set_timer_fire_callback
+        set_mood_engine(self._mood_engine)
+        set_notify_callback(lambda msg, dur=8000: QTimer.singleShot(0, lambda: self.update_bubble(msg, duration=dur)))
+
+        # ── 定时器倒计时标签（浮在宠物头顶） ──
+        self._countdown_timers: Dict[float, Tuple[str, float]] = {}  # end_time -> (msg, total_minutes)
+        self._countdown_label = QLabel("", self)
+        self._countdown_label.setAlignment(Qt.AlignCenter)
+        self._countdown_label.setStyleSheet(
+            "color: #fff; background: rgba(80, 80, 80, 200);"
+            "border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: bold;"
+        )
+        self._countdown_label.hide()
+        self._countdown_timer = QTimer(self)
+        self._countdown_timer.setInterval(1000)
+        self._countdown_timer.timeout.connect(self._update_countdown_display)
+
+        # ── 定时器通知覆盖层（点击关闭） ──
+        self._timer_notify_overlay = QLabel("", self)
+        self._timer_notify_overlay.setAlignment(Qt.AlignCenter)
+        self._timer_notify_overlay.setWordWrap(True)
+        self._timer_notify_overlay.setStyleSheet(
+            "color: #fff; background: rgba(220, 80, 60, 220);"
+            "border-radius: 12px; padding: 8px 12px; font-size: 12px; font-weight: bold;"
+        )
+        self._timer_notify_overlay.hide()
+        self._timer_notify_overlay.setCursor(Qt.PointingHandCursor)
+        self._timer_notify_overlay.mousePressEvent = lambda _: self._dismiss_timer_notify()
+
+        set_timer_start_callback(lambda end, msg, m: QTimer.singleShot(0, lambda: self._sig_timer_start.emit(end, msg, m)))
+        set_timer_fire_callback(lambda msg: QTimer.singleShot(0, lambda: self._sig_timer_fire.emit(msg)))
+
+        self._sig_timer_start.connect(self._on_timer_start)
+        self._sig_timer_fire.connect(self._on_timer_fire)
+
         self._interaction_panel = None
         self._interaction_lock_until_ms = 0
         self._interaction_resume_timer = QTimer(self)
@@ -247,6 +287,11 @@ class DesktopPet(QWidget):
         self.label = QLabel(self)
         self.label.setFixedSize(self.size())
         self.label.setScaledContents(False)
+
+        # 心情粒子效果叠加层
+        self._particle_overlay = ParticleOverlay(self)
+        self._particle_overlay.setGeometry(0, 0, self.width(), self.height())
+        self._particle_overlay.raise_()
 
         screen_geometry = QApplication.desktop().screenGeometry()
         screen_width, screen_height = screen_geometry.width(), screen_geometry.height()
@@ -413,6 +458,8 @@ class DesktopPet(QWidget):
         self.setFixedSize(w, h)
         if hasattr(self, "label"):
             self.label.setFixedSize(self.size())
+        if hasattr(self, "_particle_overlay"):
+            self._particle_overlay.setGeometry(0, 0, self.width(), self.height())
         self.update_frame()
         self._position_bubble_window()
 
@@ -469,7 +516,10 @@ class DesktopPet(QWidget):
 
             self._interaction_panel = MoodDialog(self, self._mood_engine.get_interaction_options())
             self._interaction_panel.interactionRequested.connect(self.apply_mood_interaction)
+            self._interaction_panel.particleToggleRequested.connect(self._on_particle_toggle)
         self._refresh_interaction_panel()
+        # 同步当前粒子开关状态到面板
+        self._interaction_panel.set_particle_enabled(self._particle_overlay.is_enabled())
         return self._interaction_panel
 
     def _refresh_interaction_panel(self) -> None:
@@ -516,8 +566,8 @@ class DesktopPet(QWidget):
             effect_label.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             effect_label.setAttribute(Qt.WA_TranslucentBackground, True)
             effect_label.setStyleSheet(
-                "background: rgba(255, 252, 245, 0.96);"
-                f"border: 1px solid {color};"
+                "background: rgba(255, 254, 248, 0.96);"
+                f"border: 2px solid {color};"
                 "border-radius: 12px;"
                 f"color: {color};"
                 "padding: 5px 10px;"
@@ -620,6 +670,10 @@ class DesktopPet(QWidget):
             self.update_frame()
         self._pause_auto_for_interaction(outcome.hold_ms)
 
+    def _on_particle_toggle(self, enabled: bool) -> None:
+        """互动面板中切换粒子特效开关。"""
+        self._particle_overlay.set_enabled(enabled)
+
     def next_frame(self):
         if self.follow_mouse_mode:
             self._follow_mouse_actions.update_direction_to_cursor()
@@ -661,6 +715,9 @@ class DesktopPet(QWidget):
             return
         scaled_pixmap = pixmap.scaled(self.width(), self.height())
         self.label.setPixmap(scaled_pixmap)
+        # 心情视觉反馈：更新粒子效果
+        snap = self._mood_engine.snapshot
+        self._particle_overlay.update_mood_state(snap.mood_score, snap.satiety, snap.energy)
 
     def update_position(self):
         if getattr(self, "_exit_animating", False):
@@ -889,6 +946,8 @@ class DesktopPet(QWidget):
         self._stop_bubble_timers()
         self._close_interaction_panel()
         self._clear_ui_effects()
+        if hasattr(self, "_particle_overlay"):
+            self._particle_overlay.clear_particles()
         self.bubble_window.close()
 
     def play_exit_animation(self, duration_ms: int = 2000) -> None:
@@ -1099,3 +1158,72 @@ class DesktopPet(QWidget):
             self._apply_state_frame_rate()
         elif not self.control_mode and not getattr(self, "follow_mouse_mode", False) and self.current_state != "listen":
             self._auto_actions.resume()
+
+    # ── 定时器倒计时 & 通知 ──
+
+    def _on_timer_start(self, end_time: float, msg: str, total_minutes: float) -> None:
+        """定时器启动：记录并开始倒计时显示。"""
+        self._countdown_timers[end_time] = (msg, total_minutes)
+        self._countdown_label.show()
+        self._countdown_timer.start()
+        self._update_countdown_display()
+
+    def _on_timer_fire(self, msg: str) -> None:
+        """定时器触发：显示通知覆盖层（点击关闭），同时更新气泡。"""
+        # 移除已触发的定时器
+        now = __import__("time").time()
+        self._countdown_timers = {k: v for k, v in self._countdown_timers.items() if k > now + 0.5}
+        if not self._countdown_timers:
+            self._countdown_timer.stop()
+            self._countdown_label.hide()
+
+        # 显示通知覆盖层
+        self._timer_notify_overlay.setText(f"{msg}\n\n[ 点击关闭 ]")
+        self._timer_notify_overlay.adjustSize()
+        # 居中覆盖在宠物上
+        pw, ph = self.width(), self.height()
+        nw, nh = self._timer_notify_overlay.sizeHint().width() + 20, self._timer_notify_overlay.sizeHint().height() + 10
+        self._timer_notify_overlay.setGeometry(
+            max(0, (pw - nw) // 2), max(0, (ph - nh) // 2), nw, nh
+        )
+        self._timer_notify_overlay.show()
+        self._timer_notify_overlay.raise_()
+
+        # 同时用常规气泡显示
+        self.update_bubble(msg, duration=8000)
+
+    def _dismiss_timer_notify(self) -> None:
+        """点击关闭定时器通知。"""
+        self._timer_notify_overlay.hide()
+
+    def _update_countdown_display(self) -> None:
+        """每秒更新倒计时标签。"""
+        import time
+        now = time.time()
+        # 清理已过期的定时器
+        expired = [k for k in self._countdown_timers if k <= now + 0.5]
+        for k in expired:
+            del self._countdown_timers[k]
+
+        if not self._countdown_timers:
+            self._countdown_timer.stop()
+            self._countdown_label.hide()
+            return
+
+        # 找剩余时间最短的定时器
+        nearest_end = min(self._countdown_timers.keys())
+        remaining = max(0, int(nearest_end - now))
+        m, s = divmod(remaining, 60)
+
+        count = len(self._countdown_timers)
+        if count > 1:
+            text = f"⏰ {m:02d}:{s:02d} (+{count - 1})"
+        else:
+            text = f"⏰ {m:02d}:{s:02d}"
+
+        self._countdown_label.setText(text)
+        self._countdown_label.adjustSize()
+        # 定位在宠物头顶上方
+        pw = self.width()
+        lw = self._countdown_label.width()
+        self._countdown_label.move(max(0, (pw - lw) // 2), -self._countdown_label.height() - 4)

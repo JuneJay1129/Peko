@@ -17,113 +17,118 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from .theme import (
+    BG_CREAM, BG_CONTENT, BG_INPUT, BG_OVERLAY,
+    TEXT_PRIMARY, TEXT_BODY, TEXT_SECONDARY, TEXT_MUTED,
+    BORDER_WARM, ACCENT, ACCENT_HOVER,
+    RADIUS_SM, RADIUS_LG,
+    FONT_SIZE_SM, FONT_SIZE_BASE, FONT_SIZE_TITLE,
+    MOOD_GRADIENT, SATIETY_GRADIENT, ENERGY_GRADIENT,
+)
 
 
-PANEL_STYLE = """
-    QFrame#panel {
+PANEL_STYLE = f"""
+    QFrame#panel {{
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #fff8ef, stop:1 #f9ecd8);
-        border: 1px solid #e7d3b3;
-        border-radius: 20px;
-    }
-    QLabel#titleLabel {
-        color: #4f3f33;
-        font-size: 17px;
+            stop:0 {BG_CREAM}, stop:1 {BG_CONTENT});
+        border: 2px solid {BORDER_WARM};
+        border-radius: {RADIUS_LG}px;
+    }}
+    QLabel#titleLabel {{
+        color: {TEXT_PRIMARY};
+        font-size: {FONT_SIZE_TITLE}px;
         font-weight: 700;
-    }
-    QLabel#badgeLabel {
-        color: #8d5d2f;
+    }}
+    QLabel#badgeLabel {{
+        color: {TEXT_PRIMARY};
         font-size: 13px;
         font-weight: 700;
         background: rgba(255, 255, 255, 0.7);
         border-radius: 10px;
         padding: 5px 10px;
-    }
-    QLabel#descLabel {
-        color: #5b4a3d;
+    }}
+    QLabel#descLabel {{
+        color: {TEXT_BODY};
         font-size: 13px;
-    }
-    QLabel#metaLabel {
-        color: #846b57;
-        font-size: 12px;
-    }
-    QLabel#sectionLabel {
-        color: #6d5644;
-        font-size: 12px;
+    }}
+    QLabel#metaLabel {{
+        color: {TEXT_SECONDARY};
+        font-size: {FONT_SIZE_SM}px;
+    }}
+    QLabel#sectionLabel {{
+        color: {TEXT_PRIMARY};
+        font-size: {FONT_SIZE_SM}px;
         font-weight: 700;
         letter-spacing: 0.5px;
-    }
-    QLabel#statLabel {
-        color: #5d4a3a;
-        font-size: 12px;
+    }}
+    QLabel#statLabel {{
+        color: {TEXT_PRIMARY};
+        font-size: {FONT_SIZE_SM}px;
         font-weight: 700;
-    }
-    QLabel#statHint {
-        color: #8b6f58;
+    }}
+    QLabel#statHint {{
+        color: {TEXT_SECONDARY};
         font-size: 11px;
-    }
-    QPushButton#closeBtn {
-        background: rgba(255, 255, 255, 0.8);
-        border: 1px solid #e2c7a5;
-        border-radius: 12px;
-        color: #7a6250;
-        font-size: 14px;
+    }}
+    QPushButton#closeBtn {{
+        background: {BG_INPUT};
+        border: 2px solid {BORDER_WARM};
+        border-radius: 14px;
+        color: {TEXT_SECONDARY};
+        font-size: 15px;
         font-weight: 700;
-        min-width: 24px;
-        max-width: 24px;
-        min-height: 24px;
-        max-height: 24px;
+        min-width: 28px; max-width: 28px;
+        min-height: 28px; max-height: 28px;
         padding: 0;
-    }
-    QPushButton#closeBtn:hover {
-        background: #fffef9;
-        border-color: #d2a56c;
-        color: #5a4738;
-    }
-    QProgressBar {
+    }}
+    QPushButton#closeBtn:hover {{
+        background: {BG_CREAM};
+        border-color: {ACCENT};
+        color: {TEXT_PRIMARY};
+    }}
+    QProgressBar {{
         border: none;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.7);
-        color: #6d5644;
         text-align: center;
         height: 16px;
         font-size: 11px;
         font-weight: 700;
-    }
-    QProgressBar#moodBar::chunk {
+        color: {TEXT_PRIMARY};
+    }}
+    QProgressBar#moodBar::chunk {{
         border-radius: 8px;
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 #f0bf77, stop:1 #d28e51);
-    }
-    QProgressBar#satietyBar::chunk {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, {MOOD_GRADIENT});
+    }}
+    QProgressBar#satietyBar::chunk {{
         border-radius: 8px;
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 #76c17a, stop:1 #4ea861);
-    }
-    QProgressBar#energyBar::chunk {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, {SATIETY_GRADIENT});
+    }}
+    QProgressBar#energyBar::chunk {{
         border-radius: 8px;
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 #74b6ff, stop:1 #4c86e6);
-    }
-    QPushButton#actionBtn {
-        background: rgba(255, 255, 255, 0.88);
-        border: 1px solid #e2c7a5;
-        border-radius: 14px;
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, {ENERGY_GRADIENT});
+    }}
+    QPushButton#actionBtn {{
+        background: {BG_OVERLAY};
+        border: 2px solid {BORDER_WARM};
+        border-radius: {RADIUS_SM}px;
         padding: 10px 12px;
-        color: #5a4738;
+        color: {TEXT_PRIMARY};
         font-size: 13px;
         font-weight: 700;
         min-height: 38px;
-    }
-    QPushButton#actionBtn:hover {
-        background: #fffef9;
-        border-color: #d2a56c;
-    }
+    }}
+    QPushButton#actionBtn:hover {{
+        background: {BG_CREAM};
+        border-color: {ACCENT};
+        color: {ACCENT_HOVER};
+    }}
 """
 
 
 class MoodDialog(QDialog):
     interactionRequested = pyqtSignal(str)
+    particleToggleRequested = pyqtSignal(bool)  # True=开启, False=关闭
 
     def __init__(self, parent=None, interaction_options: Optional[List[Dict[str, str]]] = None):
         super().__init__(parent)
@@ -216,6 +221,22 @@ class MoodDialog(QDialog):
             self.button_grid.addWidget(button, row, col)
             self._buttons[item["id"]] = button
 
+        # 粒子特效开关
+        self._particle_toggle_row = QHBoxLayout()
+        self._particle_toggle_row.setContentsMargins(0, 4, 0, 0)
+        self._particle_toggle_row.setSpacing(8)
+        particle_hint = QLabel("✨ 心情粒子")
+        particle_hint.setObjectName("sectionLabel")
+        self._particle_toggle_row.addWidget(particle_hint)
+        self._particle_toggle_row.addStretch()
+        self._particle_btn = QPushButton("开", self)
+        self._particle_btn.setObjectName("closeBtn")
+        self._particle_btn.setCursor(Qt.PointingHandCursor)
+        self._particle_btn.setFixedSize(36, 24)
+        self._particle_btn.clicked.connect(self._on_particle_toggle)
+        self._particle_toggle_row.addWidget(self._particle_btn)
+        layout.addLayout(self._particle_toggle_row)
+
         self.setFixedWidth(360)
 
     def _add_stat_block(self, layout: QVBoxLayout, title: str, hint: str, object_name: str) -> QProgressBar:
@@ -259,6 +280,17 @@ class MoodDialog(QDialog):
 
         self.recent_label.setText(f"最近互动：{view_data.get('recent_interaction', '还没有记录')}")
         self.daily_label.setText(view_data.get("daily_hint", ""))
+
+    def set_particle_enabled(self, enabled: bool) -> None:
+        """由外部同步粒子开关状态到面板显示。"""
+        self._particle_enabled = enabled
+        self._particle_btn.setText("开" if enabled else "关")
+
+    def _on_particle_toggle(self) -> None:
+        new_state = not getattr(self, "_particle_enabled", True)
+        self._particle_enabled = new_state
+        self._particle_btn.setText("开" if new_state else "关")
+        self.particleToggleRequested.emit(new_state)
 
     def show_at(self, global_pos: QPoint, pet_rect: Optional[QRect] = None) -> None:
         self.adjustSize()

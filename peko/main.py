@@ -111,6 +111,7 @@ def main():
         sys.exit(1)
 
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
     app.setQuitOnLastWindowClosed(False)
     default_id = get_default_pet_id()
     pet_package = get_pet(default_id)

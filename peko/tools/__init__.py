@@ -43,8 +43,14 @@ def call_tool(name: str, arguments: str | Dict[str, Any]) -> ToolResult:
 from .web_search import WebSearchTool  # noqa: E402, F401
 from .weather import WeatherTool  # noqa: E402, F401
 from .file_summary import ReadFileTool, SummarizeFileTool  # noqa: E402, F401
+from .datetime_tool import GetDatetimeTool  # noqa: E402, F401
+from .timer_tool import SetTimerTool  # noqa: E402, F401
+from .mood_tool import UpdateMoodTool  # noqa: E402, F401
 
 register(WebSearchTool())
 register(WeatherTool())
 register(ReadFileTool())
 register(SummarizeFileTool())
+register(GetDatetimeTool())
+register(SetTimerTool())
+register(UpdateMoodTool())

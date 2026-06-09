@@ -6,73 +6,95 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont
 import sys
 
+from .theme import (
+    BG_CREAM, BG_CONTENT, BG_INPUT, BG_HOVER,
+    TEXT_PRIMARY, TEXT_BODY, TEXT_SECONDARY, TEXT_MUTED,
+    BORDER_LIGHT, BORDER_WARM, ACCENT, ACCENT_HOVER,
+    BTN_GREEN, BTN_GREEN_HOVER, BTN_GREEN_PRESS,
+    RADIUS_SM, RADIUS_BASE, RADIUS_LG, RADIUS_PILL,
+    FONT_FAMILY, FONT_SIZE_BASE, FONT_SIZE_TITLE,
+)
+from .round_button import RoundButton
+
 
 def _dialog_font():
     """跨平台字体：Mac 无 Microsoft YaHei，用 PingFang SC。"""
     return QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14, QFont.Bold)
 
-# 与宠物气泡一致：半透明白底、绿色边框、圆角 15px、padding 10px
-CONTAINER_STYLE = """
-    QFrame#dialogContainer {
-        background-color: rgba(255, 255, 255, 0.9);
-        border: 2px solid #4CAF50;
-        border-radius: 15px;
-        padding: 10px;
-    }
+
+CONTAINER_STYLE = f"""
+    QFrame#dialogContainer {{
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 {BG_CREAM}, stop:1 {BG_CONTENT});
+        border: 2px solid {BORDER_WARM};
+        border-radius: {RADIUS_LG}px;
+    }}
 """
 
-CONTENT_STYLE = """
-    QLineEdit {
-        font-size: 14px;
-        border: 1px solid #CCCCCC;
-        border-radius: 8px;
-        padding: 5px;
-        background: white;
-        selection-background-color: #4CAF50;
-    }
-    QLineEdit:focus {
-        border-color: #4CAF50;
-    }
-    QPushButton#sendBtn {
-        font-size: 14px;
-        background-color: #4CAF50;
-        color: white;
+CONTENT_STYLE = f"""
+    QLineEdit {{
+        font-size: {FONT_SIZE_BASE}px;
+        border: 2.5px solid {BORDER_LIGHT};
+        border-radius: {RADIUS_PILL}px;
+        padding: 6px 14px;
+        background: {BG_INPUT};
+        color: {TEXT_BODY};
+        font-family: {FONT_FAMILY};
+    }}
+    QLineEdit:focus {{
+        border-color: {ACCENT};
+        background: #ffffff;
+    }}
+    QLineEdit::placeholder {{
+        color: {TEXT_MUTED};
+    }}
+    QPushButton#sendBtn {{
+        font-size: {FONT_SIZE_BASE}px;
+        font-weight: 700;
+        background: {BTN_GREEN};
+        color: {TEXT_PRIMARY};
+        border: 2px solid {BTN_GREEN};
+        border-radius: {RADIUS_PILL}px;
+        padding: 5px 18px;
+    }}
+    QPushButton#sendBtn:hover {{
+        background: {BTN_GREEN_HOVER};
+        border-color: {BTN_GREEN_HOVER};
+    }}
+    QPushButton#sendBtn:pressed {{
+        background: {BTN_GREEN_PRESS};
+        border-color: {BTN_GREEN_PRESS};
+    }}
+    QPushButton#expandBtn {{
+        font-size: 13px;
+        font-weight: 300;
+        background: transparent;
+        color: {TEXT_SECONDARY};
+        border: none;
         border-radius: 10px;
-        padding: 5px 15px;
-    }
-    QPushButton#sendBtn:hover {
-        background-color: #45A049;
-    }
-    QPushButton#expandBtn {
+        padding: 2px 6px;
+        min-width: 24px;
+        min-height: 24px;
+    }}
+    QPushButton#expandBtn:hover {{
+        background: {BG_HOVER};
+        color: {ACCENT};
+    }}
+    QPushButton#closeBtn {{
         font-size: 14px;
         font-weight: 300;
         background: transparent;
-        color: #888;
+        color: {TEXT_SECONDARY};
         border: none;
         border-radius: 10px;
-        padding: 2px 8px;
-        min-width: 28px;
-        min-height: 28px;
-    }
-    QPushButton#expandBtn:hover {
-        background-color: rgba(76, 175, 80, 0.12);
-        color: #4CAF50;
-    }
-    QPushButton#closeBtn {
-        font-size: 16px;
-        font-weight: 300;
-        background: transparent;
-        color: #666;
-        border: none;
-        border-radius: 10px;
-        padding: 2px 8px;
-        min-width: 28px;
-        min-height: 28px;
-    }
-    QPushButton#closeBtn:hover {
-        background-color: rgba(0,0,0,0.08);
-        color: #333;
-    }
+        padding: 2px 6px;
+        min-width: 24px;
+        min-height: 24px;
+    }}
+    QPushButton#closeBtn:hover {{
+        background: {BG_HOVER};
+        color: {TEXT_PRIMARY};
+    }}
 """
 
 
@@ -94,15 +116,14 @@ class InputDialog(QDialog):
         container.setStyleSheet(CONTAINER_STYLE + CONTENT_STYLE)
 
         main_layout = QVBoxLayout(container)
-        main_layout.setSpacing(10)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(8)
+        main_layout.setContentsMargins(16, 12, 16, 12)
 
         # 标题行：左侧标题 + 右侧 ⤢ 展开 + × 关闭
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 0, 0, 4)
-        title_label = QLabel("与宠物对话")
-        title_label.setFont(_dialog_font())
-        title_label.setStyleSheet("color: black;")
+        header_layout.setContentsMargins(0, 0, 0, 2)
+        title_label = QLabel("🐹 与宠物对话")
+        title_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: {FONT_SIZE_BASE}px; font-weight: 700; font-family: {FONT_FAMILY};")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         expand_btn = QPushButton("⤢", self)
@@ -127,9 +148,7 @@ class InputDialog(QDialog):
         # 发送按钮
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        send_btn = QPushButton("发送", self)
-        send_btn.setObjectName("sendBtn")
-        send_btn.setCursor(Qt.PointingHandCursor)
+        send_btn = RoundButton("发送", self, radius=12, padding_h=18, padding_v=5)
         send_btn.clicked.connect(lambda: self.submit_text(on_submit))
         btn_layout.addWidget(send_btn)
         main_layout.addLayout(btn_layout)
@@ -140,7 +159,7 @@ class InputDialog(QDialog):
         outer.addWidget(container)
 
         # 与气泡一致：气泡 max_width 200，对话框略大以容纳输入框和按钮
-        self.setFixedSize(260, 160)
+        self.setFixedSize(300, 155)
 
     def submit_text(self, on_submit):
         """

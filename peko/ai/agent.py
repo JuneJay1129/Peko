@@ -63,32 +63,31 @@ class AgentLoop:
             self._messages.append(assistant_msg)
 
             if not resp.has_tool_calls:
-                # 无工具调用 → 最终回复（chat_with_tools 已拿到完整文本）
+                # 无工具调用 → 流式获取最终回复
                 content = resp.content or ""
                 if self._on_token:
-                    if content:
-                        self._on_token(content)
-                    else:
-                        # 非流式无内容时，去掉占位 assistant 再流式重试
-                        self._messages.pop()
-                        current = [""]
+                    # 去掉 chat_with_tools 已追加的 assistant 消息，用流式重新获取
+                    self._messages.pop()
+                    current = [""]
 
-                        def _on_token(token: str):
-                            current[0] += token
-                            if self._on_token:
-                                self._on_token(token)
+                    def _on_token(token: str):
+                        current[0] += token
+                        if self._on_token:
+                            self._on_token(token)
 
-                        result_text = stream_chat(self._messages, on_token=_on_token)
-                        content = current[0] or result_text
-                        self._messages.append({"role": "assistant", "content": content})
-                        return content
-                self._messages[-1]["content"] = content
-                return content
+                    result_text = stream_chat(self._messages, on_token=_on_token)
+                    content = current[0] or result_text
+                    self._messages.append({"role": "assistant", "content": content})
+                    return content
+                else:
+                    self._messages[-1]["content"] = content
+                    return content
 
             # 有工具调用 → 执行工具 → 继续下一轮
             for tc in resp.tool_calls:
                 fn_name = tc["function"]["name"]
                 fn_args = tc["function"]["arguments"]
+                print(f"正在使用 {fn_name}...", flush=True)
                 self._on_status(f"🔧 正在使用 {fn_name}...")
                 result = call_tool(fn_name, fn_args)
                 self._messages.append({

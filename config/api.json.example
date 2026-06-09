@@ -91,6 +91,17 @@
       "temperature": 0.8,
       "maxTokens": 2000,
       "enabled": true
+    },
+    {
+      "id": "xiaomi-mimo",
+      "name": "小米 MiMo",
+      "provider": "xiaomiMimo",
+      "model": "MiMo-v2.5-pro",
+      "apiUrl": "https://api.xiaomimimo.com/v1/chat/completions",
+      "description": "小米 MiMo 大模型",
+      "temperature": 0.8,
+      "maxTokens": 2000,
+      "enabled": true
     }
   ]
 }

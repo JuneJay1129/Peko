@@ -11,13 +11,13 @@ import threading
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from PyQt5.QtCore import Qt, pyqtSignal, QObject, QUrl, QBuffer, QIODevice, QRectF
-from PyQt5.QtGui import QFont, QColor, QIcon, QImage, QPainter, QPen, QPainterPath
+from PyQt5.QtCore import Qt, pyqtSignal, QObject, QUrl, QBuffer, QIODevice, QRectF, QSize
+from PyQt5.QtGui import QFont, QColor, QIcon, QImage, QPixmap, QPainter, QPen, QPainterPath, QFontMetrics, QTextCursor
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
     QLineEdit, QPushButton, QListWidget, QListWidgetItem,
     QLabel, QSplitter, QFrame, QMenu, QAction,
-    QInputDialog, QMessageBox, QSizePolicy,
+    QSizePolicy, QDialog,
 )
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ def _png_avatar_uri(name: str, bg: str, size: int = AVATAR_SIZE) -> str:
     p.fillPath(path, QColor(bg))
     # 居中字母
     p.setPen(QPen(QColor("#ffffff")))
-    font = QFont("Microsoft YaHei", max(10, size // 3), QFont.Bold)
+    font = QFont("Microsoft YaHei", max(9, size // 4), QFont.Bold)
     p.setFont(font)
     p.drawText(QRectF(0, 0, size, size), Qt.AlignCenter, letter)
     p.end()
@@ -139,131 +139,222 @@ def _avatar_raster_size(dpr: float) -> int:
     return max(64, int(AVATAR_SIZE * max(1.0, dpr)))
 
 
+# ─── 圆角气泡图片 ─────────────────────────────────────────────
+
+_BUBBLE_FONT_FAMILY = "Microsoft YaHei"
+
+
+def _make_bubble_image(
+    text: str,
+    max_width: int,
+    bg_color: str,
+    text_color: str = "#ffffff",
+    border_color: str = "",
+    font_size: int = 13,
+    hpad: int = 16,
+    vpad: int = 12,
+    radius: int = 16,
+    name: str = "",
+    name_color: str = "",
+) -> str:
+    """用 QPainter 绘制圆角气泡 PNG → data:image base64 URI。"""
+    font = QFont(_BUBBLE_FONT_FAMILY, font_size)
+    fm = QFontMetrics(font)
+
+    # 计算文字换行
+    usable = max_width - hpad * 2
+    lines = []
+    for para in text.split("\n"):
+        if not para:
+            lines.append("")
+            continue
+        cur = ""
+        for ch in para:
+            test = cur + ch
+            if fm.horizontalAdvance(test) > usable:
+                lines.append(cur)
+                cur = ch
+            else:
+                cur = test
+        if cur:
+            lines.append(cur)
+
+    text_h = fm.lineSpacing() * len(lines)
+
+    # 名字标签
+    name_h = 0
+    name_fm = None
+    if name:
+        name_font = QFont(_BUBBLE_FONT_FAMILY, 11)
+        name_fm = QFontMetrics(name_font)
+        name_h = name_fm.height() + 4
+
+    total_h = vpad * 2 + text_h + name_h
+    bubble_w = min(max_width, max((fm.horizontalAdvance(l) + hpad * 2 for l in lines), default=60))
+    bubble_w = max(bubble_w, 60)
+
+    img = QImage(QSize(bubble_w, total_h), QImage.Format_ARGB32)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing)
+
+    # 圆角背景
+    path = QPainterPath()
+    path.addRoundedRect(QRectF(0.5, 0.5, bubble_w - 1, total_h - 1), radius, radius)
+    p.fillPath(path, QColor(bg_color))
+    if border_color:
+        p.setPen(QPen(QColor(border_color), 1.2))
+        p.drawPath(path)
+
+    # 名字
+    y = vpad
+    if name and name_fm:
+        p.setFont(QFont(_BUBBLE_FONT_FAMILY, 11))
+        p.setPen(QColor(name_color or "#A89880"))
+        p.drawText(QRectF(hpad, y, bubble_w - hpad * 2, name_fm.height()),
+                   Qt.AlignLeft | Qt.AlignVCenter, name)
+        y += name_h
+
+    # 文字 — 左对齐（每行起始位置一致）
+    p.setFont(font)
+    p.setPen(QColor(text_color))
+    for line in lines:
+        p.drawText(QRectF(hpad, y, bubble_w - hpad * 2, fm.lineSpacing()),
+                   Qt.AlignLeft | Qt.AlignVCenter, line)
+        y += fm.lineSpacing()
+
+    p.end()
+    buf = QBuffer()
+    buf.open(QBuffer.ReadWrite)
+    img.save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(bytes(buf.data())).decode("ascii")
+
+
 # ─── Animal Island UI 样式 ──────────────────────────────────────
 
-_WINDOW_STYLE = """
-QWidget#fullChatWindow {
-    background: #FFF8F0;
-    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-}
+from .theme import (
+    BG_CREAM, BG_CONTENT, BG_SIDEBAR, BG_HOVER, BG_SELECTED, BG_INPUT,
+    TEXT_PRIMARY, TEXT_BODY, TEXT_SECONDARY, TEXT_MUTED,
+    BORDER_LIGHT, BORDER_WARM, ACCENT, ACCENT_HOVER,
+    BTN_GREEN, BTN_GREEN_HOVER, BTN_GREEN_PRESS, BTN_DISABLED,
+    RADIUS_SM, RADIUS_BASE, RADIUS_LG, RADIUS_PILL,
+    FONT_FAMILY, FONT_SIZE_SM, FONT_SIZE_BASE, FONT_SIZE_LG, FONT_SIZE_TITLE,
+    LIST_ITEM_QSS,
+)
+from .round_button import RoundButton
+
+_WINDOW_STYLE = f"""
+QWidget#fullChatWindow {{
+    background: {BG_CREAM};
+    font-family: {FONT_FAMILY};
+}}
 
 /* ── 侧边栏 ── */
-QFrame#sidebar {
-    background: #F5EDE3;
+QFrame#sidebar {{
+    background: {BG_SIDEBAR};
     border: none;
-}
+}}
 
 /* ── 通用按钮 ── */
-QPushButton {
-    font-size: 15px;
-    border-radius: 25px;
+QPushButton {{
+    font-size: {FONT_SIZE_BASE}px;
+    border-radius: {RADIUS_PILL}px;
     padding: 8px 18px;
     border: none;
-    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-}
+    font-family: {FONT_FAMILY};
+}}
 
 /* ── 新对话按钮 ── */
-QPushButton#newChatBtn {
-    background: #9AB98C;
-    color: #ffffff;
+QPushButton#newChatBtn {{
+    background: {BTN_GREEN};
+    color: {TEXT_PRIMARY};
     font-weight: bold;
-    font-size: 15px;
+    font-size: {FONT_SIZE_BASE}px;
     padding: 10px 18px;
-    border-radius: 25px;
-}
-QPushButton#newChatBtn:hover {
-    background: #B5CCA8;
-}
-QPushButton#newChatBtn:pressed {
-    background: #8AAE7A;
-}
+    border-radius: {RADIUS_PILL}px;
+    border: 2px solid {BTN_GREEN};
+}}
+QPushButton#newChatBtn:hover {{
+    background: {BTN_GREEN_HOVER};
+    border-color: {BTN_GREEN_HOVER};
+}}
+QPushButton#newChatBtn:pressed {{
+    background: {BTN_GREEN_PRESS};
+    border-color: {BTN_GREEN_PRESS};
+}}
 
 /* ── 发送按钮 ── */
-QPushButton#sendBtn {
-    background: #9AB98C;
-    color: #ffffff;
+QPushButton#sendBtn {{
+    background: {BTN_GREEN};
+    color: {TEXT_PRIMARY};
     font-weight: bold;
-    font-size: 15px;
+    font-size: {FONT_SIZE_BASE}px;
     padding: 10px 24px;
-    border-radius: 25px;
-}
-QPushButton#sendBtn:hover {
-    background: #B5CCA8;
-}
-QPushButton#sendBtn:pressed {
-    background: #8AAE7A;
-}
-QPushButton#sendBtn:disabled {
-    background: #D5C9BA;
-    color: #E8DDD1;
-}
+    border-radius: {RADIUS_PILL}px;
+    border: 2px solid {BTN_GREEN};
+}}
+QPushButton#sendBtn:hover {{
+    background: {BTN_GREEN_HOVER};
+    border-color: {BTN_GREEN_HOVER};
+}}
+QPushButton#sendBtn:pressed {{
+    background: {BTN_GREEN_PRESS};
+    border-color: {BTN_GREEN_PRESS};
+}}
+QPushButton#sendBtn:disabled {{
+    background: {BTN_DISABLED};
+    color: {TEXT_MUTED};
+    border-color: {BTN_DISABLED};
+}}
 
 /* ── 输入框 ── */
-QLineEdit#chatInput {
-    font-size: 15px;
-    border: 2px solid #E8DDD1;
-    border-radius: 20px;
+QLineEdit#chatInput {{
+    font-size: {FONT_SIZE_BASE}px;
+    border: 2px solid {BORDER_LIGHT};
+    border-radius: {RADIUS_PILL}px;
     padding: 10px 18px;
-    background: #FFFCF7;
-    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-    selection-background-color: #F6C9B4;
-}
-QLineEdit#chatInput:focus {
-    border-color: #9AB98C;
+    background: {BG_INPUT};
+    font-family: {FONT_FAMILY};
+    color: {TEXT_BODY};
+}}
+QLineEdit#chatInput:hover {{
+    border-color: {TEXT_SECONDARY};
+}}
+QLineEdit#chatInput:focus {{
+    border-color: {ACCENT};
     background: #ffffff;
-}
+}}
 
 /* ── 聊天显示区 ── */
-QTextBrowser#chatDisplay {
-    background: #FFF8F0;
+QTextBrowser#chatDisplay {{
+    background: {BG_CREAM};
     border: none;
-    font-size: 15px;
+    font-size: {FONT_SIZE_BASE}px;
     padding: 12px 16px;
-    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-}
+    font-family: {FONT_FAMILY};
+}}
 
 /* ── 对话列表 ── */
-QListWidget#convList {
-    background: transparent;
-    border: none;
-    font-size: 15px;
-    outline: none;
-    padding: 4px 6px;
-}
-QListWidget#convList::item {
-    padding: 12px 14px;
-    border: none;
-    border-radius: 16px;
-    margin: 3px 4px;
-    color: #5C4B3A;
-}
-QListWidget#convList::item:selected {
-    background: #F4E4D0;
-    color: #5C4B3A;
-    font-weight: bold;
-}
-QListWidget#convList::item:hover:!selected {
-    background: #F0E8DC;
-}
+{LIST_ITEM_QSS}
 
 /* ── 标题标签 ── */
-QLabel#titleLabel {
-    font-size: 17px;
+QLabel#titleLabel {{
+    font-size: {FONT_SIZE_TITLE}px;
     font-weight: bold;
-    color: #5C4B3A;
+    color: {TEXT_PRIMARY};
     padding: 12px 0;
-}
-QLabel#emptyHint {
-    color: #A89880;
-    font-size: 14px;
-}
-QLabel#chatHeader {
-    font-size: 17px;
+}}
+QLabel#emptyHint {{
+    color: {TEXT_MUTED};
+    font-size: {FONT_SIZE_BASE}px;
+}}
+QLabel#chatHeader {{
+    font-size: {FONT_SIZE_TITLE}px;
     font-weight: bold;
-    color: #5C4B3A;
+    color: {TEXT_PRIMARY};
     padding: 8px 4px;
-    border-bottom: 2px solid #F0E8DC;
-}
+    border-bottom: 2px solid {BG_HOVER};
+}}
 """
 
 
@@ -315,6 +406,7 @@ class FullChatWindow(QWidget):
         self._user_avatar_uri = _png_avatar_uri("我", "#66BB6A", size=AVATAR_SIZE)
         self._current_conv: Optional[Dict[str, Any]] = None
         self._is_streaming = False
+        self._streaming_row: Optional[str] = None
         self._suppress_item_changed = False
 
         self._signals = _SignalBridge()
@@ -333,13 +425,58 @@ class FullChatWindow(QWidget):
         self.setMinimumSize(720, 480)
         self.resize(860, 580)
 
-        root_layout = QHBoxLayout(self)
+        root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
+        # ── 顶部标题栏 ──
+        top_bar = QFrame()
+        top_bar.setObjectName("topBar")
+        top_bar.setStyleSheet(f"""
+            QFrame#topBar {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {BG_SIDEBAR}, stop:0.5 {BG_CREAM}, stop:1 {BG_CONTENT});
+                border-bottom: 2px solid {BORDER_LIGHT};
+                padding: 0px;
+            }}
+        """)
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(20, 10, 20, 10)
+        top_layout.setSpacing(10)
+
+        app_icon = QLabel("🐹")
+        app_icon.setStyleSheet("font-size: 22px;")
+        top_layout.addWidget(app_icon)
+
+        app_title = QLabel("Peko 聊天助手")
+        app_title.setStyleSheet(f"""
+            color: {TEXT_PRIMARY};
+            font-size: {FONT_SIZE_TITLE}px;
+            font-weight: 700;
+            font-family: {FONT_FAMILY};
+        """)
+        top_layout.addWidget(app_title)
+        top_layout.addStretch()
+
+        # 右侧可放状态指示等
+        self._top_status = QLabel("🟢 已连接")
+        self._top_status.setStyleSheet(f"""
+            color: {TEXT_MUTED};
+            font-size: {FONT_SIZE_SM}px;
+            font-family: {FONT_FAMILY};
+        """)
+        top_layout.addWidget(self._top_status)
+
+        root_layout.addWidget(top_bar)
+
+        # ── 主体区域（左右分栏）──
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+
         splitter = QSplitter(Qt.Horizontal)
         splitter.setHandleWidth(0)
-        root_layout.addWidget(splitter)
+        body.addWidget(splitter)
 
         # ── 左侧栏 ──
         sidebar = QFrame()
@@ -354,9 +491,7 @@ class FullChatWindow(QWidget):
         title.setObjectName("titleLabel")
         sb_layout.addWidget(title)
 
-        self._new_btn = QPushButton("＋ 新对话")
-        self._new_btn.setObjectName("newChatBtn")
-        self._new_btn.setCursor(Qt.PointingHandCursor)
+        self._new_btn = RoundButton("＋ 新对话", radius=12)
         self._new_btn.clicked.connect(self._new_conversation)
         sb_layout.addWidget(self._new_btn)
 
@@ -366,6 +501,8 @@ class FullChatWindow(QWidget):
         self._conv_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self._conv_list.customContextMenuRequested.connect(self._show_context_menu)
         self._conv_list.itemChanged.connect(self._on_item_changed)
+        self._conv_list.setSpacing(0)
+        self._conv_list.setUniformItemSizes(True)
         sb_layout.addWidget(self._conv_list, 1)
 
         hint = QLabel("右键可重命名 / 删除")
@@ -405,9 +542,7 @@ class FullChatWindow(QWidget):
         self._input.returnPressed.connect(self._on_send)
         input_bar.addWidget(self._input, 1)
 
-        self._send_btn = QPushButton("发送")
-        self._send_btn.setObjectName("sendBtn")
-        self._send_btn.setCursor(Qt.PointingHandCursor)
+        self._send_btn = RoundButton("发送", radius=12)
         self._send_btn.clicked.connect(self._on_send)
         input_bar.addWidget(self._send_btn)
 
@@ -416,6 +551,8 @@ class FullChatWindow(QWidget):
         splitter.addWidget(chat_area)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
+
+        root_layout.addLayout(body, 1)
 
     # ─── 对话列表 ────────────────────────────────────────────────
 
@@ -427,6 +564,7 @@ class FullChatWindow(QWidget):
             item = QListWidgetItem(c["title"])
             item.setData(Qt.UserRole, c["id"])
             item.setFlags(item.flags() | Qt.ItemIsEditable)
+            item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
             self._conv_list.addItem(item)
         self._suppress_item_changed = False
 
@@ -475,24 +613,24 @@ class FullChatWindow(QWidget):
         if not item:
             return
         menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu {
-                background: #FFFCF7;
-                border: 2px solid #F0E8DC;
-                border-radius: 16px;
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background: {BG_INPUT};
+                border: 2px solid {BG_HOVER};
+                border-radius: {RADIUS_BASE}px;
                 padding: 6px 0px;
-                font-size: 15px;
-            }
-            QMenu::item {
+                font-size: {FONT_SIZE_BASE}px;
+            }}
+            QMenu::item {{
                 padding: 10px 28px;
-                color: #5C4B3A;
-                border-radius: 12px;
+                color: {TEXT_PRIMARY};
+                border-radius: {RADIUS_SM}px;
                 margin: 2px 6px;
-            }
-            QMenu::item:selected {
-                background: #F4E4D0;
-                color: #5C4B3A;
-            }
+            }}
+            QMenu::item:selected {{
+                background: {BG_SELECTED};
+                color: {TEXT_PRIMARY};
+            }}
         """)
 
         rename_action = QAction("✏️ 重命名", self)
@@ -523,13 +661,99 @@ class FullChatWindow(QWidget):
     def _delete_selected(self, item: QListWidgetItem):
         conv_id = item.data(Qt.UserRole)
         title = item.text()
-        reply = QMessageBox.question(
-            self, "删除对话",
-            f"确定删除「{title}」？\n此操作不可撤销。",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if reply != QMessageBox.Yes:
+        dlg = QDialog(self)
+        dlg.setWindowTitle("删除对话")
+        dlg.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        dlg.setAttribute(Qt.WA_TranslucentBackground)
+        dlg.setFixedSize(360, 210)
+
+        outer = QVBoxLayout(dlg)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        container = QFrame(dlg)
+        container.setObjectName("dialogContainer")
+        container.setStyleSheet(f"""
+            QFrame#dialogContainer {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {BG_CREAM}, stop:1 {BG_CONTENT});
+                border: 2px solid {BORDER_WARM};
+                border-radius: {RADIUS_LG}px;
+            }}
+        """)
+        c_layout = QVBoxLayout(container)
+        c_layout.setContentsMargins(24, 20, 24, 18)
+        c_layout.setSpacing(14)
+
+        # 标题
+        title_lbl = QLabel("⚠ 确认删除")
+        title_lbl.setStyleSheet(f"""
+            color: {TEXT_PRIMARY};
+            font-size: {FONT_SIZE_LG}px;
+            font-weight: 700;
+            font-family: {FONT_FAMILY};
+        """)
+        c_layout.addWidget(title_lbl)
+
+        # 内容
+        safe_title = title[:18] + "…" if len(title) > 18 else title
+        msg = QLabel(f"确定删除「{safe_title}」？此操作不可撤销。")
+        msg.setStyleSheet(f"color: {TEXT_BODY}; font-size: {FONT_SIZE_BASE}px; font-family: {FONT_FAMILY};")
+        msg.setWordWrap(True)
+        c_layout.addWidget(msg)
+
+        c_layout.addStretch()
+
+        # 按钮行
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(12)
+        btn_row.addStretch()
+
+        cancel_btn = QPushButton("取消", dlg)
+        cancel_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {BG_INPUT};
+                color: {TEXT_BODY};
+                font-size: {FONT_SIZE_BASE}px;
+                font-weight: 500;
+                border: 2px solid {BORDER_LIGHT};
+                border-radius: {RADIUS_PILL}px;
+                padding: 8px 24px;
+                font-family: {FONT_FAMILY};
+            }}
+            QPushButton:hover {{
+                color: {ACCENT};
+                border-color: {ACCENT};
+            }}
+        """)
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_row.addWidget(cancel_btn)
+
+        delete_btn = QPushButton("删除", dlg)
+        delete_btn.setCursor(Qt.PointingHandCursor)
+        delete_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: #d9534f;
+                color: #ffffff;
+                font-size: {FONT_SIZE_BASE}px;
+                font-weight: 700;
+                border: 2px solid #d9534f;
+                border-radius: {RADIUS_PILL}px;
+                padding: 8px 24px;
+                font-family: {FONT_FAMILY};
+            }}
+            QPushButton:hover {{
+                background: #c9302c;
+                border-color: #c9302c;
+            }}
+        """)
+        delete_btn.clicked.connect(dlg.accept)
+        btn_row.addWidget(delete_btn)
+
+        c_layout.addLayout(btn_row)
+        outer.addWidget(container)
+
+        if dlg.exec_() != QDialog.Accepted:
             return
 
         _delete_conversation(conv_id)
@@ -565,90 +789,71 @@ class FullChatWindow(QWidget):
                 self._append_tool_status(content)
 
     def _build_welcome_html(self) -> str:
-        return """
-        <body style="margin:0; padding:4px 0; font-family:'Microsoft YaHei','PingFang SC',sans-serif;">
+        return f"""
+        <body style="margin:0; padding:4px 0; font-family:{FONT_FAMILY};">
         </body>
         """
 
-    def _append_bubble(self, text: str, is_user: bool):
-        safe_text = _escape_html(text)
-        br = "border-radius:12px;"
+    def _append_bubble(self, text: str, is_user: bool, ts: str = ""):
+        # 计算气泡最大宽度：聊天区宽度的 65%（留出头像空间）
+        disp_w = self._display.viewport().width() if self._display.viewport().width() > 100 else 500
+        max_bubble_w = int(disp_w * 0.65)
+
+        avatar_td = (
+            f'<td valign="top" width="{AVATAR_FRAME_SIZE}">'
+            f'<img src="{self._user_avatar_uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>'
+            f'</td>'
+            if is_user else
+            f'<td valign="top" width="{AVATAR_FRAME_SIZE}">'
+            f'<img src="{self._pet_avatar_uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>'
+            f'</td>'
+        )
+
+        # 时间戳 HTML
+        ts_html = ""
+        if ts:
+            ts_html = (
+                f'<div style="font-size:10px; color:{TEXT_MUTED}; margin:2px 0; font-family:{FONT_FAMILY};">{ts}</div>'
+            )
+
         if is_user:
+            uri = _make_bubble_image(
+                text, max_bubble_w,
+                bg_color="#8FBC8F",   # 鼠尾草绿
+                text_color="#ffffff",
+                font_size=13, radius=16,
+            )
             html = f"""
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
               <tr>
-                <td width="18%"></td>
-                <td align="right" valign="top">
-                  <table cellpadding="0" cellspacing="0" align="right">
-                    <tr>
-                      <td valign="top" align="right" style="padding-right:10px;">
-                        <table cellpadding="0" cellspacing="0" align="right">
-                          <tr>
-                            <td bgcolor="#43A047" style="color:#ffffff; font-size:14px;
-                                line-height:1.6; padding:11px 15px; {br}">
-                              {safe_text}
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                      <td valign="top" width="{AVATAR_FRAME_SIZE}">
-                        <table cellpadding="0" cellspacing="0" width="{AVATAR_FRAME_SIZE}"
-                               height="{AVATAR_FRAME_SIZE}">
-                          <tr>
-                            <td width="{AVATAR_FRAME_SIZE}" height="{AVATAR_FRAME_SIZE}"
-                                align="center" valign="middle">
-                              <img src="{self._user_avatar_uri}" width="{AVATAR_SIZE}"
-                                   height="{AVATAR_SIZE}"/>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
+                <td width="10%"></td>
+                <td align="right" valign="top" style="padding-right:8px;">
+                  {ts_html}
+                  <img src="{uri}"/>
                 </td>
+                {avatar_td}
               </tr>
             </table>
             """
         else:
             safe_name = _escape_html(self._pet_name)
+            uri = _make_bubble_image(
+                text, max_bubble_w,
+                bg_color=BG_INPUT,
+                text_color=TEXT_PRIMARY,
+                border_color=BORDER_LIGHT,
+                font_size=13, radius=16,
+                name=safe_name, name_color=TEXT_MUTED,
+            )
             html = f"""
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
               <tr>
-                <td align="left" valign="top" width="82%">
-                  <table cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td valign="top" width="{AVATAR_FRAME_SIZE}">
-                        <table cellpadding="0" cellspacing="0" width="{AVATAR_FRAME_SIZE}"
-                               height="{AVATAR_FRAME_SIZE}">
-                          <tr>
-                            <td width="{AVATAR_FRAME_SIZE}" height="{AVATAR_FRAME_SIZE}"
-                                align="center" valign="middle">
-                              <img src="{self._pet_avatar_uri}" width="{AVATAR_SIZE}"
-                                   height="{AVATAR_SIZE}"/>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                      <td valign="top" style="padding-left:10px;">
-                        <table cellpadding="0" cellspacing="0" width="100%">
-                          <tr>
-                            <td style="color:#888; font-size:12px; padding-bottom:5px;">
-                              {safe_name}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td bgcolor="#FFFFFF" style="color:#333; font-size:14px;
-                                line-height:1.6; padding:11px 15px; border:1px solid #E0E0E0;
-                                {br}">
-                              {safe_text}
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
+                {avatar_td}
+                <td align="left" valign="top" style="padding-left:8px;">
+                  {ts_html}
+                  <img src="{uri}"/>
                 </td>
-                <td></td>
+                <td width="10%"></td>
               </tr>
             </table>
             """
@@ -658,13 +863,13 @@ class FullChatWindow(QWidget):
     def _append_tool_status(self, text: str):
         safe_text = _escape_html(text)
         html = f"""
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 12px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 10px 0;">
           <tr>
             <td align="center">
               <table cellpadding="0" cellspacing="0">
                 <tr>
-                  <td bgcolor="#F1F3F4" style="color:#888; font-size:12px;
-                      padding:5px 14px;">
+                  <td bgcolor="{BG_HOVER}" style="color:{TEXT_MUTED}; font-size:13px;
+                      padding:6px 16px; font-style:italic; border-radius:8px;">
                     {safe_text}
                   </td>
                 </tr>
@@ -675,6 +880,15 @@ class FullChatWindow(QWidget):
         """
         self._display.append(html)
         self._scroll_to_bottom()
+
+    def _remove_last_block(self):
+        """移除 QTextBrowser 最后一个 block（用于清除"思考中"状态）。"""
+        doc = self._display.document()
+        cursor = QTextCursor(doc)
+        cursor.movePosition(QTextCursor.End)
+        cursor.movePosition(QTextCursor.PreviousBlock, QTextCursor.MoveAnchor)
+        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        cursor.removeSelectedText()
 
     def _scroll_to_bottom(self):
         sb = self._display.verticalScrollBar()
@@ -691,7 +905,8 @@ class FullChatWindow(QWidget):
         if not self._current_conv:
             self._new_conversation()
 
-        self._append_bubble(text, is_user=True)
+        _now = datetime.now().strftime("%H:%M")
+        self._append_bubble(text, is_user=True, ts=_now)
         self._current_conv["messages"].append({"role": "user", "content": text})
 
         user_msgs = [m for m in self._current_conv["messages"] if m.get("role") == "user"]
@@ -741,7 +956,24 @@ class FullChatWindow(QWidget):
     # ─── 信号槽 ──────────────────────────────────────────────────
 
     def _on_token(self, token: str):
-        pass
+        if not self._current_conv:
+            return
+        # 首个 token：移除"思考中"状态，插入轻量流式占位块
+        if not self._streaming_row:
+            self._remove_last_block()
+            self._append_streaming_block("...")
+
+        self._streaming_row = self._streaming_row or ""
+        self._streaming_row += token
+        # 更新当前对话的消息列表
+        msgs = self._current_conv["messages"]
+        if msgs and msgs[-1].get("role") == "assistant":
+            msgs[-1]["content"] = self._streaming_row
+        else:
+            msgs.append({"role": "assistant", "content": self._streaming_row})
+        # 更新文档中的流式块（轻量，无 PNG 生成）
+        safe_text = _escape_html(self._streaming_row).replace("\n", "<br/>")
+        self._update_streaming_block(safe_text)
 
     def _on_status(self, status: str):
         self._append_tool_status(status)
@@ -749,18 +981,91 @@ class FullChatWindow(QWidget):
     def _on_reply_done(self, full_text: str):
         self._is_streaming = False
         self._send_btn.setEnabled(True)
+        # 移除流式占位块，插入最终气泡
+        self._remove_streaming_block()
+        self._streaming_row = None
 
         if not self._current_conv:
             return
 
-        self._append_bubble(full_text, is_user=False)
-        self._current_conv["messages"].append({"role": "assistant", "content": full_text})
+        _now = datetime.now().strftime("%H:%M")
+        self._append_bubble(full_text, is_user=False, ts=_now)
+        self._current_conv["messages"][-1]["content"] = full_text
         _save_conversation(self._current_conv)
 
     def _on_error(self, error: str):
         self._is_streaming = False
         self._send_btn.setEnabled(True)
-        self._append_bubble(f"⚠️ 出错了: {error}", is_user=False)
+        self._remove_streaming_block()
+        self._streaming_row = None
+        _now = datetime.now().strftime("%H:%M")
+        self._append_bubble(f"⚠️ 出错了: {error}", is_user=False, ts=_now)
+
+    # ─── 流式占位块操作 ──────────────────────────────────────────
+
+    def _append_streaming_block(self, text: str):
+        """在 QTextBrowser 末尾追加一个轻量流式占位块（带头像）。"""
+        vw = self._display.viewport().width() if self._display.viewport().width() > 100 else 500
+        max_bubble_w = int(vw * 0.65)
+        safe_text = _escape_html(text).replace("\n", "<br/>")
+        uri = self._pet_avatar_uri
+        html = f"""
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
+          <tr>
+            <td valign="top" width="{AVATAR_FRAME_SIZE}">
+              <img src="{uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>
+            </td>
+            <td align="left" valign="top" style="padding-left:8px;">
+              <div id="streaming-block" style="background:{BG_INPUT}; border:2px solid {BORDER_LIGHT}; border-radius:16px; padding:12px 14px; font-size:13px; color:{TEXT_PRIMARY}; font-family:{FONT_FAMILY}; max-width:{max_bubble_w}px;">
+                {safe_text}
+              </div>
+            </td>
+            <td width="10%"></td>
+          </tr>
+        </table>
+        """
+        self._display.append(html)
+        self._scroll_to_bottom()
+
+    def _update_streaming_block(self, safe_text: str):
+        """更新文档中最后一个流式块的文本内容。"""
+        doc = self._display.document()
+        # 从末尾向前搜索包含 id="streaming-block" 的 block
+        block = doc.lastBlock()
+        while block.isValid():
+            if "streaming-block" in block.text():
+                cursor = QTextCursor(block)
+                cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+                # 获取当前 block 的 HTML 并替换文本部分
+                # 由于 QTextBrowser 的 block 结构较复杂，直接整体替换
+                vw = self._display.viewport().width() if self._display.viewport().width() > 100 else 500
+                max_bubble_w = int(vw * 0.65)
+                new_html = (
+                    f'<div id="streaming-block" style="background:{BG_INPUT}; border:2px solid {BORDER_LIGHT}; '
+                    f'border-radius:16px; padding:12px 14px; font-size:13px; color:{TEXT_PRIMARY}; '
+                    f'font-family:{FONT_FAMILY}; max-width:{max_bubble_w}px;">'
+                    f'{safe_text}</div>'
+                )
+                cursor.insertHtml(new_html)
+                break
+            block = block.previous()
+        self._scroll_to_bottom()
+
+    def _remove_streaming_block(self):
+        """移除文档中最后一个流式占位块所在的整个 table。"""
+        doc = self._display.document()
+        block = doc.lastBlock()
+        while block.isValid():
+            if "streaming-block" in block.text():
+                cursor = QTextCursor(block)
+                # 选中整个 block（包括前面的 table 行）
+                cursor.movePosition(QTextCursor.StartOfBlock, QTextCursor.MoveAnchor)
+                cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+                cursor.removeSelectedText()
+                # 也移除空行
+                cursor.deletePreviousChar()
+                break
+            block = block.previous()
 
     # ─── 窗口事件 ────────────────────────────────────────────────
 
