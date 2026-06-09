@@ -72,7 +72,8 @@ class DesktopPet(QWidget):
     """
     bubble_text_ready = pyqtSignal(str, int)  # text, duration；供 chat 模块 emit 后主线程更新气泡
     _sig_timer_start = pyqtSignal(float, str, float)  # end_time, msg, total_minutes
-    _sig_timer_fire = pyqtSignal(str)  # msg
+    _sig_timer_fire = pyqtSignal(str)   # msg
+    _sig_timer_chat = pyqtSignal(str)   # 定时器触发 → 向聊天窗口注入消息
 
     def __init__(self, pet_package: Dict[str, Any], frame_rate: int = 10):
         super().__init__()
@@ -120,40 +121,51 @@ class DesktopPet(QWidget):
         self._mood_engine = MoodEngine(str(pet_package.get("id") or pet_package.get("name") or "pet"))
         # 注入 MoodEngine 和定时器通知到 Agent 工具
         from ..tools.mood_tool import set_mood_engine
-        from ..tools.timer_tool import set_notify_callback, set_timer_start_callback, set_timer_fire_callback
+        from ..tools.timer_tool import (
+            set_notify_callback, set_timer_start_callback,
+            set_timer_fire_callback, set_chat_message_callback,
+        )
         set_mood_engine(self._mood_engine)
-        set_notify_callback(lambda msg, dur=8000: QTimer.singleShot(0, lambda: self.update_bubble(msg, duration=dur)))
+        # 回调封装为 signal.emit()：PyQt5 跨线程 emit 自动变为 QueuedConnection → 安全
+        set_notify_callback(lambda msg, dur=8000: self.bubble_text_ready.emit(msg, int(dur)))
+        set_timer_start_callback(lambda end, msg, m: self._sig_timer_start.emit(end, msg, m))
+        set_timer_fire_callback(lambda msg: self._sig_timer_fire.emit(msg))
+        set_chat_message_callback(lambda msg: self._sig_timer_chat.emit(msg))
 
-        # ── 定时器倒计时标签（浮在宠物头顶） ──
-        self._countdown_timers: Dict[float, Tuple[str, float]] = {}  # end_time -> (msg, total_minutes)
-        self._countdown_label = QLabel("", self)
+        # ── 定时器倒计时悬浮窗口（独立顶层窗口，显示在宠物头顶） ──
+        self._countdown_timers: Dict[float, Tuple[str, float]] = {}
+        self._countdown_window = QWidget()
+        _flags = (Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint |
+                  (Qt.Tool if sys.platform != "darwin" else Qt.Window))
+        self._countdown_window.setWindowFlags(_flags)
+        self._countdown_window.setAttribute(Qt.WA_TranslucentBackground)
+        self._countdown_label = QLabel("", self._countdown_window)
         self._countdown_label.setAlignment(Qt.AlignCenter)
         self._countdown_label.setStyleSheet(
-            "color: #fff; background: rgba(80, 80, 80, 200);"
-            "border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: bold;"
+            "color: #fff; background: rgba(60, 60, 80, 210);"
+            "border-radius: 10px; padding: 3px 10px; font-size: 11px; font-weight: bold;"
         )
-        self._countdown_label.hide()
         self._countdown_timer = QTimer(self)
         self._countdown_timer.setInterval(1000)
         self._countdown_timer.timeout.connect(self._update_countdown_display)
 
-        # ── 定时器通知覆盖层（点击关闭） ──
-        self._timer_notify_overlay = QLabel("", self)
-        self._timer_notify_overlay.setAlignment(Qt.AlignCenter)
-        self._timer_notify_overlay.setWordWrap(True)
-        self._timer_notify_overlay.setStyleSheet(
-            "color: #fff; background: rgba(220, 80, 60, 220);"
-            "border-radius: 12px; padding: 8px 12px; font-size: 12px; font-weight: bold;"
+        # ── 定时器触发通知悬浮窗口（需手动点击关闭） ──
+        self._timer_notify_window = QWidget()
+        self._timer_notify_window.setWindowFlags(_flags)
+        self._timer_notify_window.setAttribute(Qt.WA_TranslucentBackground)
+        self._timer_notify_label = QLabel("", self._timer_notify_window)
+        self._timer_notify_label.setAlignment(Qt.AlignCenter)
+        self._timer_notify_label.setWordWrap(True)
+        self._timer_notify_label.setStyleSheet(
+            "color: #fff; background: rgba(220, 80, 60, 230);"
+            "border-radius: 14px; padding: 10px 16px; font-size: 13px; font-weight: bold;"
         )
-        self._timer_notify_overlay.hide()
-        self._timer_notify_overlay.setCursor(Qt.PointingHandCursor)
-        self._timer_notify_overlay.mousePressEvent = lambda _: self._dismiss_timer_notify()
-
-        set_timer_start_callback(lambda end, msg, m: QTimer.singleShot(0, lambda: self._sig_timer_start.emit(end, msg, m)))
-        set_timer_fire_callback(lambda msg: QTimer.singleShot(0, lambda: self._sig_timer_fire.emit(msg)))
+        self._timer_notify_window.setCursor(Qt.PointingHandCursor)
+        self._timer_notify_window.mousePressEvent = lambda _: self._dismiss_timer_notify()
 
         self._sig_timer_start.connect(self._on_timer_start)
         self._sig_timer_fire.connect(self._on_timer_fire)
+        self._sig_timer_chat.connect(self._on_timer_chat_message)
 
         self._interaction_panel = None
         self._interaction_lock_until_ms = 0
@@ -937,6 +949,10 @@ class DesktopPet(QWidget):
         if hasattr(self, "_sayings_timer") and self._sayings_timer:
             self._sayings_timer.stop()
         self.bubble_window.hide()
+        if hasattr(self, "_countdown_window"):
+            self._countdown_window.hide()
+        if hasattr(self, "_timer_notify_window"):
+            self._timer_notify_window.hide()
 
     def _cleanup_for_destroy(self) -> None:
         """彻底清理：停止所有定时器并关闭气泡窗口，用于分身模式退出时，避免气泡残留和卡顿。"""
@@ -994,6 +1010,10 @@ class DesktopPet(QWidget):
         self._close_interaction_panel()
         self._clear_ui_effects()
         self._mood_engine.save()
+        if hasattr(self, "_countdown_window"):
+            self._countdown_window.close()
+        if hasattr(self, "_timer_notify_window"):
+            self._timer_notify_window.close()
         super().closeEvent(event)
 
     def _schedule_next_saying(self, initial_delay: bool = False) -> None:
@@ -1164,66 +1184,89 @@ class DesktopPet(QWidget):
     def _on_timer_start(self, end_time: float, msg: str, total_minutes: float) -> None:
         """定时器启动：记录并开始倒计时显示。"""
         self._countdown_timers[end_time] = (msg, total_minutes)
-        self._countdown_label.show()
         self._countdown_timer.start()
         self._update_countdown_display()
 
     def _on_timer_fire(self, msg: str) -> None:
-        """定时器触发：显示通知覆盖层（点击关闭），同时更新气泡。"""
-        # 移除已触发的定时器
-        now = __import__("time").time()
+        """定时器触发：显示悬浮通知窗口（需手动点击关闭）。"""
+        import time as _time
+        now = _time.time()
         self._countdown_timers = {k: v for k, v in self._countdown_timers.items() if k > now + 0.5}
         if not self._countdown_timers:
             self._countdown_timer.stop()
-            self._countdown_label.hide()
+            self._countdown_window.hide()
+        self._show_timer_notify(msg)
 
-        # 显示通知覆盖层
-        self._timer_notify_overlay.setText(f"{msg}\n\n[ 点击关闭 ]")
-        self._timer_notify_overlay.adjustSize()
-        # 居中覆盖在宠物上
-        pw, ph = self.width(), self.height()
-        nw, nh = self._timer_notify_overlay.sizeHint().width() + 20, self._timer_notify_overlay.sizeHint().height() + 10
-        self._timer_notify_overlay.setGeometry(
-            max(0, (pw - nw) // 2), max(0, (ph - nh) // 2), nw, nh
-        )
-        self._timer_notify_overlay.show()
-        self._timer_notify_overlay.raise_()
-
-        # 同时用常规气泡显示
-        self.update_bubble(msg, duration=8000)
+    def _show_timer_notify(self, msg: str) -> None:
+        """弹出需手动点击关闭的提醒悬浮窗。"""
+        text = f"⏰ {msg}\n\n点击此处关闭"
+        self._timer_notify_label.setText(text)
+        self._timer_notify_label.adjustSize()
+        max_w = min(320, QApplication.desktop().screenGeometry().width() - 40)
+        self._timer_notify_label.setMaximumWidth(max_w)
+        self._timer_notify_label.adjustSize()
+        lw = self._timer_notify_label.width() + 4
+        lh = self._timer_notify_label.height() + 4
+        lw = max(lw, 180)
+        self._timer_notify_window.resize(lw, lh)
+        self._timer_notify_label.setGeometry(0, 0, lw, lh)
+        # 定位在宠物头顶
+        pet_global = self.mapToGlobal(QPoint(0, 0))
+        wx = pet_global.x() + (self.width() - lw) // 2
+        wy = pet_global.y() - lh - 12
+        screen = QApplication.desktop().screenGeometry()
+        wx = max(10, min(wx, screen.width() - lw - 10))
+        wy = max(10, min(wy, screen.height() - lh - 10))
+        self._timer_notify_window.move(wx, wy)
+        self._timer_notify_window.show()
+        self._timer_notify_window.raise_()
+        self._timer_notify_window.activateWindow()
 
     def _dismiss_timer_notify(self) -> None:
-        """点击关闭定时器通知。"""
-        self._timer_notify_overlay.hide()
+        """点击关闭定时器通知悬浮窗。"""
+        self._timer_notify_window.hide()
+
+    def _on_timer_chat_message(self, msg: str) -> None:
+        """定时器触发 → 向聊天窗口（若已打开）注入一条提醒消息。"""
+        if (
+            self._chat is not None
+            and self._chat._full_chat_window is not None
+            and self._chat._full_chat_window.isVisible()
+        ):
+            self._chat._full_chat_window.inject_timer_message(msg)
 
     def _update_countdown_display(self) -> None:
-        """每秒更新倒计时标签。"""
+        """每秒更新倒计时悬浮标签（独立顶层窗口，浮在宠物头顶）。"""
         import time
         now = time.time()
-        # 清理已过期的定时器
         expired = [k for k in self._countdown_timers if k <= now + 0.5]
         for k in expired:
             del self._countdown_timers[k]
 
         if not self._countdown_timers:
             self._countdown_timer.stop()
-            self._countdown_label.hide()
+            self._countdown_window.hide()
             return
 
-        # 找剩余时间最短的定时器
         nearest_end = min(self._countdown_timers.keys())
         remaining = max(0, int(nearest_end - now))
         m, s = divmod(remaining, 60)
-
         count = len(self._countdown_timers)
-        if count > 1:
-            text = f"⏰ {m:02d}:{s:02d} (+{count - 1})"
-        else:
-            text = f"⏰ {m:02d}:{s:02d}"
+        text = f"⏰ {m:02d}:{s:02d}" + (f" (+{count - 1})" if count > 1 else "")
 
         self._countdown_label.setText(text)
         self._countdown_label.adjustSize()
-        # 定位在宠物头顶上方
-        pw = self.width()
-        lw = self._countdown_label.width()
-        self._countdown_label.move(max(0, (pw - lw) // 2), -self._countdown_label.height() - 4)
+        lw = self._countdown_label.width() + 4
+        lh = self._countdown_label.height() + 4
+        self._countdown_window.resize(lw, lh)
+        self._countdown_label.setGeometry(0, 0, lw, lh)
+        # 悬浮在宠物头顶
+        pet_global = self.mapToGlobal(QPoint(0, 0))
+        cx = pet_global.x() + (self.width() - lw) // 2
+        cy = pet_global.y() - lh - 6
+        screen = QApplication.desktop().screenGeometry()
+        cx = max(0, min(cx, screen.width() - lw))
+        cy = max(6, min(cy, screen.height() - lh))
+        self._countdown_window.move(cx, cy)
+        self._countdown_window.show()
+        self._countdown_window.raise_()

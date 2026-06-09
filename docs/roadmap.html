@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Peko 桌宠 — 迭代路线图</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f1117;
+    --bg2:       #161b22;
+    --bg3:       #1c2128;
+    --border:    #30363d;
+    --border2:   #21262d;
+    --text:      #e6edf3;
+    --text2:     #8b949e;
+    --text3:     #6e7681;
+    --accent:    #388bfd;
+    --green:     #3fb950;
+    --green-bg:  rgba(63,185,80,.12);
+    --green-b:   rgba(63,185,80,.35);
+    --yellow:    #d29922;
+    --yellow-bg: rgba(210,153,34,.12);
+    --yellow-b:  rgba(210,153,34,.35);
+    --red:       #f85149;
+    --red-bg:    rgba(248,81,73,.10);
+    --red-b:     rgba(248,81,73,.35);
+    --blue-bg:   rgba(56,139,253,.10);
+    --blue-b:    rgba(56,139,253,.35);
+    --radius:    8px;
+    --radius-sm: 5px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px 24px 64px;
+  }
+
+  .page { max-width: 960px; margin: 0 auto; }
+
+  /* ── Typography ── */
+  h1 { font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  h2 { font-size: 17px; font-weight: 600; color: var(--text); margin: 28px 0 12px; }
+  h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .subtitle { color: var(--text2); font-size: 13px; margin-bottom: 24px; }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  /* ── Stats row ── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .stat {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.2; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.blue  { color: var(--accent); }
+  .stat-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; }
+  .tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+  /* ── Panel ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Callout ── */
+  .callout {
+    border-radius: var(--radius);
+    border-left: 3px solid;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 20px;
+    line-height: 1.55;
+  }
+  .callout.info   { background: var(--blue-bg);   border-color: var(--accent); color: var(--text2); }
+  .callout.neutral{ background: var(--bg3);        border-color: var(--border); color: var(--text2); }
+  .callout strong { color: var(--text); }
+  .callout code   { background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-size: 12px; color: var(--accent); }
+
+  /* ── Pills ── */
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .pill-green  { background: var(--green-bg);  border-color: var(--green-b);  color: var(--green); }
+  .pill-yellow { background: var(--yellow-bg); border-color: var(--yellow-b); color: var(--yellow);}
+  .pill-red    { background: var(--red-bg);    border-color: var(--red-b);    color: var(--red);   }
+  .pill-blue   { background: var(--blue-bg);   border-color: var(--blue-b);   color: var(--accent);}
+  .pill-gray   { background: var(--bg3);       border-color: var(--border);   color: var(--text3); }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--bg3); }
+  thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border2); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,.02); }
+  td { padding: 10px 14px; vertical-align: top; }
+  td.area { font-weight: 600; color: var(--text); width: 100px; }
+  td.item { width: 130px; }
+  td.meta { text-align: center; width: 90px; }
+  td.problem { color: var(--text2); }
+  td.solution { color: var(--text); }
+
+  /* ── Cards grid ── */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border2);
+    background: var(--bg3);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card-header .card-title { flex: 1; min-width: 0; }
+  .card-header .pills { display: flex; gap: 5px; flex-shrink: 0; }
+  .card-header .chevron {
+    width: 14px; height: 14px; flex-shrink: 0;
+    color: var(--text3);
+    transition: transform .2s;
+  }
+  .card.collapsed .chevron { transform: rotate(-90deg); }
+  .card-body { padding: 14px; }
+  .card.collapsed .card-body { display: none; }
+  .card-desc { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .card-detail { font-size: 12px; color: var(--text2); line-height: 1.55; }
+  .card-example {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text2);
+    font-style: italic;
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    border-left: 2px solid var(--border);
+  }
+
+  /* full-width card */
+  .card-full { grid-column: 1 / -1; }
+  @media (max-width: 640px) { .card-full { grid-column: 1; } }
+
+  /* ── Section label ── */
+  .section-label {
+    display: flex; align-items: center; gap: 10px; margin: 28px 0 14px;
+  }
+  .section-label h2 { margin: 0; }
+  .section-label .count {
+    font-size: 11px; color: var(--text3);
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 20px; padding: 1px 8px;
+  }
+
+  /* ── Category badge ── */
+  .cat-badge {
+    font-size: 11px; color: var(--text3); border: 1px solid var(--border2);
+    background: var(--bg); border-radius: 20px; padding: 1px 8px;
+    display: inline-block; margin-bottom: 10px;
+  }
+
+  code { background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-size: 12px; color: var(--accent); font-family: "SFMono-Regular", Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <h1>Peko 桌宠 — 迭代路线图</h1>
+  <p class="subtitle">基于当前代码库（PyQt5 + AgentLoop + Tool 注册表）的优化建议与新功能规划，不依赖额外美术资源。</p>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat"><div class="stat-value">8</div><div class="stat-label">优化项</div></div>
+    <div class="stat"><div class="stat-value green">3</div><div class="stat-label">快速可交付项</div></div>
+    <div class="stat"><div class="stat-value">7</div><div class="stat-label">可新增工具</div></div>
+    <div class="stat"><div class="stat-value blue">3</div><div class="stat-label">低工作量新功能</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('opt')">优化现有功能</button>
+    <button class="tab" onclick="switchTab('tools')">新增工具</button>
+    <button class="tab" onclick="switchTab('feat')">新增功能</button>
+  </div>
+
+  <!-- ── Panel: Optimizations ── -->
+  <div id="panel-opt" class="panel active">
+
+    <div class="callout info">
+      <strong>评估维度说明</strong><br/>
+      工作量 = 修改代码量（低 &lt; 100行，中 200–500行，高 = 需架构调整）；
+      价值 = 对用户体验的可感知提升程度。
+    </div>
+
+    <div class="section-label"><h2>快速可交付</h2><span class="count">低工作量 · 高价值</span></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>功能区域</th>
+            <th>优化项</th>
+            <th>当前问题</th>
+            <th>建议方案</th>
+            <th>工作量</th>
+            <th>价值</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="area">设置界面</td>
+            <td class="item">图形化配置编辑器</td>
+            <td class="problem">API Key / 模型选择等配置完全依赖 JSON 文件手动编辑，用户体验差</td>
+            <td class="solution">在任务栏菜单的「AI 设置」窗口中添加模型下拉、Base URL 输入框、测试连接按钮；现有 <code>validate_ai_config</code> 逻辑复用</td>
+            <td class="meta"><span class="pill pill-green">工作量·低</span></td>
+            <td class="meta"><span class="pill pill-green">价值·高</span></td>
+          </tr>
+          <tr>
+            <td class="area">对话历史</td>
+            <td class="item">全文搜索</td>
+            <td class="problem">历史记录无法搜索，用户找不回某次对话</td>
+            <td class="solution">对话列表顶部加搜索框，实时过滤标题；选中后在气泡视图高亮匹配关键词</td>
+            <td class="meta"><span class="pill pill-green">工作量·低</span></td>
+            <td class="meta"><span class="pill pill-green">价值·高</span></td>
+          </tr>
+          <tr>
+            <td class="area">对话历史</td>
+            <td class="item">导出为 Markdown</td>
+            <td class="problem">无法将对话内容导出备份</td>
+            <td class="solution">右键菜单加「导出 .md」，将 user/assistant 消息格式化后写入文件并弹出保存对话框</td>
+            <td class="meta"><span class="pill pill-green">工作量·低</span></td>
+            <td class="meta"><span class="pill pill-yellow">价值·中</span></td>
+          </tr>
+          <tr>
+            <td class="area">工具错误提示</td>
+            <td class="item">友好化 tool 错误信息</td>
+            <td class="problem">工具执行失败时直接把 Python 异常字符串暴露给 LLM，容易产生冗长无意义回复</td>
+            <td class="solution">在 <code>call_tool()</code> 层统一格式化错误为 <code>{tool, error_type, brief}</code>，LLM 接收后能给出简洁说明</td>
+            <td class="meta"><span class="pill pill-green">工作量·低</span></td>
+            <td class="meta"><span class="pill pill-yellow">价值·中</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-label"><h2>中期规划</h2><span class="count">中等工作量</span></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>功能区域</th>
+            <th>优化项</th>
+            <th>当前问题</th>
+            <th>建议方案</th>
+            <th>工作量</th>
+            <th>价值</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="area">对话气泡渲染</td>
+            <td class="item">支持 Markdown / 代码块</td>
+            <td class="problem">AI 回复以 QPainter 渲染成 PNG，代码块/列表/加粗等格式完全丢失</td>
+            <td class="solution">将 AI 气泡改为 HTML+CSS 内联渲染（QTextBrowser 支持有限 HTML），或嵌入 <code>QWebEngineView</code> 轻量组件显示 Markdown</td>
+            <td class="meta"><span class="pill pill-yellow">工作量·中</span></td>
+            <td class="meta"><span class="pill pill-green">价值·高</span></td>
+          </tr>
+          <tr>
+            <td class="area">Agent 记忆</td>
+            <td class="item">跨会话上下文持久化</td>
+            <td class="problem">关闭全屏对话框后 AgentLoop 的 _messages 全部丢失，下次打开从零开始</td>
+            <td class="solution">将 tool call / assistant 轮次序列化到对话历史文件；重新打开窗口时加载最近 N 轮作为上下文注入</td>
+            <td class="meta"><span class="pill pill-yellow">工作量·中</span></td>
+            <td class="meta"><span class="pill pill-green">价值·高</span></td>
+          </tr>
+          <tr>
+            <td class="area">性能</td>
+            <td class="item">气泡图片缓存</td>
+            <td class="problem">每次 <code>_render_messages</code> 重绘时都用 QPainter 重新生成所有消息的 PNG，消息多时明显卡顿</td>
+            <td class="solution">以消息内容 hash 为 key 缓存 data URI；内容不变则直接复用，只有新增/修改消息才重新绘制</td>
+            <td class="meta"><span class="pill pill-yellow">工作量·中</span></td>
+            <td class="meta"><span class="pill pill-green">价值·高</span></td>
+          </tr>
+          <tr>
+            <td class="area">心情系统</td>
+            <td class="item">自动触发规则</td>
+            <td class="problem">MoodEngine 只支持固定几种互动类型，没有基于时间/行为的自动状态变化</td>
+            <td class="solution">增加「长时间未互动 → 无聊」「连续对话 → 兴奋」「定时器完成 → 满足」等规则；不需要新美术资源</td>
+            <td class="meta"><span class="pill pill-yellow">工作量·中</span></td>
+            <td class="meta"><span class="pill pill-yellow">价值·中</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Panel: New Tools ── -->
+  <div id="panel-tools" class="panel">
+
+    <div class="callout neutral">
+      所有新工具继承 <code>BaseTool</code>，在 <code>tools/__init__.py</code> 末尾 <code>register()</code> 即可接入 Agent，不修改 AgentLoop 或 LLM 调用逻辑。
+    </div>
+
+    <div class="section-label"><h2>生产力工具</h2></div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">take_notes / recall_notes</span>
+          <div class="pills"><span class="pill pill-green">工作量·低</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">将用户说的内容写入本地 Markdown 笔记文件，或检索历史笔记</p>
+          <p class="card-detail">在 <code>data/notes.md</code> 中追加 / 检索内容；支持按关键词召回。复用现有 <code>file_utils</code> 路径管理逻辑。</p>
+          <div class="card-example">示例：「帮我记住：明天买牛奶」→ 追加到笔记；「我上次说要买什么？」→ 关键词检索返回</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">todo_manager</span>
+          <div class="pills"><span class="pill pill-yellow">工作量·中</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">管理简单待办列表，持久化到本地 JSON</p>
+          <p class="card-detail">支持 add / list / done / clear 操作；以 <code>data/todos.json</code> 存储；LLM 可根据对话上下文自动调用。</p>
+          <div class="card-example">示例：「加个待办：整理文档」「列一下我的待办」「把第一个标记完成」</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">pomodoro（番茄钟）</span>
+          <div class="pills"><span class="pill pill-yellow">工作量·中</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">番茄钟管理：专注 25 分钟 + 休息 5 分钟，完全复用现有 <code>set_timer</code> + 倒计时显示</p>
+          <p class="card-detail">封装 <code>set_timer</code>；自动在专注结束后再设置一个休息提醒。宠物可在专注期间切换为专注状态动画（若有）。</p>
+          <div class="card-example">示例：「开始一个番茄钟」→ 25min 专注 → 提醒休息 → 5min 休息 → 循环</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label"><h2>系统集成工具</h2></div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">clipboard_read</span>
+          <div class="pills"><span class="pill pill-green">工作量·低</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">读取系统剪贴板文本，让 AI 可以直接分析复制的内容</p>
+          <p class="card-detail">使用 <code>QApplication.clipboard().text()</code> 获取剪贴板；超过 4000 字符时截断并提示。</p>
+          <div class="card-example">示例：「帮我解释一下我复制的这段代码」→ 自动读取剪贴板传给 LLM</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">open_url</span>
+          <div class="pills"><span class="pill pill-green">工作量·低</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">用系统默认浏览器打开指定 URL</p>
+          <p class="card-detail">调用 <code>webbrowser.open(url)</code>；URL 白名单校验（仅 http/https）防止恶意调用。</p>
+          <div class="card-example">示例：「帮我打开 GitHub」「在浏览器里搜索这个错误」</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">calculate</span>
+          <div class="pills"><span class="pill pill-green">工作量·低</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">安全执行数学表达式，避免 LLM 直接算数出错</p>
+          <p class="card-detail">用 Python <code>ast</code> 模块解析表达式树，白名单操作符（+−×÷幂次根号），不允许函数调用，完全安全。</p>
+          <div class="card-example">示例：「帮我算一下 (1500 * 0.85) / 12」「√2 是多少」</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">run_command（白名单）</span>
+          <div class="pills"><span class="pill pill-yellow">工作量·中</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">在严格白名单内执行只读 shell 命令，结果返回给 AI 分析</p>
+          <p class="card-detail">白名单仅包含 <code>dir/ls</code>、<code>ping</code>、<code>ipconfig/ifconfig</code> 等只读命令；执行超时 5 秒；输出截断 2000 字符。</p>
+          <div class="card-example">示例：「当前目录有哪些文件？」「我的 IP 地址是多少？」</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Panel: New Features ── -->
+  <div id="panel-feat" class="panel">
+
+    <div class="section-label">
+      <h2>低工作量，可立即规划</h2>
+      <span class="count">3 项</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">每日问候与天气简报</span>
+          <div class="pills"><span class="pill pill-green">工作量·低</span><span class="pill pill-green">价值·高</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">每天首次启动时，宠物主动弹泡问候 + 显示今日天气</p>
+          <p class="card-detail">复用现有 <code>WeatherTool</code>；在 <code>data/last_greet.txt</code> 记录上次问候日期，判断「当天首次启动」后触发。根据时间段（早/中/晚）给出不同问候语，配合现有随机文案系统。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">宠物状态卡悬浮窗</span>
+          <div class="pills"><span class="pill pill-green">工作量·低</span><span class="pill pill-yellow">价值·中</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">右键菜单增加「查看状态」，弹出迷你面板显示心情/饥饿/精力进度条</p>
+          <p class="card-detail">复用 <code>MoodEngine.snapshot</code> 数据；用 PyQt5 <code>QProgressBar</code> 渲染三个状态条，加上简短文字描述当前心情。完全不需要新美术资源，样式与现有互动面板保持一致。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">基于时间的自动行为</span>
+          <div class="pills"><span class="pill pill-green">工作量·低</span><span class="pill pill-yellow">价值·中</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">根据时间自动触发行为：早上打招呼、下午提醒喝水、晚上说晚安</p>
+          <p class="card-detail">一个后台 <code>QTimer</code> 每分钟检查当前时间与上次触发时间，匹配规则后显示气泡。规则写在 <code>config.json</code> 中，用户可自定义时间段与文案。</p>
+        </div>
+      </div>
+    </div>
+
+    <hr/>
+
+    <div class="section-label">
+      <h2>中期功能</h2>
+      <span class="count">4 项，点击展开详情</span>
+    </div>
+    <div class="cards">
+      <div class="card collapsed">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">多 LLM 后端支持</span>
+          <div class="pills"><span class="pill pill-yellow">工作量·中</span><span class="pill pill-green">价值·高</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">在配置界面支持选择 OpenAI / Ollama（本地）/ Anthropic Claude 作为 AI 后端</p>
+          <p class="card-detail">对 <code>service.py</code> 抽象 <code>LLMProvider</code> 接口；Ollama 使用 <code>/api/chat</code> 接口，完全本地无需 API Key。现有 tool calling 逻辑通过统一格式适配不同后端。</p>
+        </div>
+      </div>
+      <div class="card collapsed">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">全局快捷键系统</span>
+          <div class="pills"><span class="pill pill-yellow">工作量·中</span><span class="pill pill-green">价值·高</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">全局热键呼出对话框（如 <code>Ctrl+Shift+P</code>），支持用户自定义</p>
+          <p class="card-detail">使用 <code>keyboard</code> 或 <code>pynput</code> 库注册全局钩子；快捷键配置写入 <code>config.json</code>；设置界面提供快捷键录制控件。</p>
+        </div>
+      </div>
+      <div class="card collapsed">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">心情历史折线图</span>
+          <div class="pills"><span class="pill pill-yellow">工作量·中</span><span class="pill pill-yellow">价值·中</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">在心情面板增加「历史」标签，展示过去 7 天的心情/饥饿/精力折线图</p>
+          <p class="card-detail"><code>MoodEngine</code> 已有持久化；读取历史 JSON，用 PyQt5 <code>QPainter</code> 绘制简单折线（无需第三方图表库）。按天聚合均值，hover 显示具体数值。</p>
+        </div>
+      </div>
+      <div class="card collapsed">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">Tool 插件热加载</span>
+          <div class="pills"><span class="pill pill-yellow">工作量·中</span><span class="pill pill-green">价值·高</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">工具目录支持「第三方 .py 插件」：放入 plugins/ 目录后自动注册，无需修改源码</p>
+          <p class="card-detail">在 <code>tools/__init__.py</code> 扫描 <code>plugins/</code> 目录，动态 <code>importlib.import_module</code> 并调用 <code>register()</code>；<code>BaseTool</code> 接口不变。可以用 <code>watchdog</code> 监听目录变化实现热重载。</p>
+        </div>
+      </div>
+    </div>
+
+    <hr/>
+
+    <div class="section-label">
+      <h2>长期探索</h2>
+      <span class="count">高工作量</span>
+    </div>
+    <div class="cards">
+      <div class="card collapsed card-full">
+        <div class="card-header" onclick="toggleCard(this)">
+          <span class="card-title">语音输入（Whisper）</span>
+          <div class="pills"><span class="pill pill-red">工作量·高</span><span class="pill pill-yellow">价值·中</span></div>
+          <svg class="chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 9.573l3.396-3.396a.25.25 0 01.354 0l3.396 3.396a.25.25 0 01-.177.427H4.604a.25.25 0 01-.177-.427z"/></svg>
+        </div>
+        <div class="card-body">
+          <p class="card-desc">对话框增加麦克风按钮，录音后调用 Whisper API（或本地 whisper.cpp）转写为文字</p>
+          <p class="card-detail">依赖 <code>PyAudio</code> 录音 + OpenAI Whisper API 或本地 <code>faster-whisper</code>；不需要新美术资源。主要工作量在跨平台麦克风权限处理和录音 UI 反馈（波形动画）。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panel-feat -->
+
+</div><!-- /page -->
+
+<script>
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+}
+
+function toggleCard(header) {
+  header.closest('.card').classList.toggle('collapsed');
+}
+</script>
+</body>
+</html>

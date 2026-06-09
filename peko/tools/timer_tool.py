@@ -4,52 +4,50 @@ import threading
 from typing import Callable, Optional
 from .base import BaseTool, ToolResult
 
-# 全局通知回调，由 pet.py 初始化时注入
+# 全局回调，由 pet.py 初始化时注入
+# 注意：这些回调应该封装为 Qt signal.emit()，从后台线程调用是线程安全的
 _notify_callback: Optional[Callable[[str, int], None]] = None
 _timer_start_callback: Optional[Callable[[float, str, float], None]] = None
 _timer_fire_callback: Optional[Callable[[str], None]] = None
+_chat_message_callback: Optional[Callable[[str], None]] = None
 
 
 def set_notify_callback(callback: Callable[[str, int], None]) -> None:
-    """注册通知回调：callback(message, duration_ms)。"""
     global _notify_callback
     _notify_callback = callback
 
 
 def set_timer_start_callback(callback: Callable[[float, str, float], None]) -> None:
-    """注册定时器启动回调：callback(end_time, message, total_minutes)。"""
     global _timer_start_callback
     _timer_start_callback = callback
 
 
 def set_timer_fire_callback(callback: Callable[[str], None]) -> None:
-    """注册定时器触发回调：callback(message)。"""
     global _timer_fire_callback
     _timer_fire_callback = callback
 
 
+def set_chat_message_callback(callback: Optional[Callable[[str], None]]) -> None:
+    """注册对话框注入回调：callback(message)，定时器触发时向聊天窗口发一条提醒消息。"""
+    global _chat_message_callback
+    _chat_message_callback = callback
+
+
 def _fire(msg: str) -> None:
-    """定时器到期时在后台线程调用。
-    PyQt5 的 QTimer.singleShot 静态方法会将 callable 投递到主线程事件循环，
-    因此从后台线程调用是安全的。
+    """定时器到期，在 threading.Timer 后台线程中调用。
+    回调封装的是 Qt signal.emit()，PyQt5 会自动将跨线程 emit 转为 QueuedConnection，
+    因此直接调用是安全的，不需要再包一层 QTimer.singleShot。
     """
-    cb_notify = _notify_callback
-    cb_fire = _timer_fire_callback
-    try:
-        from PyQt5.QtCore import QCoreApplication, QTimer
-        if QCoreApplication.instance() is not None:
-            if cb_notify is not None:
-                QTimer.singleShot(0, lambda m=msg: cb_notify(m, 8000))
-            if cb_fire is not None:
-                QTimer.singleShot(0, lambda m=msg: cb_fire(m))
-        else:
-            # 无 Qt 事件循环（测试环境），直接同步调用
-            if cb_notify is not None:
-                cb_notify(msg, 8000)
-            if cb_fire is not None:
-                cb_fire(msg)
-    except Exception:
-        pass
+    for cb, args in [
+        (_notify_callback, (msg, 8000)),
+        (_timer_fire_callback, (msg,)),
+        (_chat_message_callback, (msg,)),
+    ]:
+        if cb is not None:
+            try:
+                cb(*args)
+            except Exception as e:
+                print(f"[timer_tool] callback error: {e}")
 
 
 class SetTimerTool(BaseTool):

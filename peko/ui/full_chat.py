@@ -27,8 +27,9 @@ if TYPE_CHECKING:
 # ─── Sentinel 常量 ──────────────────────────────────────────────
 # 使用 Unicode 私有区字符作为不可见标记，写进文本内容，
 # 用 QTextDocument.find() 可以可靠定位；不会出现在 LLM 输出中。
-_SENTINEL_THINKING = "\uE001"  # "思考中..." 块标记
-_SENTINEL_STREAM   = "\uE002"  # 流式内容块标记（写入文本，随文本同步更新）
+_SENTINEL_THINKING    = "\uE001"  # "思考中..." 块标记
+_SENTINEL_STREAM      = "\uE002"  # 流式内容块标记（写入文本，随文本同步更新）
+_SENTINEL_TOOL_STATUS = "\uE003"  # 工具状态块标记（回复完成后统一清除）
 
 
 # ─── 头像与 HTML 工具 ───────────────────────────────────────────
@@ -146,7 +147,14 @@ def _avatar_raster_size(dpr: float) -> int:
     return max(64, int(AVATAR_SIZE * max(1.0, dpr)))
 
 
-# ─── 圆角气泡图片 ─────────────────────────────────────────────
+# ─── 气泡 HTML 辅助 ───────────────────────────────────────────
+
+def _bubble_content_html(text: str) -> str:
+    """将纯文本转为气泡内 HTML（转义 + 换行 → <br/>）。流式块使用。"""
+    return _escape_html(text).replace("\n", "<br/>")
+
+
+# ─── 圆角气泡图片（QPainter） ──────────────────────────────────
 
 _BUBBLE_FONT_FAMILY = "Microsoft YaHei"
 
@@ -164,13 +172,12 @@ def _make_bubble_image(
     name: str = "",
     name_color: str = "",
 ) -> str:
-    """用 QPainter 绘制圆角气泡 PNG → data:image base64 URI。"""
+    """用 QPainter 绘制圆角气泡 PNG，返回 data:image base64 URI。"""
     font = QFont(_BUBBLE_FONT_FAMILY, font_size)
     fm = QFontMetrics(font)
 
-    # 计算文字换行
     usable = max_width - hpad * 2
-    lines = []
+    lines: list[str] = []
     for para in text.split("\n"):
         if not para:
             lines.append("")
@@ -188,7 +195,6 @@ def _make_bubble_image(
 
     text_h = fm.lineSpacing() * len(lines)
 
-    # 名字标签
     name_h = 0
     name_fm = None
     if name:
@@ -205,7 +211,6 @@ def _make_bubble_image(
     p = QPainter(img)
     p.setRenderHint(QPainter.Antialiasing)
 
-    # 圆角背景
     path = QPainterPath()
     path.addRoundedRect(QRectF(0.5, 0.5, bubble_w - 1, total_h - 1), radius, radius)
     p.fillPath(path, QColor(bg_color))
@@ -213,7 +218,6 @@ def _make_bubble_image(
         p.setPen(QPen(QColor(border_color), 1.2))
         p.drawPath(path)
 
-    # 名字
     y = vpad
     if name and name_fm:
         p.setFont(QFont(_BUBBLE_FONT_FAMILY, 11))
@@ -222,7 +226,6 @@ def _make_bubble_image(
                    Qt.AlignLeft | Qt.AlignVCenter, name)
         y += name_h
 
-    # 文字 — 左对齐（每行起始位置一致）
     p.setFont(font)
     p.setPen(QColor(text_color))
     for line in lines:
@@ -339,6 +342,31 @@ QTextBrowser#chatDisplay {{
     font-size: {FONT_SIZE_BASE}px;
     padding: 12px 16px;
     font-family: {FONT_FAMILY};
+}}
+
+/* ── 竖向滚动条（聊天区 & 对话列表） ── */
+QScrollBar:vertical {{
+    background: transparent;
+    width: 6px;
+    margin: 4px 2px;
+    border-radius: 3px;
+}}
+QScrollBar::handle:vertical {{
+    background: {BORDER_WARM};
+    border-radius: 3px;
+    min-height: 32px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: {TEXT_SECONDARY};
+}}
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {{
+    height: 0;
+    background: none;
+}}
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {{
+    background: none;
 }}
 
 /* ── 对话列表 ── */
@@ -533,6 +561,7 @@ class FullChatWindow(QWidget):
         self._display = QTextBrowser()
         self._display.setObjectName("chatDisplay")
         self._display.setOpenExternalLinks(True)
+        self._display.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         ca_layout.addWidget(self._display, 1)
 
         self._empty_hint = QLabel("点击左侧「＋ 新对话」开始聊天 🐹")
@@ -795,6 +824,8 @@ class FullChatWindow(QWidget):
                 self._append_bubble(content, is_user=False)
             elif role == "tool_status":
                 self._append_tool_status(content)
+            elif role == "timer_alert":
+                self._append_timer_notification(content)
 
     def _build_welcome_html(self) -> str:
         return f"""
@@ -803,46 +834,34 @@ class FullChatWindow(QWidget):
         """
 
     def _append_bubble(self, text: str, is_user: bool, ts: str = ""):
-        # 计算气泡最大宽度：聊天区宽度的 65%（留出头像空间）
         disp_w = self._display.viewport().width() if self._display.viewport().width() > 100 else 500
         max_bubble_w = int(disp_w * 0.65)
-
-        avatar_td = (
-            f'<td valign="top" width="{AVATAR_FRAME_SIZE}">'
-            f'<img src="{self._user_avatar_uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>'
-            f'</td>'
-            if is_user else
-            f'<td valign="top" width="{AVATAR_FRAME_SIZE}">'
-            f'<img src="{self._pet_avatar_uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>'
-            f'</td>'
-        )
-
-        # 时间戳 HTML
-        ts_html = ""
-        if ts:
-            ts_html = (
-                f'<div style="font-size:10px; color:{TEXT_MUTED}; margin:2px 0; font-family:{FONT_FAMILY};">{ts}</div>'
-            )
 
         if is_user:
             uri = _make_bubble_image(
                 text, max_bubble_w,
-                bg_color="#8FBC8F",   # 鼠尾草绿
+                bg_color=BTN_GREEN,
                 text_color="#ffffff",
                 font_size=13, radius=16,
+            )
+            ts_html = (
+                f'<div style="font-size:10px; color:{TEXT_MUTED}; text-align:right; '
+                f'margin-bottom:2px; font-family:{FONT_FAMILY};">{ts}</div>'
+                if ts else ""
             )
             html = f"""
             <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
               <tr>
-                <td width="10%"></td>
+                <td></td>
                 <td align="right" valign="top" style="padding-right:8px;">
                   {ts_html}
                   <img src="{uri}"/>
                 </td>
-                {avatar_td}
+                <td valign="top" width="{AVATAR_FRAME_SIZE}">
+                  <img src="{self._user_avatar_uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>
+                </td>
               </tr>
-            </table>
-            """
+            </table>"""
         else:
             safe_name = _escape_html(self._pet_name)
             uri = _make_bubble_image(
@@ -853,25 +872,37 @@ class FullChatWindow(QWidget):
                 font_size=13, radius=16,
                 name=safe_name, name_color=TEXT_MUTED,
             )
+            # 时间戳在气泡图片下方右对齐，紧贴气泡
+            if ts:
+                ts_row = (
+                    f'<tr><td align="right" style="padding-top:2px; font-size:10px; '
+                    f'color:{TEXT_MUTED}; font-family:{FONT_FAMILY};">{ts}</td></tr>'
+                )
+            else:
+                ts_row = ""
             html = f"""
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
+            <table cellpadding="0" cellspacing="0" style="margin:8px 0;">
               <tr>
-                {avatar_td}
-                <td align="left" valign="top" style="padding-left:8px;">
-                  {ts_html}
-                  <img src="{uri}"/>
+                <td valign="top" width="{AVATAR_FRAME_SIZE}">
+                  <img src="{self._pet_avatar_uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>
                 </td>
-                <td width="10%"></td>
+                <td valign="top" style="padding-left:8px;">
+                  <table cellpadding="0" cellspacing="0">
+                    <tr><td><img src="{uri}"/></td></tr>
+                    {ts_row}
+                  </table>
+                </td>
+                <td></td>
               </tr>
-            </table>
-            """
+            </table>"""
         self._display.append(html)
         self._scroll_to_bottom()
 
     def _append_tool_status(self, text: str):
         safe_text = _escape_html(text)
+        # 写入 _SENTINEL_TOOL_STATUS，使 _remove_all_tool_statuses() 可定位此块
         html = f"""
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 10px 0;">
+        <p align="center" style="margin:6px 0 10px 0; padding:0;">{_SENTINEL_TOOL_STATUS}<table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td align="center">
               <table cellpadding="0" cellspacing="0">
@@ -884,10 +915,24 @@ class FullChatWindow(QWidget):
               </table>
             </td>
           </tr>
-        </table>
+        </table></p>
         """
         self._display.append(html)
         self._scroll_to_bottom()
+
+    def _remove_all_tool_statuses(self):
+        """删除当前对话轮次中所有工具状态块（含 _SENTINEL_TOOL_STATUS 的 block）。"""
+        doc = self._display.document()
+        while True:
+            cursor = doc.find(_SENTINEL_TOOL_STATUS)
+            if cursor.isNull():
+                break
+            bc = QTextCursor(cursor.block())
+            bc.movePosition(QTextCursor.StartOfBlock)
+            bc.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+            bc.removeSelectedText()
+            if not bc.block().text().strip():
+                bc.deleteChar()
 
     def _remove_last_block(self):
         """移除 QTextBrowser 最后一个 block（保留以防外部调用，内部已改用 sentinel 方案）。"""
@@ -995,6 +1040,8 @@ class FullChatWindow(QWidget):
         self._is_streaming = False
         self._send_btn.setEnabled(True)
         self._remove_streaming_block()
+        self._remove_thinking_status()       # 兜底：防止未走流式时残留
+        self._remove_all_tool_statuses()     # 清除本轮所有工具状态块
         self._streaming_row = None
 
         if not self._current_conv:
@@ -1015,6 +1062,7 @@ class FullChatWindow(QWidget):
         self._send_btn.setEnabled(True)
         self._remove_thinking_status()
         self._remove_streaming_block()
+        self._remove_all_tool_statuses()     # 清除本轮所有工具状态块
         self._streaming_row = None
         _now = datetime.now().strftime("%H:%M")
         self._append_bubble(f"⚠️ 出错了: {error}", is_user=False, ts=_now)
@@ -1048,59 +1096,112 @@ class FullChatWindow(QWidget):
             bc.deleteChar()
 
     def _append_streaming_block(self):
-        """追加流式内容占位块（简单 <p>），记录 blockNumber 供后续更新/删除。"""
-        # 用 \uE002 sentinel 作为初始文本，让 _update_streaming_block 可以定位
-        html = (
-            f'<p style="margin:8px 8px 8px 64px; padding:12px 14px; '
-            f'background:{BG_INPUT}; border:2px solid {BORDER_LIGHT}; '
-            f'border-radius:16px; font-size:13px; color:{TEXT_PRIMARY}; '
-            f'font-family:{FONT_FAMILY};">{_SENTINEL_STREAM}✍️</p>'
-        )
+        """追加流式AI气泡（与最终气泡同样 HTML 结构，不含时间戳）。
+        sentinel \uE002 写在 <p> 文本内，border-radius 在 <p> 上，update 时不影响圆角。
+        """
+        disp_w = self._display.viewport().width() if self._display.viewport().width() > 100 else 500
+        max_w = int(disp_w * 0.65)
+        safe_name = _escape_html(self._pet_name)
+        html = f"""
+        <table cellpadding="0" cellspacing="0" style="margin:8px 0;">
+          <tr>
+            <td valign="top" width="{AVATAR_FRAME_SIZE}">
+              <img src="{self._pet_avatar_uri}" width="{AVATAR_SIZE}" height="{AVATAR_SIZE}"/>
+            </td>
+            <td valign="top" style="padding-left:8px; max-width:{max_w}px;">
+              <p style="background-color:{BG_INPUT}; border-radius:16px;
+                  border:1px solid {BORDER_LIGHT};
+                  padding:12px 14px; margin:0;
+                  color:{TEXT_PRIMARY}; font-size:13px; font-family:{FONT_FAMILY};">
+                <span style="color:{TEXT_MUTED}; font-size:11px; font-family:{FONT_FAMILY};">{safe_name}</span><br/>{_SENTINEL_STREAM}✍️
+              </p>
+            </td>
+            <td></td>
+          </tr>
+        </table>"""
         self._display.append(html)
-        doc = self._display.document()
-        self._streaming_block_num = doc.lastBlock().blockNumber()
+        cursor = self._display.document().find(_SENTINEL_STREAM)
+        self._streaming_block_num = cursor.block().blockNumber() if not cursor.isNull() else None
         self._scroll_to_bottom()
 
     def _update_streaming_block(self, text: str):
-        """用 block number 定位流式块，原地替换文本内容。
-        使用 \\u2028（Line Separator）代替 \\n，保持单块内换行。
+        """通过 sentinel 定位表格内容块，替换 sentinel 起始位置到 block 末尾的文本。
+        \u2028（Line Separator）代替 \\n 保持单块内换行。
         """
-        if self._streaming_block_num is None:
+        cursor = self._display.document().find(_SENTINEL_STREAM)
+        if cursor.isNull():
             return
-        doc = self._display.document()
-        block = doc.findBlockByNumber(self._streaming_block_num)
-        if not block.isValid():
-            return
-        cursor = QTextCursor(block)
-        cursor.movePosition(QTextCursor.StartOfBlock)
-        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
-        # \u2028 = Unicode Line Separator：在块内换行，不产生新 block
-        display_text = _SENTINEL_STREAM + text.replace("\n", "\u2028")
-        cursor.insertText(display_text)
+        # anchor() 是 sentinel 在文档中的绝对起始位置
+        block = cursor.block()
+        sentinel_start = cursor.anchor()
+        block_end = block.position() + block.length() - 1  # -1 排除块末分隔符
+        tc = QTextCursor(self._display.document())
+        tc.setPosition(sentinel_start)
+        tc.setPosition(block_end, QTextCursor.KeepAnchor)
+        tc.insertText(_SENTINEL_STREAM + text.replace("\n", "\u2028"))
         self._scroll_to_bottom()
 
     def _remove_streaming_block(self):
-        """删除流式块（先按 block number，找不到再用 sentinel 兜底）。"""
+        """通过 sentinel 定位流式气泡的 QTextTable，整张删除。"""
         doc = self._display.document()
-        block = None
-        if self._streaming_block_num is not None:
-            b = doc.findBlockByNumber(self._streaming_block_num)
-            if b.isValid():
-                block = b
-        if block is None:
-            # 兜底：用 sentinel 搜索
-            cursor = doc.find(_SENTINEL_STREAM)
-            if not cursor.isNull():
-                block = cursor.block()
+        cursor = doc.find(_SENTINEL_STREAM)
         self._streaming_block_num = None
-        if block is None or not block.isValid():
+        if cursor.isNull():
             return
-        bc = QTextCursor(block)
-        bc.movePosition(QTextCursor.StartOfBlock)
-        bc.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
-        bc.removeSelectedText()
-        if not bc.block().text().strip():
-            bc.deleteChar()
+        table = cursor.currentTable()
+        if table is not None:
+            # QTextTable 继承自 QTextFrame，firstPosition/lastPosition 给出帧边界
+            tc = QTextCursor(doc)
+            tc.setPosition(table.firstPosition() - 1)
+            tc.setPosition(table.lastPosition() + 1, QTextCursor.KeepAnchor)
+            tc.removeSelectedText()
+        else:
+            # 兜底：仅删除包含 sentinel 的 block
+            bc = QTextCursor(cursor.block())
+            bc.movePosition(QTextCursor.StartOfBlock)
+            bc.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+            bc.removeSelectedText()
+            if not bc.block().text().strip():
+                bc.deleteChar()
+
+    # ─── 定时器提醒注入 ──────────────────────────────────────────
+
+    def inject_timer_message(self, msg: str) -> None:
+        """定时器触发时由 pet.py 调用，向对话框注入一条提醒通知（不经过 AI，仅 UI 展示）。"""
+        _now = datetime.now().strftime("%H:%M")
+        self._append_timer_notification(msg, ts=_now)
+        if self._current_conv is not None:
+            self._current_conv["messages"].append({"role": "timer_alert", "content": msg})
+            _save_conversation(self._current_conv)
+        self._scroll_to_bottom()
+
+    def _append_timer_notification(self, msg: str, ts: str = "") -> None:
+        """渲染一条居中的定时提醒通知气泡（橙色边框）。"""
+        safe_msg = _escape_html(msg)
+        ts_span = (
+            f'<span style="font-size:10px; color:{TEXT_MUTED}; margin-left:8px;">{ts}</span>'
+            if ts else ""
+        )
+        html = f"""
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0;">
+          <tr>
+            <td width="12%"></td>
+            <td align="center">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:#FFF3E0; border:2px solid #FF8F00;
+                      border-radius:12px; padding:8px 16px;
+                      font-size:13px; color:#E65100; font-family:{FONT_FAMILY};">
+                    ⏰ {safe_msg}{ts_span}
+                  </td>
+                </tr>
+              </table>
+            </td>
+            <td width="12%"></td>
+          </tr>
+        </table>
+        """
+        self._display.append(html)
 
     # ─── 窗口事件 ────────────────────────────────────────────────
 
