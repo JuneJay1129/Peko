@@ -38,19 +38,23 @@ class ChatHandler:
     def _get_or_create_agent(self):
         """获取或创建 AgentLoop 实例（懒加载）。"""
         if self._agent is None:
-            from ..ai.agent import AgentLoop
-            from ..ai.service import validate_ai_config
-            if not validate_ai_config():
-                return None
-            self._agent = AgentLoop(
-                system_prompt=self._get_system_prompt(),
-                on_status=lambda s: self.pet.bubble_text_ready.emit(s, REPLY_BUBBLE_DURATION_MS),
-                on_token=lambda t: None,  # token 通过下面的 local closure 传
-            )
+            self._agent = self._create_agent()
         else:
             # 更新系统提示词（情绪可能变化）
             self._agent.set_system_prompt(self._get_system_prompt())
         return self._agent
+
+    def _create_agent(self):
+        """创建一个新的 AgentLoop 实例。"""
+        from ..ai.agent import AgentLoop
+        from ..ai.service import validate_ai_config
+        if not validate_ai_config():
+            return None
+        return AgentLoop(
+            system_prompt=self._get_system_prompt(),
+            on_status=lambda s: self.pet.bubble_text_ready.emit(s, REPLY_BUBBLE_DURATION_MS),
+            on_token=lambda t: None,  # token 通过下面的 local closure 传
+        )
 
     def show_dialog(self) -> None:
         """显示与宠物对话的输入框；若已打开则关闭。"""
@@ -112,7 +116,7 @@ class ChatHandler:
                 if frames and os.path.isfile(frames[0]):
                     pet_icon_path = frames[0]
 
-        agent = self._get_or_create_agent()
+        agent = self._create_agent()
         window = FullChatWindow(
             agent_loop=agent,
             system_prompt=self._get_system_prompt(),

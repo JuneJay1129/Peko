@@ -397,10 +397,10 @@ QLabel#chatHeader {{
 
 class _SignalBridge(QObject):
     """跨线程信号桥。"""
-    token_received = pyqtSignal(str)
-    status_update = pyqtSignal(str)
-    reply_finished = pyqtSignal(str)
-    error_occurred = pyqtSignal(str)
+    token_received = pyqtSignal(str, str)
+    status_update = pyqtSignal(str, str)
+    reply_finished = pyqtSignal(str, str)
+    error_occurred = pyqtSignal(str, str)
 
 
 # ─── 主窗口 ──────────────────────────────────────────────────────
@@ -441,6 +441,7 @@ class FullChatWindow(QWidget):
         self._user_avatar_uri = _png_avatar_uri("我", "#66BB6A", size=AVATAR_SIZE)
         self._current_conv: Optional[Dict[str, Any]] = None
         self._is_streaming = False
+        self._active_stream_conv_id: Optional[str] = None
         self._streaming_row: Optional[str] = None
         self._streaming_block_num: Optional[int] = None  # 流式块的 blockNumber
         self._suppress_item_changed = False
@@ -454,6 +455,15 @@ class FullChatWindow(QWidget):
         self._init_ui()
         self._load_conv_list()
         self.setStyleSheet(_WINDOW_STYLE)
+
+    def _is_current_conversation(self, conv_id: str) -> bool:
+        return bool(self._current_conv and self._current_conv.get("id") == conv_id)
+
+    def _sync_agent_to_current_conversation(self) -> None:
+        """让模型上下文与当前 UI 会话保持一致。"""
+        if not self._agent or not self._current_conv:
+            return
+        self._agent.load_history(self._current_conv.get("messages", []))
 
     def _init_ui(self):
         self.setObjectName("fullChatWindow")
@@ -617,6 +627,7 @@ class FullChatWindow(QWidget):
         if self._current_conv and self._current_conv.get("id") == conv_id:
             return
         self._current_conv = _load_conversation(conv_id)
+        self._sync_agent_to_current_conversation()
         self._render_messages()
         self._chat_header.setText(self._current_conv.get("title", "对话"))
         self._empty_hint.hide()
@@ -640,8 +651,7 @@ class FullChatWindow(QWidget):
         self._suppress_item_changed = False
         self._render_messages()
         self._input.setFocus()
-        if self._agent:
-            self._agent.clear()
+        self._sync_agent_to_current_conversation()
 
     # ─── 右键菜单：重命名 / 删除 ─────────────────────────────────
 
@@ -805,7 +815,8 @@ class FullChatWindow(QWidget):
 
         if self._conv_list.count() > 0:
             self._conv_list.setCurrentRow(0)
-        if self._agent:
+            self._sync_agent_to_current_conversation()
+        elif self._agent:
             self._agent.clear()
 
     # ─── 消息渲染 ────────────────────────────────────────────────
@@ -961,6 +972,8 @@ class FullChatWindow(QWidget):
         if not self._current_conv:
             self._new_conversation()
 
+        conv_id = self._current_conv["id"]
+        self._sync_agent_to_current_conversation()
         _now = datetime.now().strftime("%H:%M")
         self._append_bubble(text, is_user=True, ts=_now)
         self._current_conv["messages"].append({"role": "user", "content": text})
@@ -984,14 +997,15 @@ class FullChatWindow(QWidget):
 
         self._input.clear()
         self._is_streaming = True
+        self._active_stream_conv_id = conv_id
         self._send_btn.setEnabled(False)
         self._append_thinking_status()
 
-        threading.Thread(target=self._run_agent, args=(text,), daemon=True).start()
+        threading.Thread(target=self._run_agent, args=(conv_id, text), daemon=True).start()
 
-    def _run_agent(self, user_input: str):
+    def _run_agent(self, conv_id: str, user_input: str):
         if not self._agent:
-            self._signals.error_occurred.emit("AI 未配置")
+            self._signals.error_occurred.emit(conv_id, "AI 未配置")
             return
         try:
             accumulated = []
@@ -1000,23 +1014,23 @@ class FullChatWindow(QWidget):
             def on_token(token):
                 accumulated.append(token)
                 has_streamed[0] = True
-                self._signals.token_received.emit(token)
+                self._signals.token_received.emit(conv_id, token)
 
             def on_status(status):
-                self._signals.status_update.emit(status)
+                self._signals.status_update.emit(conv_id, status)
 
             self._agent._on_token = on_token
             self._agent._on_status = on_status
             result = self._agent.chat(user_input)
             final = "".join(accumulated) if has_streamed[0] else result
-            self._signals.reply_finished.emit(final)
+            self._signals.reply_finished.emit(conv_id, final)
         except Exception as e:
-            self._signals.error_occurred.emit(str(e))
+            self._signals.error_occurred.emit(conv_id, str(e))
 
     # ─── 信号槽 ──────────────────────────────────────────────────
 
-    def _on_token(self, token: str):
-        if not self._current_conv:
+    def _on_token(self, conv_id: str, token: str):
+        if not self._is_current_conversation(conv_id):
             return
         # 首个 token：移除"思考中"状态，插入流式占位块
         if not self._streaming_row:
@@ -1033,20 +1047,30 @@ class FullChatWindow(QWidget):
         # 就地更新流式块文本
         self._update_streaming_block(self._streaming_row)
 
-    def _on_status(self, status: str):
+    def _on_status(self, conv_id: str, status: str):
+        if not self._is_current_conversation(conv_id):
+            return
         self._append_tool_status(status)
 
-    def _on_reply_done(self, full_text: str):
+    def _on_reply_done(self, conv_id: str, full_text: str):
         self._is_streaming = False
+        self._active_stream_conv_id = None
         self._send_btn.setEnabled(True)
+        self._streaming_row = None
+
+        if not self._is_current_conversation(conv_id):
+            conv = _load_conversation(conv_id)
+            msgs = conv["messages"]
+            if msgs and msgs[-1].get("role") in ("streaming", "assistant"):
+                msgs[-1] = {"role": "assistant", "content": full_text}
+            else:
+                msgs.append({"role": "assistant", "content": full_text})
+            _save_conversation(conv)
+            return
+
         self._remove_streaming_block()
         self._remove_thinking_status()       # 兜底：防止未走流式时残留
         self._remove_all_tool_statuses()     # 清除本轮所有工具状态块
-        self._streaming_row = None
-
-        if not self._current_conv:
-            return
-
         _now = datetime.now().strftime("%H:%M")
         self._append_bubble(full_text, is_user=False, ts=_now)
         # 把 streaming 占位消息替换为正式的 assistant 消息
@@ -1057,9 +1081,12 @@ class FullChatWindow(QWidget):
             msgs.append({"role": "assistant", "content": full_text})
         _save_conversation(self._current_conv)
 
-    def _on_error(self, error: str):
+    def _on_error(self, conv_id: str, error: str):
         self._is_streaming = False
+        self._active_stream_conv_id = None
         self._send_btn.setEnabled(True)
+        if not self._is_current_conversation(conv_id):
+            return
         self._remove_thinking_status()
         self._remove_streaming_block()
         self._remove_all_tool_statuses()     # 清除本轮所有工具状态块

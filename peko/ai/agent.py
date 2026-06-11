@@ -41,6 +41,18 @@ class AgentLoop:
         """重置对话（保留 system prompt）。"""
         self._messages = [{"role": "system", "content": self._system_prompt}]
 
+    def load_history(self, messages: List[Dict[str, Any]]) -> None:
+        """用指定会话历史重建模型上下文（保留 system prompt）。"""
+        allowed_roles = {"user", "assistant"}
+        history: List[Dict[str, Any]] = []
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content")
+            if role not in allowed_roles or not isinstance(content, str):
+                continue
+            history.append({"role": role, "content": content})
+        self._messages = [{"role": "system", "content": self._system_prompt}, *history]
+
     def set_system_prompt(self, prompt: str) -> None:
         self._system_prompt = prompt
         if self._messages and self._messages[0]["role"] == "system":
