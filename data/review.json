@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "hr1",
+      "periodType": "month",
+      "period": "2026-08",
+      "text": "网页复盘新增",
+      "created_at": "2026-08-13",
+      "updated_at": "2026-08-13"
+    }
+  ]
+}

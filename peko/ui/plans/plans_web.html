@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>工作台 · 个人效率中心</title>
+<style>
+  :root{
+    --bg:#fbf4ea; --panel:#ffffff; --panel-2:#fffaf2;
+    --ink:#4a3b2e; --ink-soft:#8a715c; --line:#ecd9bf; --line-soft:#f3e7d4;
+    --accent:#e8843c; --accent-soft:#fbe7d4;
+    --ok:#3aa76d; --ok-soft:#d9f2e4;
+    --warn:#d9534f; --warn-soft:#fbe0df;
+    --blue:#4a7fb5; --blue-soft:#dde9f5;
+    --purple:#7b6cc2; --purple-soft:#ece8f7;
+    --shadow:0 6px 20px rgba(120,80,40,.10);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--ink); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:22px 26px 60px;}
+
+  /* 顶栏 */
+  .topbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:18px;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#f0a868);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);}
+  .brand h1{font-size:19px; margin:0; letter-spacing:.5px;}
+  .brand .sub{font-size:12px; color:var(--ink-soft);}
+  .spacer{flex:1;}
+  .badge{font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px;}
+  .badge.local{color:var(--accent); border-color:var(--accent-soft); background:var(--accent-soft);}
+  .badge.linked{color:var(--ok); border-color:var(--ok-soft); background:var(--ok-soft);}
+  .toolbtn{display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 12px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; font-size:13px; transition:.15s;}
+  .toolbtn:hover{border-color:var(--accent); color:var(--accent);}
+  .toolbtn svg{width:16px;height:16px;}
+  .toolbtn.danger:hover{border-color:var(--warn); color:var(--warn);}
+
+  /* 模块切换 */
+  .tabs{display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;}
+  .tab{padding:9px 18px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--ink-soft); cursor:pointer; font-size:14px; font-weight:600; transition:.15s;}
+  .tab:hover{color:var(--accent);}
+  .tab.active{background:var(--accent); color:#fff; border-color:var(--accent); box-shadow:var(--shadow);}
+
+  /* 今日要处理 */
+  .focus{background:linear-gradient(135deg,#fff,var(--panel-2)); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin-bottom:20px; box-shadow:var(--shadow);}
+  .focus h2{margin:0 0 4px; font-size:15px; display:flex; align-items:center; gap:8px;}
+  .focus .hint{font-size:12px; color:var(--ink-soft); margin:0 0 12px;}
+  .focus-list{display:flex; flex-direction:column; gap:8px;}
+  .focus-item{display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; background:var(--panel); border:1px solid var(--line-soft);}
+  .focus-item .dot{width:9px;height:9px;border-radius:50%; flex:none; background:var(--accent);}
+  .focus-item.overdue .dot{background:var(--warn);}
+  .focus-item .fi-main{flex:1; min-width:0;}
+  .focus-item .fi-title{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .focus-item.overdue .fi-title{color:var(--warn);}
+  .focus-item .fi-meta{font-size:12px; color:var(--ink-soft);}
+  .focus-item .tag{font-size:11px; padding:2px 8px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); color:var(--ink-soft);}
+  .focus-item .tag.over{background:var(--warn-soft); color:var(--warn); border-color:var(--warn-soft);}
+  .fi-btn{height:30px; padding:0 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel-2); cursor:pointer; font-size:12px; color:var(--ink);}
+  .fi-btn:hover{border-color:var(--ok); color:var(--ok);}
+  .focus-empty{font-size:13px; color:var(--ink-soft); padding:6px 2px;}
+
+  /* 卡片网格 */
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow);}
+  .row{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .seg button{border:0; background:var(--panel); padding:8px 16px; cursor:pointer; font-size:13px; color:var(--ink-soft); border-right:1px solid var(--line);}
+  .seg button:last-child{border-right:0;}
+  .seg button.active{background:var(--accent-soft); color:var(--accent); font-weight:600;}
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{font-size:12px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--panel-2); cursor:pointer; color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px;}
+  .chip .sw{width:9px;height:9px;border-radius:50%;}
+  .chip.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .chip.active .sw{box-shadow:0 0 0 2px #fff inset;}
+  .btn-primary{margin-left:auto; height:38px; padding:0 18px; border-radius:10px; border:0; background:var(--accent); color:#fff; cursor:pointer; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:7px; box-shadow:var(--shadow);}
+  .btn-primary:hover{filter:brightness(1.05);}
+  .btn-primary svg{width:17px;height:17px;}
+
+  /* 统计 */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px;}
+  .stat{background:var(--panel-2); border:1px solid var(--line-soft); border-radius:12px; padding:14px; text-align:center;}
+  .stat .num{font-size:24px; font-weight:700; color:var(--accent);}
+  .stat .lbl{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .stat.ok .num{color:var(--ok);}
+  .stat.warn .num{color:var(--warn);}
+  .stat.blue .num{color:var(--blue);}
+  .stat.purple .num{color:var(--purple);}
+
+  /* 列表 */
+  .cards{display:flex; flex-direction:column; gap:12px;}
+  .card{background:var(--panel); border:1px solid var(--line-soft); border-radius:12px; padding:14px 16px; display:flex; gap:14px; align-items:flex-start;}
+  .card .pri{width:6px; align-self:stretch; border-radius:6px; background:var(--line); flex:none;}
+  .card .pri.P0{background:var(--warn);}
+  .card .pri.P1{background:var(--accent);}
+  .card .pri.P2{background:var(--blue);}
+  .card .body{flex:1; min-width:0;}
+  .card .ct{font-weight:600; font-size:15px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .card .ct .cat{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--ink-soft);}
+  .card .ct .per{font-size:11px; padding:2px 8px; border-radius:999px; background:var(--panel-2); color:var(--ink-soft);}
+  .card .cm{font-size:12px; color:var(--ink-soft); margin-top:3px;}
+  .card.overdue .ct{color:var(--warn);}
+  .card .prog{height:8px; background:var(--line-soft); border-radius:999px; margin-top:10px; overflow:hidden;}
+  .card .prog > i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),#f0a868); border-radius:999px;}
+  .card .actions{display:flex; gap:6px; flex:none; align-items:center;}
+  .iconbtn{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);}
+  .iconbtn:hover{border-color:var(--accent); color:var(--accent);}
+  .iconbtn svg{width:15px;height:15px;}
+  .iconbtn.ok:hover{border-color:var(--ok); color:var(--ok);}
+  .iconbtn.del:hover{border-color:var(--warn); color:var(--warn);}
+  .check{width:22px;height:22px;border-radius:7px;border:2px solid var(--line); cursor:pointer; flex:none; display:flex;align-items:center;justify-content:center; background:var(--panel);}
+  .check svg{width:14px;height:14px; color:#fff; opacity:0;}
+  .card.done .check{background:var(--ok); border-color:var(--ok);}
+  .card.done .check svg{opacity:1;}
+  .card.done .ct{text-decoration:line-through; color:var(--ink-soft);}
+  .empty{padding:30px; text-align:center; color:var(--ink-soft); font-size:14px;}
+
+  /* 习惯打卡 */
+  .hb-toggle{height:32px; padding:0 14px; border-radius:8px; border:1px solid var(--ok-soft); background:var(--ok-soft); color:var(--ok); cursor:pointer; font-size:13px; font-weight:600; white-space:nowrap;}
+  .hb-toggle:hover{filter:brightness(.97);}
+  .hb-toggle.done{border-color:var(--ok); background:var(--ok); color:#fff;}
+  .hb-streak{font-size:12px; color:var(--ink-soft);}
+  .hb-streak b{color:var(--accent); font-size:14px;}
+  .hb-heat{display:grid; grid-template-columns:repeat(14,13px); gap:3px; margin-top:10px;}
+  .hb-heat .hc{width:13px;height:13px;border-radius:3px;background:var(--line-soft);cursor:pointer;}
+  .hb-heat .hc:hover{outline:2px solid var(--accent); outline-offset:1px;}
+  .hb-heat .hc.on{background:var(--ok);}
+
+  /* 记账 */
+  .led-amt{font-weight:700; font-size:16px; white-space:nowrap;}
+  .led-amt.exp{color:var(--warn);}
+  .led-amt.inc{color:var(--ok);}
+  .led-kind{font-size:11px; padding:2px 8px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); color:var(--ink-soft);}
+  .led-list .card .body .ct .amt-wrap{margin-left:auto; display:flex; align-items:center; gap:10px;}
+
+  /* 专注 */
+  .focus-panel{display:flex; flex-direction:column; align-items:center; gap:14px; margin-bottom:18px;}
+  .timer{position:relative; width:160px; height:160px; display:flex; align-items:center; justify-content:center;}
+  .timer .ring{width:160px; height:160px; transform:rotate(0deg);}
+  .timer .ring-bg{fill:none; stroke:var(--line-soft); stroke-width:11;}
+  .timer .ring-fg{fill:none; stroke:var(--accent); stroke-width:11; stroke-linecap:round; transition:stroke-dashoffset .3s linear;}
+  .timer .timer-time{position:absolute; font-size:34px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums;}
+  .timer-presets{display:flex; gap:8px;}
+  .timer-presets button{border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:6px 16px; cursor:pointer; font-size:13px; color:var(--ink-soft);}
+  .timer-presets button.active{background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft); font-weight:600;}
+  .timer-ctrls{display:flex; gap:10px;}
+  .focus-today{font-size:13px; color:var(--ink-soft);}
+  .focus-today b{color:var(--accent); font-size:16px;}
+  .blk-title{margin:0 0 12px; font-size:15px;}
+
+  /* 复盘 */
+  .rev-text{width:100%; min-height:120px; padding:11px; border:1px solid var(--line); border-radius:10px; font-size:14px; font-family:inherit; color:var(--ink); background:var(--panel-2); resize:vertical;}
+  .rev-text:focus{outline:none; border-color:var(--accent);}
+
+  /* 弹窗 */
+  .mask{position:fixed; inset:0; background:rgba(60,40,20,.35); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .mask.show{display:flex;}
+  .modal{background:var(--panel); border-radius:16px; width:460px; max-width:100%; padding:22px; box-shadow:0 18px 50px rgba(80,50,20,.3);}
+  .modal h3{margin:0 0 16px; font-size:16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+  .field input,.field select,.field textarea{width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; color:var(--ink); background:var(--panel-2);}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none; border-color:var(--accent);}
+  .field textarea{resize:vertical; min-height:60px;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .modal-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:18px;}
+  .btn-ghost{height:38px; padding:0 16px; border-radius:10px; border:1px solid var(--line); background:var(--panel); cursor:pointer; font-size:14px; color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--accent); color:var(--accent);}
+  .btn-solid{height:38px; padding:0 18px; border-radius:10px; border:0; background:var(--accent); color:#fff; cursor:pointer; font-size:14px; font-weight:600;}
+  .btn-solid:hover{filter:brightness(1.05);}
+
+  .toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; opacity:0; transition:.25s; pointer-events:none; z-index:80;}
+  .toast.show{opacity:.95;}
+  .gentle{display:none; background:var(--accent-soft); border:1px solid var(--accent); color:var(--accent); font-size:12px; padding:8px 12px; border-radius:10px; margin-bottom:14px;}
+  .gentle.show{display:block;}
+
+  /* 内嵌「计划台」：仅查看 + 完成，隐藏一切编辑/扩展模块入口 */
+  body.embedded .iconbtn,
+  body.embedded #btnAddPlan,
+  body.embedded #btnAddTodo,
+  body.embedded #btnAddHabit,
+  body.embedded #btnAddLedger,
+  body.embedded #btnExport,
+  body.embedded #btnImport,
+  body.embedded #btnClear,
+  body.embedded .tab-ext { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg>
+      </div>
+      <div>
+        <h1>工作台</h1>
+        <div class="sub">计划 · 待办 · 习惯 · 记账 · 专注 · 回顾</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <span id="storeBadge" class="badge local">本地模式</span>
+    <button class="toolbtn" id="btnExport" title="导出 JSON 备份">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>导出
+    </button>
+    <button class="toolbtn" id="btnImport" title="导入恢复">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>导入
+    </button>
+    <button class="toolbtn danger" id="btnClear" title="清空全部数据">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>清空
+    </button>
+    <input type="file" id="fileInput" accept="application/json" style="display:none" />
+  </div>
+
+  <!-- 模块切换 -->
+  <div class="tabs">
+    <div class="tab active" data-mod="plan">计划台</div>
+    <div class="tab" data-mod="todo">待办清单</div>
+    <div class="tab tab-ext" data-mod="habit">习惯打卡</div>
+    <div class="tab tab-ext" data-mod="ledger">记账</div>
+    <div class="tab tab-ext" data-mod="focus">专注</div>
+    <div class="tab tab-ext" data-mod="review">周月回顾</div>
+  </div>
+
+  <!-- 今日要处理（置顶，跨模块） -->
+  <div class="focus">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      今天要处理
+    </h2>
+    <p class="hint">逾期未完成、今天该做的事，以及今天还没打卡的习惯，自动顺延到此处；点「完成 / 打卡」即可一键处理。</p>
+    <div class="focus-list" id="focusList"></div>
+  </div>
+
+  <!-- 计划台模块 -->
+  <section id="mod-plan">
+    <div class="gentle" id="gentlePlan">数据已积累不少，建议点右上角「导出」备份一下。</div>
+    <div class="stats" id="planStats"></div>
+    <div class="panel">
+      <div class="row">
+        <div class="seg" id="cycleSeg">
+          <button data-cycle="daily" class="active">日计划</button>
+          <button data-cycle="monthly">月计划</button>
+          <button data-cycle="yearly">年计划</button>
+        </div>
+        <div class="chips" id="planCats"></div>
+        <button class="btn-primary" id="btnAddPlan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增计划
+        </button>
+      </div>
+      <div class="cards" id="planList"></div>
+    </div>
+  </section>
+
+  <!-- 待办模块 -->
+  <section id="mod-todo" style="display:none">
+    <div class="gentle" id="gentleTodo">数据已积累不少，建议点右上角「导出」备份一下。</div>
+    <div class="stats" id="todoStats"></div>
+    <div class="panel">
+      <div class="row">
+        <div class="chips" id="todoCats"></div>
+        <button class="btn-primary" id="btnAddTodo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增待办
+        </button>
+      </div>
+      <div class="cards" id="todoList"></div>
+    </div>
+  </section>
+
+  <!-- 习惯打卡模块 -->
+  <section id="mod-habit" style="display:none">
+    <div class="gentle" id="gentleHabit">数据已积累不少，建议点右上角「导出」备份一下。</div>
+    <div class="panel">
+      <div class="row">
+        <div class="chips" id="habitCats"></div>
+        <button class="btn-primary" id="btnAddHabit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新增习惯
+        </button>
+      </div>
+      <div class="cards" id="habitList"></div>
+    </div>
+  </section>
+
+  <!-- 记账模块 -->
+  <section id="mod-ledger" style="display:none">
+    <div class="gentle" id="gentleLedger">数据已积累不少，建议点右上角「导出」备份一下。</div>
+    <div class="stats" id="ledgerStats"></div>
+    <div class="panel">
+      <div class="row">
+        <div class="seg" id="ledgerRange">
+          <button data-range="month" class="active">本月</button>
+          <button data-range="all">全部</button>
+        </div>
+        <div class="chips" id="ledgerCats"></div>
+        <button class="btn-primary" id="btnAddLedger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>记一笔
+        </button>
+      </div>
+      <div class="cards led-list" id="ledgerList"></div>
+    </div>
+  </section>
+
+  <!-- 专注模块 -->
+  <section id="mod-focus" style="display:none">
+    <div class="panel focus-panel">
+      <div class="timer">
+        <svg class="ring" viewBox="0 0 160 160">
+          <circle class="ring-bg" cx="80" cy="80" r="68"/>
+          <circle class="ring-fg" id="ringFg" cx="80" cy="80" r="68"/>
+        </svg>
+        <div class="timer-time" id="timerTime">25:00</div>
+      </div>
+      <div class="timer-presets" id="focusPresets">
+        <button data-min="25" class="active">25</button>
+        <button data-min="15">15</button>
+        <button data-min="5">5</button>
+      </div>
+      <div class="timer-ctrls">
+        <button class="btn-solid" id="btnFocusStart">开始</button>
+        <button class="btn-ghost" id="btnFocusReset">重置</button>
+        <button class="btn-ghost" id="btnFocusLog">记一笔(+25)</button>
+      </div>
+      <div class="focus-today">今日专注 <b id="focusToday">0</b> 分钟</div>
+    </div>
+    <div class="panel">
+      <h3 class="blk-title">最近专注</h3>
+      <div class="cards" id="focusList"></div>
+    </div>
+  </section>
+
+  <!-- 周月回顾模块 -->
+  <section id="mod-review" style="display:none">
+    <div class="panel">
+      <div class="row">
+        <div class="seg" id="reviewSeg">
+          <button data-pt="month" class="active">月度</button>
+          <button data-pt="year">年度</button>
+        </div>
+        <span class="per" id="reviewPeriodLbl"></span>
+      </div>
+      <div class="stats" id="reviewStats"></div>
+      <div class="field">
+        <label>复盘笔记</label>
+        <textarea class="rev-text" id="reviewText" placeholder="这个周期完成了什么？哪些没做好？下一步重点？"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-solid" id="btnReviewSave">保存复盘</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 计划弹窗 -->
+<div class="mask" id="planMask">
+  <div class="modal">
+    <h3 id="planModalTitle">新增计划</h3>
+    <div class="field"><label>标题</label><input id="pTitle" placeholder="例如：完成季度复盘" /></div>
+    <div class="grid2">
+      <div class="field"><label>分类</label><select id="pCat"></select></div>
+      <div class="field"><label>周期</label>
+        <select id="pCycle"><option value="daily">日计划</option><option value="monthly">月计划</option><option value="yearly">年计划</option></select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>优先级</label>
+        <select id="pPri"><option value="P0">P0 紧急</option><option value="P1" selected>P1 重要</option><option value="P2">P2 一般</option></select>
+      </div>
+      <div class="field"><label>所属期</label><input id="pPeriod" type="date" /></div>
+    </div>
+    <div class="field"><label>进度（%）</label><input id="pProgress" type="number" min="0" max="100" value="0" /></div>
+    <div class="field"><label>备注</label><textarea id="pNote" placeholder="可选"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close="plan">取消</button>
+      <button class="btn-solid" id="pSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 待办弹窗 -->
+<div class="mask" id="todoMask">
+  <div class="modal">
+    <h3 id="todoModalTitle">新增待办</h3>
+    <div class="field"><label>标题</label><input id="tTitle" placeholder="例如：给客户回邮件" /></div>
+    <div class="grid2">
+      <div class="field"><label>分类</label><select id="tCat"></select></div>
+      <div class="field"><label>优先级</label>
+        <select id="tPri"><option value="P0">P0 紧急</option><option value="P1" selected>P1 重要</option><option value="P2">P2 一般</option></select>
+      </div>
+    </div>
+    <div class="field"><label>截止日</label><input id="tDue" type="date" /></div>
+    <div class="field"><label>备注</label><textarea id="tNote" placeholder="可选"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close="todo">取消</button>
+      <button class="btn-solid" id="tSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 习惯弹窗 -->
+<div class="mask" id="habitMask">
+  <div class="modal">
+    <h3 id="habitModalTitle">新增习惯</h3>
+    <div class="field"><label>名称</label><input id="hTitle" placeholder="例如：每天喝水 2L" /></div>
+    <div class="field"><label>分类</label><select id="hCat"></select></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close="habit">取消</button>
+      <button class="btn-solid" id="hSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 记账弹窗 -->
+<div class="mask" id="ledgerMask">
+  <div class="modal">
+    <h3 id="ledgerModalTitle">记一笔</h3>
+    <div class="field"><label>说明</label><input id="lTitle" placeholder="例如：午饭" /></div>
+    <div class="grid2">
+      <div class="field"><label>类型</label>
+        <select id="lKind"><option value="expense">支出</option><option value="income">收入</option></select>
+      </div>
+      <div class="field"><label>分类</label><select id="lCat"></select></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>金额</label><input id="lAmount" type="number" min="0" step="0.01" value="0" /></div>
+      <div class="field"><label>日期</label><input id="lDate" type="date" /></div>
+    </div>
+    <div class="field"><label>备注</label><textarea id="lNote" placeholder="可选"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close="ledger">取消</button>
+      <button class="btn-solid" id="lSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<button id="btnRefresh" style="display:none"></button>
+
+<script src="qwebchannel.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- 常量 ----------
+  var CATS = [
+    {id:"work",   label:"工作", color:"#e8843c"},
+    {id:"study",  label:"学习", color:"#4a7fb5"},
+    {id:"life",   label:"生活", color:"#3aa76d"},
+    {id:"exercise",label:"运动", color:"#c0653a"},
+    {id:"diet",   label:"饮食", color:"#b5862e"},
+    {id:"custom", label:"自定义", color:"#8a715c"}
+  ];
+  var CAT_MAP = {}; CATS.forEach(function(c){ CAT_MAP[c.id]=c; });
+  var PRI_RANK = {P0:0, P1:1, P2:2};
+  var LS_PLANS = "wb_planbench_plans";
+  var LS_TODOS = "wb_planbench_todos";
+  var LS_HABITS = "wb_wb_habits";
+  var LS_LEDGER = "wb_wb_ledger";
+  var LS_REVIEW = "wb_wb_review";
+  var LS_FOCUS = "wb_wb_focus";
+  var LS_SEED  = "wb_planbench_seeded";
+
+  // ---------- 日期工具 ----------
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function dstr(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function today(){ return dstr(new Date()); }
+  function yesterday(){ var d=new Date(); d.setDate(d.getDate()-1); return dstr(d); }
+  function thisMonth(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+  function thisYear(){ return ""+new Date().getFullYear(); }
+  function shiftDays(s, n){ var d=new Date(s+"T00:00:00"); d.setDate(d.getDate()+n); return dstr(d); }
+  function isOverdueDate(s){ return s && s < today(); }
+
+  // ---------- 状态 ----------
+  var STATE = { plans:[], todos:[], habits:[], ledger:[], review:[], focusLog:[] };
+  var activeMod = "plan";
+  var planCycle = "daily";
+  var planCatFilter = "all";
+  var todoCatFilter = "all";
+  var habitCatFilter = "all";
+  var ledgerRange = "month";
+  var ledgerCatFilter = "all";
+  var reviewPT = "month";
+  var editingPlanId = null, editingTodoId = null, editingHabitId = null, editingLedgerId = null;
+  var BRIDGE = null;
+  var MODE = "local";
+  var TIMER = { total:1500, left:1500, minutes:25, running:false, handle:null };
+
+  function uid(){ return "p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function esc(s){ return (""+(s==null?"":s)).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+  function arr(x){ return Array.isArray(x) ? x : []; }
+
+  // ---------- HTTP 助手 ----------
+  function parseList(json, key){
+    try { var d = JSON.parse(json); if (Array.isArray(d)) return d; if (d && Array.isArray(d[key])) return d[key]; } catch(e){}
+    return [];
+  }
+  function httpGetJSON(url){ return fetch(location.origin + url).then(function(r){ return r.json(); }); }
+  function httpPostJSON(url, a){ return fetch(location.origin + url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(a)}); }
+
+  // ---------- 持久化（按 MODE 分派） ----------
+  function persistPlans(){
+    if (MODE==="bridge" && BRIDGE){ BRIDGE.save(JSON.stringify(STATE.plans)); }
+    else if (MODE==="http"){ httpPostJSON("/api/plans", STATE.plans); }
+    else { localStorage.setItem(LS_PLANS, JSON.stringify(STATE.plans)); }
+  }
+  function persistTodos(){
+    if (MODE==="bridge" && BRIDGE && typeof BRIDGE.saveTodos === "function"){ BRIDGE.saveTodos(JSON.stringify(STATE.todos)); }
+    else if (MODE==="http"){ httpPostJSON("/api/todos", STATE.todos); }
+    else { localStorage.setItem(LS_TODOS, JSON.stringify(STATE.todos)); }
+  }
+  function persistHabits(){
+    if (MODE==="http"){ httpPostJSON("/api/habits", STATE.habits); }
+    else { localStorage.setItem(LS_HABITS, JSON.stringify(STATE.habits)); }
+  }
+  function persistLedger(){
+    if (MODE==="http"){ httpPostJSON("/api/ledger", STATE.ledger); }
+    else { localStorage.setItem(LS_LEDGER, JSON.stringify(STATE.ledger)); }
+  }
+  function persistReview(){
+    if (MODE==="http"){ httpPostJSON("/api/review", STATE.review); }
+    else { localStorage.setItem(LS_REVIEW, JSON.stringify(STATE.review)); }
+  }
+  function persistFocus(){
+    if (MODE==="http"){ httpPostJSON("/api/focus", STATE.focusLog); }
+    else { localStorage.setItem(LS_FOCUS, JSON.stringify(STATE.focusLog)); }
+  }
+
+  function loadFromStorage(){
+    try { STATE.plans = JSON.parse(localStorage.getItem(LS_PLANS)||"[]") || []; } catch(e){ STATE.plans=[]; }
+    try { STATE.todos = JSON.parse(localStorage.getItem(LS_TODOS)||"[]") || []; } catch(e){ STATE.todos=[]; }
+    try { STATE.habits = JSON.parse(localStorage.getItem(LS_HABITS)||"[]") || []; } catch(e){ STATE.habits=[]; }
+    try { STATE.ledger = JSON.parse(localStorage.getItem(LS_LEDGER)||"[]") || []; } catch(e){ STATE.ledger=[]; }
+    try { STATE.review = JSON.parse(localStorage.getItem(LS_REVIEW)||"[]") || []; } catch(e){ STATE.review=[]; }
+    try { STATE.focusLog = JSON.parse(localStorage.getItem(LS_FOCUS)||"[]") || []; } catch(e){ STATE.focusLog=[]; }
+  }
+
+  // ---------- 统一加载（按 MODE） ----------
+  function loadAll(cb){
+    if (MODE==="bridge" && BRIDGE){
+      BRIDGE.getAll(function(p){ STATE.plans = parseList(p, "plans"); BRIDGE.getTodos(function(t){ STATE.todos = parseList(t, "todos"); cb(); }); });
+    } else if (MODE==="http"){
+      Promise.all([httpGetJSON("/api/plans"), httpGetJSON("/api/todos"), httpGetJSON("/api/habits"), httpGetJSON("/api/ledger"), httpGetJSON("/api/review"), httpGetJSON("/api/focus")]).then(function(r){
+        STATE.plans = arr(r[0]); STATE.todos = arr(r[1]); STATE.habits = arr(r[2]); STATE.ledger = arr(r[3]); STATE.review = arr(r[4]); STATE.focusLog = arr(r[5]); cb();
+      }).catch(function(){ cb(); });
+    } else {
+      loadFromStorage(); cb();
+    }
+  }
+
+  function doRefresh(){
+    if (MODE==="bridge" && BRIDGE){
+      BRIDGE.getAll(function(p){ STATE.plans = parseList(p,"plans"); BRIDGE.getTodos(function(t){ STATE.todos = parseList(t,"todos"); renderAll(); }); });
+    } else if (MODE==="http"){
+      Promise.all([httpGetJSON("/api/plans"), httpGetJSON("/api/todos"), httpGetJSON("/api/habits"), httpGetJSON("/api/ledger"), httpGetJSON("/api/review"), httpGetJSON("/api/focus")]).then(function(r){
+        STATE.plans = arr(r[0]); STATE.todos = arr(r[1]); STATE.habits = arr(r[2]); STATE.ledger = arr(r[3]); STATE.review = arr(r[4]); STATE.focusLog = arr(r[5]); renderAll();
+      }).catch(function(){});
+    } else {
+      loadFromStorage(); renderAll();
+    }
+  }
+
+  // ---------- 示例数据 ----------
+  function seedRec(k){ var o={}; for(var i=0;i<k;i++){ o[shiftDays(today(),-i)]=1; } return o; }
+  function seed(){
+    var t = today(), tm = shiftDays(t,1), y2 = shiftDays(t,-2);
+    STATE.plans = [
+      {id:uid(), title:"晨间复盘 10 分钟", cat:"study",  cycle:"daily",  period:t,    pri:"P1", status:"pending", progress:0,  note:"", created_at:t, updated_at:t, done_at:null},
+      {id:uid(), title:"提交本周周报",     cat:"work",    cycle:"daily",  period:t,    pri:"P0", status:"pending", progress:60, note:"汇总三件事", created_at:t, updated_at:t, done_at:null},
+      {id:uid(), title:"健身 30 分钟",     cat:"exercise",cycle:"daily",  period:yesterday(), pri:"P2", status:"pending", progress:0,  note:"昨天没做，今天补", created_at:t, updated_at:t, done_at:null},
+      {id:uid(), title:"读完《认知觉醒》", cat:"study",   cycle:"monthly", period:thisMonth(), pri:"P1", status:"pending", progress:35, note:"剩 4 章", created_at:t, updated_at:t, done_at:null},
+      {id:uid(), title:"年度目标拆解落地", cat:"life",    cycle:"yearly",  period:thisYear(),  pri:"P2", status:"pending", progress:10, note:"", created_at:t, updated_at:t, done_at:null}
+    ];
+    STATE.todos = [
+      {id:uid(), title:"给客户回邮件",   cat:"work",  pri:"P0", due:t,  status:"pending", note:"", created_at:t, done_at:null},
+      {id:uid(), title:"买周末食材",     cat:"life",  pri:"P2", due:tm, status:"pending", note:"", created_at:t, done_at:null},
+      {id:uid(), title:"整理下载文件夹", cat:"life",  pri:"P1", due:y2, status:"pending", note:"拖了两天", created_at:y2, done_at:null}
+    ];
+    STATE.habits = [
+      {id:uid(), title:"喝水 2L",   cat:"diet",  created_at:t, records: seedRec(5)},
+      {id:uid(), title:"阅读 20 分钟", cat:"study", created_at:t, records: seedRec(3)},
+      {id:uid(), title:"拉伸放松",  cat:"exercise", created_at:t, records: seedRec(2)}
+    ];
+    STATE.ledger = [
+      {id:uid(), title:"午餐",   cat:"life",  kind:"expense", amount:28,    date:t,    note:"", created_at:t},
+      {id:uid(), title:"地铁通勤", cat:"life", kind:"expense", amount:6,     date:y2,   note:"", created_at:t},
+      {id:uid(), title:"项目奖金", cat:"work", kind:"income",  amount:1500,  date:shiftDays(t,-3), note:"", created_at:t}
+    ];
+    STATE.focusLog = [
+      {id:uid(), minutes:25, label:"写周报", date:t, created_at:t}
+    ];
+    STATE.review = [];
+    localStorage.setItem(LS_SEED, "1");
+    persistAll();
+  }
+  function persistAll(){
+    persistPlans(); persistTodos(); persistHabits(); persistLedger(); persistReview(); persistFocus();
+  }
+
+  // ---------- 计算：今天要处理（含未打卡习惯） ----------
+  function focusItems(){
+    var out = [];
+    STATE.plans.forEach(function(p){
+      if (p.status==="done") return;
+      var hit=false, overdue=false;
+      if (p.cycle==="daily"){ if (p.period===today()){ hit=true; } else if (isOverdueDate(p.period)){ hit=true; overdue=true; } }
+      else if (p.cycle==="monthly"){ if (p.period===thisMonth()) hit=true; }
+      else if (p.cycle==="yearly"){ if (p.period===thisYear()) hit=true; }
+      if (hit) out.push({type:"plan", obj:p, overdue:overdue});
+    });
+    STATE.todos.forEach(function(t){
+      if (t.status==="done") return;
+      var overdue = isOverdueDate(t.due);
+      var hit = !t.due || t.due <= today();
+      if (hit) out.push({type:"todo", obj:t, overdue:overdue});
+    });
+    STATE.habits.forEach(function(h){
+      if (!h.records[today()]) out.push({type:"habit", obj:h, overdue:false});
+    });
+    out.sort(function(a,b){ if (a.overdue!==b.overdue) return a.overdue?-1:1; return PRI_RANK[(a.obj.pri)||"P2"]-PRI_RANK[(b.obj.pri)||"P2"]; });
+    return out;
+  }
+
+  function renderFocus(){
+    var box = document.getElementById("focusList");
+    var items = focusItems();
+    if (!items.length){ box.innerHTML = '<div class="focus-empty">今天没有待处理的事项，享受当下吧。</div>'; return; }
+    box.innerHTML = items.map(function(it){
+      var o = it.obj;
+      var title = o.title, catLbl, meta, tag, kind, actLabel;
+      if (it.type==="plan"){
+        catLbl = (CAT_MAP[o.cat]||{}).label || "自定义";
+        meta = (o.cycle==="daily"?"日计划":o.cycle==="monthly"?"月计划":"年计划")+" · 优先级 "+o.pri+(o.progress?(" · 进度 "+o.progress+"%"):"");
+        tag = it.overdue ? '<span class="tag over">逾期</span>' : '<span class="tag">今天</span>';
+        kind = "计划"; actLabel = "完成";
+      } else if (it.type==="todo"){
+        catLbl = (CAT_MAP[o.cat]||{}).label || "自定义";
+        meta = "待办 · 优先级 "+o.pri + (o.due?(" · 截止 "+o.due):" · 无截止");
+        tag = it.overdue ? '<span class="tag over">逾期</span>' : '<span class="tag">今天</span>';
+        kind = "待办"; actLabel = "完成";
+      } else {
+        catLbl = (CAT_MAP[o.cat]||{}).label || "自定义";
+        meta = "习惯 · 今天还没打卡";
+        tag = '<span class="tag">待打卡</span>';
+        kind = "习惯"; actLabel = "打卡";
+      }
+      return '<div class="focus-item'+(it.overdue?" overdue":"")+'">'
+        + '<span class="dot"></span>'
+        + '<div class="fi-main"><div class="fi-title">'+esc(title)+'</div>'
+        + '<div class="fi-meta">'+kind+' · '+catLbl+' · '+meta+'</div></div>'
+        + tag
+        + '<button class="fi-btn" data-done="'+it.type+'" data-id="'+o.id+'">'+actLabel+'</button>'
+        + '</div>';
+    }).join("");
+    box.querySelectorAll("[data-done]").forEach(function(b){
+      b.onclick = function(){ markDone(b.getAttribute("data-done"), b.getAttribute("data-id")); };
+    });
+  }
+
+  // ---------- 统计 ----------
+  function statCard(n,lbl,cls){ return '<div class="stat'+(cls?" "+cls:"")+'"><div class="num">'+n+'</div><div class="lbl">'+lbl+'</div></div>'; }
+  function renderPlanStats(){
+    var all = STATE.plans, total=all.length, done=0, overdue=0;
+    all.forEach(function(p){ if(p.status==="done") done++; if(p.status!=="done" && p.cycle==="daily" && isOverdueDate(p.period)) overdue++; });
+    var rate = total? Math.round(done/total*100):0;
+    document.getElementById("planStats").innerHTML = statCard(total,"计划总数")+statCard(done,"已完成","ok")+statCard(rate+"%","完成率","ok")+statCard(overdue,"逾期","warn");
+  }
+  function renderTodoStats(){
+    var all = STATE.todos, total=all.length, done=0, overdue=0;
+    all.forEach(function(t){ if(t.status==="done") done++; if(t.status!=="done" && isOverdueDate(t.due)) overdue++; });
+    var rate = total? Math.round(done/total*100):0;
+    document.getElementById("todoStats").innerHTML = statCard(total,"待办总数")+statCard(done,"已完成","ok")+statCard(rate+"%","完成率","ok")+statCard(overdue,"逾期","warn");
+  }
+  function renderLedgerStats(){
+    var period = thisMonth(), isMonth = ledgerRange==="month";
+    var inc=0, exp=0, byCat={};
+    STATE.ledger.forEach(function(e){
+      if (isMonth && e.date.indexOf(period)!==0) return;
+      if (e.kind==="income") inc+=e.amount; else { exp+=e.amount; byCat[e.cat]=(byCat[e.cat]||0)+e.amount; }
+    });
+    var bal = inc-exp;
+    document.getElementById("ledgerStats").innerHTML =
+      statCard("¥"+inc.toFixed(0),"收入","ok")+statCard("¥"+exp.toFixed(0),"支出","warn")+statCard("¥"+bal.toFixed(0),"结余",bal>=0?"blue":"warn")+statCard(Object.keys(byCat).length,"支出分类","purple");
+  }
+  function renderReviewStats(){
+    var pt = reviewPT, period = pt==="month"?thisMonth():thisYear();
+    function inP(p){ return pt==="month" ? (p.period===period) : ((""+p.period).indexOf(period)===0); }
+    var ps = STATE.plans.filter(inP), ts = STATE.todos.filter(function(t){ return (""+t.created_at).indexOf(period)===0; });
+    function rate(list){ var d=list.filter(function(x){return x.status==="done";}).length; return list.length? Math.round(d/list.length*100):0; }
+    var planRate = rate(ps), todoRate = rate(ts);
+    // 习惯本周期打卡率
+    var habitDays=0, habitDone=0;
+    STATE.habits.forEach(function(h){ Object.keys(h.records).forEach(function(k){ if (k.indexOf(period)===0){ habitDays++; if (h.records[k]) habitDone++; } }); });
+    var habitRate = habitDays? Math.round(habitDone/habitDays*100):0;
+    var focusMin = STATE.focusLog.filter(function(f){ return f.date.indexOf(period)===0; }).reduce(function(s,f){return s+f.minutes;},0);
+    document.getElementById("reviewStats").innerHTML =
+      statCard(planRate+"%","计划完成率","ok")+statCard(todoRate+"%","待办完成率","ok")+statCard(habitRate+"%","习惯打卡率","purple")+statCard(focusMin,"专注(分)","blue");
+  }
+
+  // ---------- 分类筛选 ----------
+  function pickPlanCat(c){ planCatFilter=c; renderChips("planCats", planCatFilter, pickPlanCat); renderPlans(); }
+  function pickTodoCat(c){ todoCatFilter=c; renderChips("todoCats", todoCatFilter, pickTodoCat); renderTodos(); }
+  function pickHabitCat(c){ habitCatFilter=c; renderChips("habitCats", habitCatFilter, pickHabitCat); renderHabits(); }
+  function pickLedgerCat(c){ ledgerCatFilter=c; renderChips("ledgerCats", ledgerCatFilter, pickLedgerCat); renderLedger(); }
+  function renderChips(containerId, filter, onPick){
+    var box = document.getElementById(containerId);
+    var html = '<span class="chip'+(filter==="all"?" active":"")+'" data-cat="all">全部</span>';
+    html += CATS.map(function(c){
+      return '<span class="chip'+(filter===c.id?" active":"")+'" data-cat="'+c.id+'">'
+        + '<span class="sw" style="background:'+c.color+'"></span>'+c.label+'</span>';
+    }).join("");
+    box.innerHTML = html;
+    box.querySelectorAll(".chip").forEach(function(ch){ ch.onclick = function(){ onPick(ch.getAttribute("data-cat")); }; });
+  }
+
+  // ---------- 计划列表 ----------
+  function renderPlans(){
+    var box = document.getElementById("planList");
+    var list = STATE.plans.filter(function(p){ return p.cycle===planCycle && (planCatFilter==="all"||p.cat===planCatFilter); });
+    list.sort(function(a,b){
+      if ((a.status==="done")!==(b.status==="done")) return a.status==="done"?1:-1;
+      if (a.pri!==b.pri) return PRI_RANK[a.pri]-PRI_RANK[b.pri];
+      return (a.period||"").localeCompare(b.period||"");
+    });
+    if (!list.length){ box.innerHTML = '<div class="empty">'+(MODE==="bridge"?"暂无计划，请在网页版「工作台」中添加":"这个周期/分类下还没有计划，点「新增计划」开始吧。")+'</div>'; return; }
+    box.innerHTML = list.map(function(p){
+      var c = CAT_MAP[p.cat]||CAT_MAP.custom;
+      var overdue = p.cycle==="daily" && p.status!=="done" && isOverdueDate(p.period);
+      var prog = Math.max(0, Math.min(100, parseInt(p.progress||0,10)));
+      return '<div class="card'+(p.status==="done"?" done":"")+(overdue?" overdue":"")+'">'
+        + '<div class="pri '+p.pri+'"></div>'
+        + '<div class="check" data-act="toggle" data-type="plan" data-id="'+p.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'
+        + '<div class="body"><div class="ct">'+esc(p.title)
+        +   '<span class="cat" style="border-color:'+c.color+';color:'+c.color+'">'+c.label+'</span>'
+        +   '<span class="per">'+(p.cycle==="daily"?"日":p.cycle==="monthly"?"月":"年")+' · '+esc(p.period)+(overdue?" · 逾期":"")+'</span></div>'
+        +   (p.note?'<div class="cm">'+esc(p.note)+'</div>':'')
+        +   '<div class="prog"><i style="width:'+prog+'%"></i></div></div>'
+        + '<div class="actions">'
+        +   '<button class="iconbtn" data-act="edit" data-type="plan" data-id="'+p.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>'
+        +   '<button class="iconbtn del" data-act="del" data-type="plan" data-id="'+p.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>'
+        + '</div></div>';
+    }).join("");
+    bindCardActions(box);
+  }
+
+  // ---------- 待办列表 ----------
+  function renderTodos(){
+    var box = document.getElementById("todoList");
+    var list = STATE.todos.filter(function(t){ return todoCatFilter==="all" || t.cat===todoCatFilter; });
+    list.sort(function(a,b){
+      if ((a.status==="done")!==(b.status==="done")) return a.status==="done"?1:-1;
+      if (a.pri!==b.pri) return PRI_RANK[a.pri]-PRI_RANK[b.pri];
+      return (a.due||"9999").localeCompare(b.due||"9999");
+    });
+    if (!list.length){ box.innerHTML = '<div class="empty">'+(MODE==="bridge"?"暂无待办，请在网页版「工作台」中添加":"还没有待办，点「新增待办」记一笔。")+'</div>'; return; }
+    box.innerHTML = list.map(function(t){
+      var c = CAT_MAP[t.cat]||CAT_MAP.custom;
+      var overdue = t.status!=="done" && isOverdueDate(t.due);
+      return '<div class="card'+(t.status==="done"?" done":"")+(overdue?" overdue":"")+'">'
+        + '<div class="pri '+t.pri+'"></div>'
+        + '<div class="check" data-act="toggle" data-type="todo" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'
+        + '<div class="body"><div class="ct">'+esc(t.title)
+        +   '<span class="cat" style="border-color:'+c.color+';color:'+c.color+'">'+c.label+'</span>'
+        +   (t.due?'<span class="per">截止 '+esc(t.due)+(overdue?" · 逾期":"")+'</span>':'<span class="per">无截止</span>')+'</div>'
+        +   (t.note?'<div class="cm">'+esc(t.note)+'</div>':'')
+        + '</div>'
+        + '<div class="actions">'
+        +   '<button class="iconbtn" data-act="edit" data-type="todo" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>'
+        +   '<button class="iconbtn del" data-act="del" data-type="todo" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>'
+        + '</div></div>';
+    }).join("");
+    bindCardActions(box);
+  }
+
+  // ---------- 习惯打卡 ----------
+  function habitStreak(rec){
+    var d = new Date();
+    if (!rec[dstr(d)]) d.setDate(d.getDate()-1);
+    var n=0;
+    while (rec[dstr(d)]){ n++; d.setDate(d.getDate()-1); }
+    return n;
+  }
+  function renderHabits(){
+    var box = document.getElementById("habitList");
+    var list = STATE.habits.filter(function(h){ return habitCatFilter==="all" || h.cat===habitCatFilter; });
+    if (!list.length){ box.innerHTML = '<div class="empty">还没有习惯，点「新增习惯」开始每天打卡吧。</div>'; return; }
+    box.innerHTML = list.map(function(h){
+      var c = CAT_MAP[h.cat]||CAT_MAP.custom;
+      var doneToday = !!h.records[today()];
+      var streak = habitStreak(h.records);
+      var heat = [];
+      for (var i=83;i>=0;i--){ var k=shiftDays(today(),-i); heat.push('<span class="hc'+(h.records[k]?" on":"")+'" data-hid="'+h.id+'" data-date="'+k+'" title="'+k+'"></span>'); }
+      return '<div class="card">'
+        + '<div class="body"><div class="ct">'+esc(h.title)
+        +   '<span class="cat" style="border-color:'+c.color+';color:'+c.color+'">'+c.label+'</span>'
+        +   '<span class="hb-streak">连续 <b>'+streak+'</b> 天</span></div>'
+        +   '<div class="hb-heat">'+heat.join("")+'</div></div>'
+        + '<div class="actions">'
+        +   '<button class="hb-toggle'+(doneToday?" done":"")+'" data-act="hdone" data-id="'+h.id+'">'+(doneToday?"已打卡":"今天打卡")+'</button>'
+        +   '<button class="iconbtn del" data-act="hdel" data-id="'+h.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>'
+        + '</div></div>';
+    }).join("");
+    box.querySelectorAll("[data-act]").forEach(function(el){
+      el.onclick = function(){
+        var act=el.getAttribute("data-act"), id=el.getAttribute("data-id");
+        if (act==="hdone") toggleHabitDate(id, today());
+        else if (act==="hdel") removeHabit(id);
+      };
+    });
+    box.querySelectorAll(".hc").forEach(function(el){
+      el.onclick = function(){ toggleHabitDate(el.getAttribute("data-hid"), el.getAttribute("data-date")); };
+    });
+  }
+  function toggleHabitDate(id, date){
+    var h = STATE.habits.find(function(x){ return x.id===id; }); if(!h) return;
+    if (h.records[date]) delete h.records[date]; else h.records[date]=1;
+    persistHabits(); renderHabits(); renderFocus(); toast(date===today()?(h.records[date]?"已打卡":"已取消打卡"):"已更新");
+  }
+  function removeHabit(id){
+    if (!confirm("确定删除这个习惯？打卡记录会一起清除。")) return;
+    STATE.habits = STATE.habits.filter(function(x){ return x.id!==id; });
+    persistHabits(); renderHabits(); renderFocus(); toast("已删除");
+  }
+
+  // ---------- 记账 ----------
+  function renderLedger(){
+    var box = document.getElementById("ledgerList");
+    var period = thisMonth();
+    var list = STATE.ledger.filter(function(e){
+      if (ledgerCatFilter!=="all" && e.cat!==ledgerCatFilter) return false;
+      if (ledgerRange==="month" && e.date.indexOf(period)!==0) return false;
+      return true;
+    });
+    list.sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
+    if (!list.length){ box.innerHTML = '<div class="empty">这个范围内还没有账目，点「记一笔」开始吧。</div>'; return; }
+    box.innerHTML = list.map(function(e){
+      var c = CAT_MAP[e.cat]||CAT_MAP.custom;
+      var sign = e.kind==="income" ? "+" : "-";
+      return '<div class="card">'
+        + '<div class="body"><div class="ct">'+esc(e.title)
+        +   '<span class="cat" style="border-color:'+c.color+';color:'+c.color+'">'+c.label+'</span>'
+        +   '<span class="led-kind">'+(e.kind==="income"?"收入":"支出")+'</span>'
+        +   '<span class="per">'+esc(e.date)+'</span></div>'
+        +   (e.note?'<div class="cm">'+esc(e.note)+'</div>':'')
+        + '</div>'
+        + '<div class="amt-wrap"><span class="led-amt '+(e.kind==="income"?"inc":"exp")+'">'+sign+'¥'+e.amount.toFixed(2)+'</span>'
+        +   '<button class="iconbtn del" data-act="ldel" data-id="'+e.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>'
+        + '</div>';
+    }).join("");
+    box.querySelectorAll("[data-act]").forEach(function(el){
+      el.onclick = function(){ if (el.getAttribute("data-act")==="ldel") removeLedger(el.getAttribute("data-id")); };
+    });
+  }
+  function removeLedger(id){
+    if (!confirm("确定删除这笔账目？")) return;
+    STATE.ledger = STATE.ledger.filter(function(x){ return x.id!==id; });
+    persistLedger(); renderLedger(); renderLedgerStats(); toast("已删除");
+  }
+
+  // ---------- 专注 ----------
+  function renderTimer(){
+    document.getElementById("timerTime").textContent = fmtTime(TIMER.left);
+    var C = 2*Math.PI*68;
+    var pct = TIMER.total ? (1 - TIMER.left/TIMER.total) : 0;
+    var fg = document.getElementById("ringFg");
+    fg.style.strokeDasharray = C;
+    fg.style.strokeDashoffset = C*(1-pct);
+  }
+  function fmtTime(s){ var m=Math.floor(s/60), ss=s%60; return pad(m)+":"+pad(ss); }
+  function focusTodayMinutes(){ var t=today(); return STATE.focusLog.filter(function(f){return f.date===t;}).reduce(function(s,f){return s+f.minutes;},0); }
+  function renderFocusToday(){ document.getElementById("focusToday").textContent = focusTodayMinutes(); }
+  function renderFocusList(){
+    var box = document.getElementById("focusList");
+    if (!STATE.focusLog.length){ box.innerHTML = '<div class="empty">还没有专注记录，开始一个番茄钟吧。</div>'; return; }
+    var list = STATE.focusLog.slice().sort(function(a,b){ return (b.date||"").localeCompare(a.date||"") || (b.created_at||"").localeCompare(a.created_at||""); });
+    box.innerHTML = list.slice(0,12).map(function(f){
+      return '<div class="card"><div class="body"><div class="ct">'+esc(f.label||"专注")+'<span class="per">'+esc(f.date)+'</span></div></div>'
+        + '<div class="actions"><span class="led-amt blue" style="color:var(--blue)">'+f.minutes+' 分</span>'
+        + '<button class="iconbtn del" data-act="fdel" data-id="'+f.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div></div>';
+    }).join("");
+    box.querySelectorAll("[data-act]").forEach(function(el){ el.onclick=function(){ if(el.getAttribute("data-act")==="fdel") removeFocus(el.getAttribute("data-id")); }; });
+  }
+  function removeFocus(id){
+    STATE.focusLog = STATE.focusLog.filter(function(x){ return x.id!==id; });
+    persistFocus(); renderFocusList(); renderFocusToday(); toast("已删除");
+  }
+  function logFocus(min, label){
+    STATE.focusLog.push({id:uid(), minutes:min, label:label||"", date:today(), created_at:today()});
+    persistFocus(); renderFocusList(); renderFocusToday(); toast("已记录 "+min+" 分钟专注");
+  }
+  function startTimer(){
+    if (TIMER.running) { pauseTimer(); return; }
+    TIMER.running = true; document.getElementById("btnFocusStart").textContent="暂停";
+    TIMER.handle = setInterval(function(){
+      if (TIMER.left>0){ TIMER.left--; renderTimer(); }
+      else { finishTimer(); }
+    }, 1000);
+  }
+  function pauseTimer(){ TIMER.running=false; clearInterval(TIMER.handle); document.getElementById("btnFocusStart").textContent="开始"; }
+  function resetTimer(){ pauseTimer(); TIMER.left=TIMER.total; renderTimer(); }
+  function finishTimer(){ pauseTimer(); logFocus(TIMER.minutes, "番茄钟"); TIMER.left=TIMER.total; renderTimer(); toast("专注完成！"); }
+
+  // ---------- 复盘 ----------
+  function renderReview(){
+    var pt = reviewPT, period = pt==="month"?thisMonth():thisYear();
+    document.getElementById("reviewPeriodLbl").textContent = period;
+    renderReviewStats();
+    var found = STATE.review.find(function(r){ return r.periodType===pt && r.period===period; });
+    document.getElementById("reviewText").value = found ? found.text : "";
+  }
+  function saveReview(){
+    var pt = reviewPT, period = pt==="month"?thisMonth():thisYear();
+    var text = document.getElementById("reviewText").value.trim();
+    if (!text){ toast("写点什么再保存吧"); return; }
+    var found = STATE.review.find(function(r){ return r.periodType===pt && r.period===period; });
+    if (found){ found.text=text; found.updated_at=today(); }
+    else { STATE.review.push({id:uid(), periodType:pt, period:period, text:text, created_at:today(), updated_at:today()}); }
+    persistReview(); renderReview(); toast("复盘已保存");
+  }
+
+  // ---------- 绑定卡片动作 ----------
+  function bindCardActions(box){
+    box.querySelectorAll("[data-act]").forEach(function(el){
+      el.onclick = function(){
+        var act=el.getAttribute("data-act"), type=el.getAttribute("data-type"), id=el.getAttribute("data-id");
+        if (act==="toggle") markDone(type,id);
+        else if (act==="edit") openEdit(type,id);
+        else if (act==="del") removeItem(type,id);
+      };
+    });
+  }
+
+  // ---------- 完成 / 打卡 ----------
+  function markDone(type,id){
+    if (type==="plan"){
+      var p = STATE.plans.find(function(x){return x.id===id;}); if(!p) return;
+      p.status = p.status==="done"?"pending":"done"; p.done_at = p.status==="done"?today():null; p.updated_at=today(); persistPlans();
+    } else if (type==="todo"){
+      var t = STATE.todos.find(function(x){return x.id===id;}); if(!t) return;
+      t.status = t.status==="done"?"pending":"done"; t.done_at = t.status==="done"?today():null; persistTodos();
+    } else if (type==="habit"){
+      toggleHabitDate(id, today()); return;
+    }
+    renderAll(); toast("已更新");
+  }
+  function removeItem(type,id){
+    if (!confirm("确定删除这条"+(type==="plan"?"计划":"待办")+"？")) return;
+    if (type==="plan"){ STATE.plans = STATE.plans.filter(function(x){return x.id!==id;}); persistPlans(); }
+    else { STATE.todos = STATE.todos.filter(function(x){return x.id!==id;}); persistTodos(); }
+    renderAll(); toast("已删除");
+  }
+
+  // ---------- 弹窗 ----------
+  function fillCatSelect(selId){
+    var sel = document.getElementById(selId);
+    sel.innerHTML = CATS.map(function(c){ return '<option value="'+c.id+'">'+c.label+'</option>'; }).join("");
+  }
+  function openAdd(type){
+    if (type==="plan"){ editingPlanId=null; document.getElementById("planModalTitle").textContent="新增计划"; document.getElementById("pTitle").value=""; document.getElementById("pCat").value="work"; document.getElementById("pCycle").value=planCycle; document.getElementById("pPri").value="P1"; document.getElementById("pPeriod").value= planCycle==="daily"?today(): planCycle==="monthly"?thisMonth():thisYear(); document.getElementById("pProgress").value=0; document.getElementById("pNote").value=""; document.getElementById("planMask").classList.add("show"); }
+    else if (type==="todo"){ editingTodoId=null; document.getElementById("todoModalTitle").textContent="新增待办"; document.getElementById("tTitle").value=""; document.getElementById("tCat").value="work"; document.getElementById("tPri").value="P1"; document.getElementById("tDue").value=today(); document.getElementById("tNote").value=""; document.getElementById("todoMask").classList.add("show"); }
+    else if (type==="habit"){ editingHabitId=null; document.getElementById("habitModalTitle").textContent="新增习惯"; document.getElementById("hTitle").value=""; document.getElementById("hCat").value="life"; document.getElementById("habitMask").classList.add("show"); }
+    else if (type==="ledger"){ editingLedgerId=null; document.getElementById("ledgerModalTitle").textContent="记一笔"; document.getElementById("lTitle").value=""; document.getElementById("lKind").value="expense"; document.getElementById("lCat").value="life"; document.getElementById("lAmount").value="0"; document.getElementById("lDate").value=today(); document.getElementById("lNote").value=""; document.getElementById("ledgerMask").classList.add("show"); }
+  }
+  function openEdit(type,id){
+    if (type==="plan"){
+      var p = STATE.plans.find(function(x){return x.id===id;}); if(!p) return; editingPlanId=id;
+      document.getElementById("planModalTitle").textContent="编辑计划";
+      document.getElementById("pTitle").value=p.title; document.getElementById("pCat").value=p.cat;
+      document.getElementById("pCycle").value=p.cycle; document.getElementById("pPri").value=p.pri;
+      document.getElementById("pPeriod").value=p.period; document.getElementById("pProgress").value=p.progress||0;
+      document.getElementById("pNote").value=p.note||""; document.getElementById("planMask").classList.add("show");
+    } else {
+      var t = STATE.todos.find(function(x){return x.id===id;}); if(!t) return; editingTodoId=id;
+      document.getElementById("todoModalTitle").textContent="编辑待办";
+      document.getElementById("tTitle").value=t.title; document.getElementById("tCat").value=t.cat;
+      document.getElementById("tPri").value=t.pri; document.getElementById("tDue").value=t.due||"";
+      document.getElementById("tNote").value=t.note||""; document.getElementById("todoMask").classList.add("show");
+    }
+  }
+  function savePlan(){
+    var title=document.getElementById("pTitle").value.trim(); if(!title){ toast("请填写标题"); return; }
+    var data={ title:title, cat:document.getElementById("pCat").value, cycle:document.getElementById("pCycle").value,
+      pri:document.getElementById("pPri").value, period:document.getElementById("pPeriod").value||today(),
+      progress:Math.max(0,Math.min(100,parseInt(document.getElementById("pProgress").value||"0",10))),
+      note:document.getElementById("pNote").value.trim() };
+    if (editingPlanId){ var p=STATE.plans.find(function(x){return x.id===editingPlanId;}); if(p){ Object.assign(p,data); p.updated_at=today(); } }
+    else { STATE.plans.push(Object.assign({id:uid(), status:"pending", created_at:today(), updated_at:today(), done_at:null}, data)); }
+    persistPlans(); closeMask("plan"); renderAll(); toast("已保存");
+  }
+  function saveTodo(){
+    var title=document.getElementById("tTitle").value.trim(); if(!title){ toast("请填写标题"); return; }
+    var data={ title:title, cat:document.getElementById("tCat").value, pri:document.getElementById("tPri").value,
+      due:document.getElementById("tDue").value||"", note:document.getElementById("tNote").value.trim() };
+    if (editingTodoId){ var t=STATE.todos.find(function(x){return x.id===editingTodoId;}); if(t){ Object.assign(t,data); } }
+    else { STATE.todos.push(Object.assign({id:uid(), status:"pending", created_at:today(), done_at:null}, data)); }
+    persistTodos(); closeMask("todo"); renderAll(); toast("已保存");
+  }
+  function saveHabit(){
+    var title=document.getElementById("hTitle").value.trim(); if(!title){ toast("请填写名称"); return; }
+    STATE.habits.push({id:uid(), title:title, cat:document.getElementById("hCat").value, created_at:today(), records:{}});
+    persistHabits(); closeMask("habit"); renderHabits(); renderFocus(); toast("已添加");
+  }
+  function saveLedger(){
+    var title=document.getElementById("lTitle").value.trim(); if(!title){ toast("请填写说明"); return; }
+    var amt=parseFloat(document.getElementById("lAmount").value||"0"); if(!(amt>0)){ toast("金额需大于 0"); return; }
+    var data={ title:title, cat:document.getElementById("lCat").value, kind:document.getElementById("lKind").value,
+      amount:Math.round(amt*100)/100, date:document.getElementById("lDate").value||today(), note:document.getElementById("lNote").value.trim() };
+    if (editingLedgerId){ var e=STATE.ledger.find(function(x){return x.id===editingLedgerId;}); if(e) Object.assign(e,data); }
+    else { STATE.ledger.push(Object.assign({id:uid(), created_at:today()}, data)); }
+    persistLedger(); closeMask("ledger"); renderLedger(); renderLedgerStats(); toast("已记录");
+  }
+  function closeMask(which){ document.getElementById(which+"Mask").classList.remove("show"); }
+
+  // ---------- 导出 / 导入 / 清空 ----------
+  function exportJSON(){
+    var blob = new Blob([JSON.stringify({version:2, plans:STATE.plans, todos:STATE.todos, habits:STATE.habits, ledger:STATE.ledger, review:STATE.review, focusLog:STATE.focusLog}, null, 2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href=url; a.download="工作台备份_"+today()+".json"; a.click();
+    URL.revokeObjectURL(url); toast("已导出备份");
+  }
+  function importJSON(file){
+    var r = new FileReader();
+    r.onload = function(){
+      try {
+        var d = JSON.parse(r.result);
+        if (Array.isArray(d.plans)) STATE.plans = d.plans;
+        if (Array.isArray(d.todos)) STATE.todos = d.todos;
+        if (Array.isArray(d.habits)) STATE.habits = d.habits;
+        if (Array.isArray(d.ledger)) STATE.ledger = d.ledger;
+        if (Array.isArray(d.review)) STATE.review = d.review;
+        if (Array.isArray(d.focusLog)) STATE.focusLog = d.focusLog;
+        localStorage.setItem(LS_SEED,"1");
+        persistAll(); renderAll(); toast("导入成功");
+      } catch(e){ alert("文件解析失败，请确认是有效的工作台备份 JSON"); }
+    };
+    r.readAsText(file);
+  }
+  function clearAll(){
+    if (!confirm("将清空全部计划 / 待办 / 习惯 / 记账 / 复盘 / 专注，且无法恢复（建议先导出备份）。确定清空？")) return;
+    STATE.plans=[]; STATE.todos=[]; STATE.habits=[]; STATE.ledger=[]; STATE.review=[]; STATE.focusLog=[];
+    localStorage.setItem(LS_SEED,"1"); persistAll(); renderAll(); toast("已清空");
+  }
+
+  // ---------- Toast ----------
+  var toastTimer;
+  function toast(msg){ var el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){el.classList.remove("show");},1600); }
+
+  // ---------- 渲染总入口 ----------
+  function renderAll(){
+    renderFocus();
+    if (activeMod==="plan"){ renderPlanStats(); renderPlans(); checkedGentle("gentlePlan", STATE.plans.length); }
+    else if (activeMod==="todo"){ renderTodoStats(); renderTodos(); checkedGentle("gentleTodo", STATE.todos.length); }
+    else if (activeMod==="habit"){ renderHabits(); checkedGentle("gentleHabit", STATE.habits.length); }
+    else if (activeMod==="ledger"){ renderLedgerStats(); renderLedger(); checkedGentle("gentleLedger", STATE.ledger.length); }
+    else if (activeMod==="focus"){ renderFocusList(); renderFocusToday(); }
+    else if (activeMod==="review"){ renderReview(); }
+  }
+  function checkedGentle(id, n){ var el=document.getElementById(id); if(n>=30) el.classList.add("show"); else el.classList.remove("show"); }
+
+  // ---------- 事件绑定 ----------
+  function bind(){
+    document.querySelectorAll(".tab").forEach(function(t){ t.onclick=function(){ switchMod(t.getAttribute("data-mod")); } });
+    document.getElementById("cycleSeg").querySelectorAll("button").forEach(function(b){ b.onclick=function(){ planCycle=b.getAttribute("data-cycle"); document.getElementById("cycleSeg").querySelectorAll("button").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); renderPlans(); }; });
+    document.getElementById("btnAddPlan").onclick=function(){ openAdd("plan"); };
+    document.getElementById("btnAddTodo").onclick=function(){ openAdd("todo"); };
+    document.getElementById("btnAddHabit").onclick=function(){ openAdd("habit"); };
+    document.getElementById("btnAddLedger").onclick=function(){ openAdd("ledger"); };
+    document.getElementById("pSave").onclick=savePlan;
+    document.getElementById("tSave").onclick=saveTodo;
+    document.getElementById("hSave").onclick=saveHabit;
+    document.getElementById("lSave").onclick=saveLedger;
+    document.querySelectorAll("[data-close]").forEach(function(b){ b.onclick=function(){ closeMask(b.getAttribute("data-close")); }; });
+    ["planMask","todoMask","habitMask","ledgerMask"].forEach(function(id){
+      document.getElementById(id).onclick=function(e){ if(e.target===this) closeMask(id.replace("Mask","")); };
+    });
+    document.getElementById("btnExport").onclick=exportJSON;
+    document.getElementById("btnImport").onclick=function(){ document.getElementById("fileInput").click(); };
+    document.getElementById("fileInput").onchange=function(e){ if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value=""; };
+    document.getElementById("btnClear").onclick=clearAll;
+    document.getElementById("btnRefresh").onclick=function(){ doRefresh(); };
+    // 记账范围 / 分类
+    document.getElementById("ledgerRange").querySelectorAll("button").forEach(function(b){ b.onclick=function(){ ledgerRange=b.getAttribute("data-range"); document.getElementById("ledgerRange").querySelectorAll("button").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); renderLedger(); }; });
+    // 专注
+    document.getElementById("focusPresets").querySelectorAll("button").forEach(function(b){ b.onclick=function(){ TIMER.minutes=parseInt(b.getAttribute("data-min"),10); TIMER.total=TIMER.minutes*60; TIMER.left=TIMER.total; document.getElementById("focusPresets").querySelectorAll("button").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); renderTimer(); }; });
+    document.getElementById("btnFocusStart").onclick=startTimer;
+    document.getElementById("btnFocusReset").onclick=resetTimer;
+    document.getElementById("btnFocusLog").onclick=function(){ logFocus(TIMER.minutes, "手动记录"); };
+    // 复盘
+    document.getElementById("reviewSeg").querySelectorAll("button").forEach(function(b){ b.onclick=function(){ reviewPT=b.getAttribute("data-pt"); document.getElementById("reviewSeg").querySelectorAll("button").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); renderReview(); }; });
+    document.getElementById("btnReviewSave").onclick=saveReview;
+    document.addEventListener("keydown",function(e){ if(e.key==="Escape"){ ["plan","todo","habit","ledger"].forEach(function(m){ closeMask(m); }); } });
+  }
+  function switchMod(mod){
+    activeMod=mod;
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.toggle("active", t.getAttribute("data-mod")===mod); });
+    document.querySelectorAll('section[id^="mod-"]').forEach(function(s){ s.style.display = (s.id==="mod-"+mod)?"block":"none"; });
+    renderAll();
+  }
+
+  // ---------- 初始化 ----------
+  function initLocal(){
+    loadFromStorage();
+    if (!localStorage.getItem(LS_SEED) && !STATE.plans.length && !STATE.todos.length) seed();
+    document.getElementById("storeBadge").textContent = "本地模式";
+    document.getElementById("storeBadge").className = "badge local";
+    finishInit();
+  }
+
+  function applyEmbeddedMode(){
+    document.body.classList.add("embedded");
+    var sub = document.querySelector(".brand .sub"); if (sub) sub.textContent = "个人工作台 · 仅查看与完成";
+  }
+
+  function boot(){
+    if (window.qt && window.qt.webChannelTransport && typeof QWebChannel !== "undefined"){
+      new QWebChannel(window.qt.webChannelTransport, function(channel){
+        if (channel.objects && channel.objects.bridge){ BRIDGE = channel.objects.bridge; MODE = "bridge"; }
+        document.getElementById("storeBadge").textContent = "已连接桌宠";
+        document.getElementById("storeBadge").className = "badge linked";
+        loadAll(function(){ afterBootLoad(); });
+      });
+    } else if (location.hostname === "127.0.0.1" || location.hostname === "localhost"){
+      MODE = "http";
+      document.getElementById("storeBadge").textContent = "网页版 · 已同步";
+      document.getElementById("storeBadge").className = "badge linked";
+      loadAll(function(){ afterBootLoad(); });
+    } else {
+      initLocal();
+    }
+  }
+
+  function afterBootLoad(){
+    if (MODE==="bridge"){
+      if (!STATE.plans.length && !STATE.todos.length){
+        var f = document.getElementById("focusList");
+        if (f) f.innerHTML = '<div class="focus-empty">暂无数据，请在网页版「工作台」中添加计划与待办。</div>';
+      }
+    } else {
+      if (!localStorage.getItem(LS_SEED) && !STATE.plans.length && !STATE.todos.length) seed();
+    }
+    if (MODE==="bridge") applyEmbeddedMode();
+    if (MODE==="http"){ setInterval(function(){ if (!document.querySelector(".mask.show")) doRefresh(); }, 3000); }
+    finishInit();
+  }
+
+  function finishInit(){
+    fillCatSelect("pCat"); fillCatSelect("tCat"); fillCatSelect("hCat"); fillCatSelect("lCat");
+    renderChips("planCats", planCatFilter, pickPlanCat);
+    renderChips("todoCats", todoCatFilter, pickTodoCat);
+    renderChips("habitCats", habitCatFilter, pickHabitCat);
+    renderChips("ledgerCats", ledgerCatFilter, pickLedgerCat);
+    renderTimer();
+    bind(); renderAll();
+  }
+
+  if (document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

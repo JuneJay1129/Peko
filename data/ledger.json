@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "hl1",
+      "title": "网页账目A",
+      "cat": "life",
+      "kind": "expense",
+      "amount": 12.5,
+      "date": "2026-08-13",
+      "note": "",
+      "created_at": "2026-08-13"
+    },
+    {
+      "id": "pmsrar6lhlm8db",
+      "title": "网页新增账目",
+      "cat": "life",
+      "kind": "expense",
+      "amount": 88.8,
+      "date": "2026-08-13",
+      "note": "",
+      "created_at": "2026-08-13"
+    }
+  ]
+}

@@ -108,6 +108,8 @@ class TrayIcon:
         self._talk_action = QAction("与宠物对话", self.app)
         self._api_settings_action = QAction("AI 设置", self.app)
         self._params_action = QAction("动作参数", self.app)
+        self._plans_web_action = QAction("计划台", self.app)
+        self._plans_web_browser_action = QAction("工作台", self.app)
         self._auto_mode_action = QAction("自动模式", self.app, checkable=True)
         self._control_mode_action = QAction("操控模式", self.app, checkable=True)
         self._follow_mouse_action = QAction("跟随鼠标", self.app, checkable=True)
@@ -118,6 +120,8 @@ class TrayIcon:
         self._talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
         self._api_settings_action.triggered.connect(self._show_api_settings_dialog)
         self._params_action.triggered.connect(self._show_action_params_dialog)
+        self._plans_web_action.triggered.connect(self._show_plans_web_dialog)
+        self._plans_web_browser_action.triggered.connect(self._show_plans_web_browser_dialog)
         self._auto_mode_action.triggered.connect(self._on_auto_mode)
         self._control_mode_action.triggered.connect(self._on_control_mode)
         self._follow_mouse_action.triggered.connect(self._on_follow_mouse_mode)
@@ -135,6 +139,8 @@ class TrayIcon:
         menu.addAction(self._talk_action)
         menu.addAction(self._api_settings_action)
         menu.addAction(self._params_action)
+        menu.addAction(self._plans_web_action)
+        menu.addAction(self._plans_web_browser_action)
         menu.addSeparator()
         menu.addAction(self._auto_mode_action)
         menu.addAction(self._control_mode_action)
@@ -278,6 +284,22 @@ class TrayIcon:
         y = (screen.height() - dialog.height()) // 2 + screen.y()
         dialog.move(x, y)
         dialog.exec_()
+
+    def _show_plans_web_dialog(self):
+        """打开 Web 工作台（内嵌 QWebEngine，实时桥接 plans.json）。"""
+        if not self.pet_holder:
+            return
+        from .plans_web_dialog import open_plans_web
+        pet = self.pet_holder[0]
+        open_plans_web(pet, pet)
+
+    def _show_plans_web_browser_dialog(self):
+        """在系统浏览器中打开 Web 工作台（纯网页版，localStorage 模式）。"""
+        if not self.pet_holder:
+            return
+        from .plans_web_dialog import open_plans_web_browser
+        pet = self.pet_holder[0]
+        open_plans_web_browser(pet)
 
     def _show_api_settings_dialog(self):
         """打开 AI 设置对话框，保存后立即生效。"""

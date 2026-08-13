@@ -19,6 +19,7 @@ else:
 _datas = [
     (os.path.join(_project_root, 'pets'), 'pets'),
     (os.path.join(_project_root, 'config'), 'config'),
+    (os.path.join(_project_root, 'peko', 'ui', 'plans'), 'peko/ui/plans'),
 ]
 if exe_icon:
     _datas.append((exe_icon, '.'))
@@ -32,6 +33,9 @@ a = Analysis(
         'PyQt5.QtCore',
         'PyQt5.QtGui',
         'PyQt5.QtWidgets',
+        'PyQt5.QtWebEngineWidgets',
+        'PyQt5.QtWebEngineCore',
+        'PyQt5.QtWebChannel',
         'openai',
         'keyboard',
         'pynput',

@@ -1,4 +1,5 @@
 PyQt5>=5.15
+PyQtWebEngine>=5.15
 keyboard>=0.13.5
 pynput>=1.7.6
 openai>=1.0.0

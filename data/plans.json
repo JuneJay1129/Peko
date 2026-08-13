@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "plans": [
+    {
+      "id": "hp1",
+      "title": "网页计划A",
+      "cat": "study",
+      "cycle": "daily",
+      "period": "2026-08-13",
+      "pri": "P0",
+      "status": "done",
+      "progress": 100,
+      "note": "",
+      "created_at": "2026-08-13",
+      "updated_at": "2026-08-13",
+      "done_at": "2026-08-13"
+    }
+  ]
+}

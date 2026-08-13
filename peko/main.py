@@ -111,6 +111,9 @@ def main():
         sys.exit(1)
 
     app = QApplication(sys.argv)
+    # 允许随后懒导入 PyQt5.QtWebEngineWidgets（Web 工作台宿主窗用到），
+    # 否则会报 "QtWebEngineWidgets must be imported ... before a QCoreApplication instance is created"
+    app.setAttribute(Qt.AA_ShareOpenGLContexts)
     app.setQuitOnLastWindowClosed(False)
     default_id = get_default_pet_id()
     pet_package = get_pet(default_id)

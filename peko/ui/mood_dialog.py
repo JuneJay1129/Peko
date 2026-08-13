@@ -63,22 +63,22 @@ PANEL_STYLE = """
         font-size: 11px;
     }
     QPushButton#closeBtn {
-        background: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.85);
         border: 1px solid #e2c7a5;
-        border-radius: 12px;
-        color: #7a6250;
-        font-size: 14px;
-        font-weight: 700;
-        min-width: 24px;
-        max-width: 24px;
-        min-height: 24px;
-        max-height: 24px;
+        border-radius: 15px;
+        color: #8a715c;
+        font-size: 18px;
+        font-weight: 400;
+        min-width: 30px;
+        max-width: 30px;
+        min-height: 30px;
+        max-height: 30px;
         padding: 0;
     }
     QPushButton#closeBtn:hover {
-        background: #fffef9;
-        border-color: #d2a56c;
-        color: #5a4738;
+        background: #fff0e2;
+        border-color: #e0a86a;
+        color: #b9692f;
     }
     QProgressBar {
         border: none;
@@ -106,18 +106,30 @@ PANEL_STYLE = """
             stop:0 #74b6ff, stop:1 #4c86e6);
     }
     QPushButton#actionBtn {
-        background: rgba(255, 255, 255, 0.88);
-        border: 1px solid #e2c7a5;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #ffffff, stop:1 #fff3e6);
+        border: 1px solid #ecd2b1;
         border-radius: 14px;
-        padding: 10px 12px;
-        color: #5a4738;
+        padding: 10px 14px;
+        color: #6b513c;
         font-size: 13px;
         font-weight: 700;
-        min-height: 38px;
+        min-height: 42px;
     }
     QPushButton#actionBtn:hover {
-        background: #fffef9;
-        border-color: #d2a56c;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #fff6ec, stop:1 #ffe6cf);
+        border-color: #e0a86a;
+        color: #5a4738;
+    }
+    QPushButton#actionBtn:pressed {
+        background: #ffe6cf;
+        border-color: #d99a55;
+        padding-top: 12px;
+        padding-bottom: 8px;
+    }
+    QPushButton#actionBtn:focus {
+        border-color: #e0a86a;
     }
 """
 

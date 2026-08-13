@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "hf1",
+      "minutes": 25,
+      "label": "网页专注A",
+      "date": "2026-08-13",
+      "created_at": "2026-08-13"
+    },
+    {
+      "id": "pmsrar6tbmsh6u",
+      "minutes": 25,
+      "label": "手动记录",
+      "date": "2026-08-13",
+      "created_at": "2026-08-13"
+    }
+  ]
+}
