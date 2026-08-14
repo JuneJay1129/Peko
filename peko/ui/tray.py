@@ -114,6 +114,7 @@ class TrayIcon:
         self._control_mode_action = QAction("操控模式", self.app, checkable=True)
         self._follow_mouse_action = QAction("跟随鼠标", self.app, checkable=True)
         self._clone_mode_action = QAction("分身模式", self.app, checkable=True)
+        self._destroy_file_action = QAction("摧毁文件…", self.app)
         self._show_action.triggered.connect(self._on_show_pets)
         self._hide_action.triggered.connect(self._on_hide_pets)
         self._stop_movement_action.triggered.connect(self.toggle_movement)
@@ -126,6 +127,7 @@ class TrayIcon:
         self._control_mode_action.triggered.connect(self._on_control_mode)
         self._follow_mouse_action.triggered.connect(self._on_follow_mouse_mode)
         self._clone_mode_action.triggered.connect(self._on_clone_mode)
+        self._destroy_file_action.triggered.connect(self._on_destroy_file)
 
         # 默认自动模式
         self._auto_mode_action.setChecked(True)
@@ -141,6 +143,7 @@ class TrayIcon:
         menu.addAction(self._params_action)
         menu.addAction(self._plans_web_action)
         menu.addAction(self._plans_web_browser_action)
+        menu.addAction(self._destroy_file_action)
         menu.addSeparator()
         menu.addAction(self._auto_mode_action)
         menu.addAction(self._control_mode_action)
@@ -300,6 +303,14 @@ class TrayIcon:
         from .plans_web_dialog import open_plans_web_browser
         pet = self.pet_holder[0]
         open_plans_web_browser(pet)
+
+    def _on_destroy_file(self):
+        """摧毁文件：选文件 → 点屏幕位置 → 宠物跑过去表演摧毁（进回收站）。"""
+        if not self.pet_holder:
+            return
+        from .destroy_show import begin_destroy_flow
+        pet = self.pet_holder[0]
+        begin_destroy_flow(pet, pet)
 
     def _show_api_settings_dialog(self):
         """打开 AI 设置对话框，保存后立即生效。"""

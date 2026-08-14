@@ -12,20 +12,25 @@
 - **插槽**：公共插槽（如 AI 模型）、每宠物独立插槽（可扩展不同功能）
 - **动画 / 气泡 / 快捷键**：L+Enter 对话、托盘显示/隐藏/停止移动
 - **操控模式**：托盘选择「操控模式」后，用**方向键 ↑↓←→** 控制宠物移动、**空格** 待机，长按持续执行；**长时间无操作**（默认 15 秒）则自动循环播放该宠物的 **sleep** 动作，直到收到新指令后结束并重新计时（可扩展更多按键与动作）
+- **个人工作台**：计划台 / 待办清单 / 习惯打卡 / 记账 / 专注 / 周月回顾六大模块；托盘「计划台」内嵌窗与「工作台」网页版双入口，共用同一份本地数据、实时同步
+- **快捷指令（无需 AI）**：对话输入框内置「记支出 / 记收入 / 待办 / 专注」快捷按钮，自动填入模板并选中关键字段，改几个字即发；也可直接输入「记一笔 支出 午饭 38」「提醒我 17:00 交周报」「开始专注 25 分钟」这类口语指令，自动落入工作台对应模块
+- **完成联动**：在工作台完成待办 / 打卡习惯 / 记录专注时，宠物即时给出情绪 + 动画反馈，并累计「靠谱值」
+- **动画删除**：托盘「摧毁文件…」→ 红色狙击准星直接点选桌面 / 文件夹里的文件图标 → 宠物长途跑过去确认、出拳「摧毁」并送入回收站（可恢复），随后自行跑回桌面右下角
 
 ---
 
 ## 🔧 安装与运行
 
-- **环境**：Python 3.8+，PyQt5  
-- **可选**：`openai`（OpenAI 兼容接口）、`sparkai`（讯飞星火）
+- **环境**：Python 3.8+，Windows / macOS
+- **可选**：`sparkai`（讯飞星火）
 
 ```bash
-pip install PyQt5 keyboard
-pip install openai        # 使用 SiliconFlow / OpenAI / 豆包等
-# 可选: pip install sparkai  # 使用讯飞星火
+pip install -r requirements.txt   # PyQt5、PyQtWebEngine、send2trash、uiautomation 等
+# 可选: pip install sparkai       # 使用讯飞星火
 python main.py
 ```
+
+> 「摧毁文件」功能目前仅支持 Windows（依赖回收站与 UI Automation）。
 
 ---
 
@@ -126,14 +131,25 @@ Peko/
 │   ├── main.py             # 应用逻辑入口
 │   ├── ui/                 # UI 组件
 │   │   ├── pet.py          # 桌宠组件（宠物包 + 插槽）
-│   │   ├── tray.py         # 托盘：显示/隐藏、切换宠物、退出
-│   │   ├── input_dialog.py  # 对话输入框
+│   │   ├── tray.py         # 托盘：显示/隐藏、切换宠物、工作台、摧毁文件、退出
+│   │   ├── chat.py         # 对话：AI 闲聊 + 非 AI 快捷指令路由
+│   │   ├── input_dialog.py  # 对话输入框（快捷指令按钮 + 模板填入）
+│   │   ├── destroy_show.py # 摧毁表演编排（狙击点选 → 走位 → 确认 → 出拳 → 回家）
+│   │   ├── pet_link.py     # 工作台「完成事件」→ 宠物反馈通道
+│   │   ├── plans_web_dialog.py  # 工作台内嵌窗（QWebChannel 桥接）
+│   │   ├── workbench_server.py  # 工作台本地同步服务（网页版读写同一份数据）
 │   │   └── api_settings_dialog.py  # API/模型设置对话框
 │   ├── ai/                 # AI 服务
 │   │   ├── config_loader.py # API/模型配置加载
 │   │   └── service.py      # 统一 AI 调用（OpenAI 兼容 + 讯飞星火）
 │   └── core/               # 核心逻辑
-│       └── pet_manager.py  # 宠物包注册与发现
+│       ├── pet_manager.py  # 宠物包注册与发现
+│       ├── mood.py         # 心情/饱食/精力状态机与互动
+│       ├── plans_store.py  # 工作台数据层（六模块，原子写，单一真相源）
+│       ├── nl_intent.py    # 非 AI 自然语言指令解析（记账/待办/专注）
+│       ├── pet_bond.py     # 靠谱值计数（完成联动）
+│       └── file_picker.py  # 狙击点选文件识别（UI Automation + Shell）
+├── data/                   # 运行时数据（工作台六模块 JSON、靠谱值等，本地产物）
 ├── config/
 │   ├── api.json.example    # 模型配置模板（可推送）
 │   ├── secrets.json.example # API Key 模板（可推送）

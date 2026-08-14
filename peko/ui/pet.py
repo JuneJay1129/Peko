@@ -116,6 +116,7 @@ class DesktopPet(QWidget):
         self.follow_mouse_mode = False
         self._mood_engine = MoodEngine(str(pet_package.get("id") or pet_package.get("name") or "pet"))
         self._interaction_panel = None
+        self._destroy_running = False  # 摧毁表演进行中（托盘「摧毁文件」触发，destroy_show 编排）
         self._interaction_lock_until_ms = 0
         self._interaction_resume_timer = QTimer(self)
         self._interaction_resume_timer.setSingleShot(True)
@@ -145,6 +146,15 @@ class DesktopPet(QWidget):
 
         from .chat import ChatHandler
         self._chat = ChatHandler(self)
+
+        # B3：订阅工作台「完成事件」，桌宠即时反馈（情绪 + 动画 + 靠谱值气泡）
+        try:
+            from .pet_link import get_notifier
+            notifier = get_notifier()
+            if notifier is not None:
+                notifier.workspace_completed.connect(self._on_workspace_completed)
+        except Exception:
+            pass
 
         # 随机文案：从 randomSayings.phrases 随机取一句，用现有气泡弹出（复用气泡样式）
         sayings_cfg = pet_package.get("randomSayings") or {}
@@ -619,6 +629,25 @@ class DesktopPet(QWidget):
             self._apply_state_frame_rate()
             self.update_frame()
         self._pause_auto_for_interaction(outcome.hold_ms)
+
+    def _on_workspace_completed(self, kind: str, label: str, total: int) -> None:
+        """B3：工作台完成事件 → 桌宠即时反馈（情绪 + 动画 + 靠谱值气泡）。
+
+        复用 apply_mood_interaction("praise") 拿到情绪/浮字/动画/自动暂停，
+        再把气泡换成「靠谱值」成就文案。由 pet_link notifier 发射，可能来自
+        本地 HTTP 服务线程（浏览器版）或内嵌 WebChannel（主线程），Qt 队列连接
+        保证槽函数在主线程执行。
+        """
+        try:
+            self.apply_mood_interaction("praise")
+        except Exception:
+            pass
+        kind_label = {"todo": "待办", "plan": "计划", "habit": "习惯", "focus": "专注"}.get(kind, "事项")
+        if label:
+            text = f"靠谱值 +1（当前 {total}）\n{kind_label}完成：{label}"
+        else:
+            text = f"靠谱值 +1（当前 {total}）\n{kind_label}完成，太靠谱了！"
+        self.update_bubble(text, duration=3600)
 
     def next_frame(self):
         if self.follow_mouse_mode:

@@ -66,8 +66,45 @@ class ChatHandler:
 
     def _on_submit(self, dialog, text: str) -> None:
         dialog.close()
-        if text.strip():
-            threading.Thread(target=self._fetch_response, args=(text.strip(),), daemon=True).start()
+        text = (text or "").strip()
+        if not text:
+            return
+        # C5：先尝试把这句话识别为「工作台写入」意图；命中则本地落盘并直接回复，不走 AI。
+        try:
+            from ..core import nl_intent
+            intent = nl_intent.parse(text)
+        except Exception:
+            intent = None
+        if intent is not None:
+            self._handle_workspace_intent(intent)
+            return
+        # 像命令但没写全（如「记一笔」缺金额）→ 给用法提示，不走 AI
+        try:
+            hint = nl_intent.suggest_usage(text)
+        except Exception:
+            hint = None
+        if hint:
+            self.pet.bubble_text_ready.emit(hint, REPLY_BUBBLE_DURATION_MS)
+            return
+        threading.Thread(target=self._fetch_response, args=(text,), daemon=True).start()
+
+    def _handle_workspace_intent(self, intent) -> None:
+        """C5：执行自然语言 → 工作台写入；专注类用 QTimer 做结束提醒（不落盘）。"""
+        from ..core import nl_intent
+        msg = nl_intent.apply(intent)
+        if msg:
+            self.pet.bubble_text_ready.emit(msg, REPLY_BUBBLE_DURATION_MS)
+        if intent.get("action") == "start_focus":
+            self._schedule_focus_reminder(int(intent.get("minutes") or 25))
+
+    def _schedule_focus_reminder(self, minutes: int) -> None:
+        try:
+            from PyQt5.QtCore import QTimer
+            ms = max(1, minutes) * 60 * 1000
+            QTimer.singleShot(ms, lambda: self.pet.bubble_text_ready.emit(
+                f"专注 {minutes} 分钟到啦，去「专注」模块打个卡吧～", REPLY_BUBBLE_DURATION_MS))
+        except Exception:
+            pass
 
     def _fetch_response(self, user_input: str) -> None:
         """子线程中调用 AI，结果通过 pet.bubble_text_ready 在主线程更新气泡。"""
@@ -88,7 +125,8 @@ class ChatHandler:
             ]
             if not validate_ai_config():
                 self.pet.bubble_text_ready.emit(
-                    "请先在任务栏菜单的 AI 设置里填写 API Key 并选择模型，然后再和我对话哦～",
+                    "AI 闲聊还没开放哦～可以点输入框上方的「记支出 / 记收入 / 待办 / 专注」快捷按钮，"
+                    "或直接说「记一笔 支出 午饭 38」这样的指令，我马上帮你记录。",
                     REPLY_BUBBLE_DURATION_MS,
                 )
                 return

@@ -9,11 +9,18 @@
       "created_at": "2026-08-13"
     },
     {
-      "id": "pmsrar6tbmsh6u",
+      "id": "pmssfbpw112efm",
       "minutes": 25,
       "label": "手动记录",
-      "date": "2026-08-13",
-      "created_at": "2026-08-13"
+      "date": "2026-08-14",
+      "created_at": "2026-08-14"
+    },
+    {
+      "id": "pmssfjav40ivvc",
+      "minutes": 25,
+      "label": "手动记录",
+      "date": "2026-08-14",
+      "created_at": "2026-08-14"
     }
   ]
 }

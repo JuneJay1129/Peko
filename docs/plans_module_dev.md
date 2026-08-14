@@ -107,3 +107,100 @@
 - **验证**：`scripts/wb_modes_test.js` 三模式全绿，且新增覆盖 http 模式对 habits/ledger/review/focus 的「读服务端 + 写回服务端」；local 模式 seed 已包含习惯/记账/专注示例。
 - 结论：浏览器「工作台」已是含六大模块的个人效率中心，与内嵌「计划台」共用磁盘同一真相源、双向实时同步。
 
+
+## 桌宠×工作台联动：C5 自然语言入口 + B3 完成回写（2026-08-14）
+
+> 首刀联动闭环：C5 负责「主动收集」（把桌面上一句话变成工作台数据），B3 负责「正向反馈」（完成动作即时激励）。
+
+### C5 自然语言入口（聊天 → 工作台写入）
+- **新增 `peko/core/nl_intent.py`**（纯 Python，无 Qt，可单测）：`parse(text)` 把一句话识别为意图，`apply(intent, store)` 落盘并返回确认文案。
+  - 记账：`记一笔午饭 38` / `午饭花了38` / `收入 5000 工资` → 写 `data/ledger.json`（`_normalize_ledger`，含 cat 猜测：午饭→饮食、工资→工作）。
+  - 待办：`提醒我 17:00 交周报` / `加一个待办 买牛奶` → `add_todo`（时间进 note，due=今天）。
+  - 专注：`开始专注 25 分钟` / `番茄钟` → **不落盘**（避免虚增专注统计），由聊天侧用 QTimer 做结束提醒。
+  - 防劫持：只在明确命令句式触发；疑问/感叹语气（吗/呢/?）或无金额的「记一笔」返回 None，走正常 AI 聊天。
+- **接线 `peko/ui/chat.py`**：`ChatHandler._on_submit` 先 `nl_intent.parse`，命中则 `_handle_workspace_intent`（落盘 + 气泡确认，专注类再 `_schedule_focus_reminder` 用 `QTimer.singleShot` 提醒），未命中才走原 AI `stream_chat`。
+- 数据一致性：`nl_intent.apply` 用 `PlansStore(__file__)`（peko/core 下 → 项目根 data/），而 PlansStore 每次读都重新从磁盘加载，故聊天写入与内嵌/网页版天然同一份。
+
+### B3 完成回写桌宠（工作台完成 → 桌宠反馈）
+- **新增 `peko/core/pet_bond.py`**（纯 Python）：靠谱值计数，原子写到 `data/pet_bond.json`（`{version,total,by_kind}`）。`record_completion(kind)` / `get_total()` / `get_by_kind()`。
+- **新增 `peko/ui/pet_link.py`**：进程内单例 notifier（`QObject` + `workspace_completed(str kind, str label, int total)`）。`notify_completion(kind,label)` 先记靠谱值再发射信号；Qt 缺失时降级为仅计数。跨线程经 Qt 队列连接，槽函数在主线程执行。
+- **桌宠反馈 `peko/ui/pet.py`**：`__init__` 连接 notifier → `_on_workspace_completed`；复用 `apply_mood_interaction("praise")` 拿情绪/浮字/动画/自动暂停，再把气泡换成「靠谱值 +1（当前 N）\n{类型}完成：{label}」。
+- **触发源**（两路汇聚到 `pet_link.notify_completion`）：
+  - 浏览器「工作台」：前端 `notifyCompletion()` 在 http 模式 `POST /api/event {kind,label}` → `workbench_server.py` 新端点调 `notify_completion`（新增 `_read_object` 读对象请求体）。
+  - 内嵌「计划台」：前端 `notifyCompletion()` 在 bridge 模式调 `bridge.recordEvent(kind,label)` → `PlanBridge.recordEvent` 新槽调 `notify_completion`。
+  - 前端触发点：计划/待办勾到 done（`markDone`）、习惯打卡（`toggleHabitDate` 仅打卡非取消）、专注记录（`logFocus`）。local 模式无桌宠不触发。
+
+### 验证
+- `py_compile` 全部改动文件通过。
+- 新增单测 `unit_tests/test_nl_intent.py`（12 例：解析 + 落盘 + 防劫持 + 专注不落盘）、`unit_tests/test_pet_bond.py`（3 例：计数/持久化/坏文件恢复），连同 `test_mood.py` 全绿。
+- B3 服务端通路实测：起本地服务后 `POST /api/event` → `{"ok":true,"total":1}` 且落盘 `data/pet_bond.json`（已清理测试残留）。
+- `scripts/wb_modes_test.js` 三模式（local/bridge/http）回归 ALL PASS，无破坏；内联脚本 `node --check` 通过。
+- 修复：`_parse_todo` 提取时间需在清理数字之前，否则 `17:00` 残留冒号。
+
+### C5 体验优化：快捷按钮 + 模板填入（2026-08-14，非 AI 路线）
+- **背景**：AI 功能不公测、API 相关不上线，新功能全部走非 AI，且要好理解好操作。
+- **`peko/ui/input_dialog.py`**：聊天输入框新增「记账 / 待办 / 专注」快捷按钮（`QUICK_COMMANDS`）。点击即填入模板并**选中关键字段**（记账选中「午饭 38」、待办选中「17:00 交周报」、专注选中「25」），用户直接 typing 替换后发送。模板与 nl_intent 识别句式一一对应，必中非 AI 路径。附灰色小字用法提示；窗口调至 320×230。
+- **`peko/core/nl_intent.py`**：新增 `suggest_usage(text)`——文本含命令触发词但 parse 未命中（如「记一笔」缺金额、「提醒我」缺内容）时返回用法模板提示。
+- **`peko/ui/chat.py`**：`_on_submit` 在 parse 未命中后先查 `suggest_usage`，有提示则气泡展示模板（不走 AI）；AI 未配置的兜底文案改为引导用快捷按钮/指令（不再引导填 API Key）。
+- **验证**：新增单测 4 例（快捷模板必命中 parse；suggest_usage 的提示/不提示边界），共 19 例全绿；py_compile 通过。
+
+### C5 快捷按钮：拆分「记支出 / 记收入」（2026-08-14）
+- **需求**：记账输入时标注「收入 / 支出」，便于用户理解。
+- **做法**：`QUICK_COMMANDS` 把原「记账」按钮拆为「记支出」（模板 `记一笔 支出 午饭 38`，选中「午饭 38」）与「记收入」（模板 `记一笔 收入 兼职 500`，选中「兼职 500」）。模板里的「支出/收入」字样既标明类型，也教用户口语句式；nl_intent 原有逻辑按该词自动判 kind，且标题不含「支出/收入」。
+- 按钮行去掉「快捷记录：」前缀标签（4 按钮在 320px 窗口内刚好放下）；输入框下方提示语同步展示收入/支出两种写法。
+- `nl_intent._USAGE_HINT` 与 `chat.py` AI 未配置兜底文案同步更新为「记支出/记收入」版本。
+- **验证**：单测 19 例全绿（快捷模板断言 kind=expense/income 且标题剔除类型词）；选中区间脚本核对精确（记支出选「午饭 38」、记收入选「兼职 500」、待办选「17:00 交周报」、专注选「25」）；py_compile 过。
+
+## 桌宠「动画删除」：拖拽摧毁表演（2026-08-14）
+
+> 灵感来自 MonsterDeleter（怪兽走过去→指文件→踹爆→飞离），按 Peko 常驻桌宠形态适配：
+> 不需召唤/瞄准层，触发改为「把文件拖到宠物身上」。
+
+### 决策（用户拍板）
+- 触发：拖拽文件到宠物身上（非右键菜单/注册表）。
+- 摧毁动作：`fight` 出拳（含蓄版，非 angry_fire 喷火）。
+- 仅 BB（hamster）可用；neko 不做任何适配（后续会删除 neko）——代码用「无 fight 动作则婉拒」的能力检查天然覆盖。
+
+### 实现
+- **新增 `peko/ui/destroy_show.py`**：`DestroyShow` 五阶段回调链（全部 caller 侧编排，直接操作 pet.current_state，同 actions/control.py 约定）：
+  1. **接住**：朝屏幕中心方向 `walk_right/left` + `QPropertyAnimation(pos)` 走 60px（700ms）。
+  2. **确认**：`listen` + 气泡「要摧毁《xx》吗？」+ `_ConfirmDialog`（红「摧毁」/灰「算了」，样式同输入框）。
+  3. **摧毁**：`fight` 播一遍，55% 处浮字「砰！」（复用 `_show_floating_effects`）+ `send2trash` 删文件。
+  4. **庆祝**：`wave` + 气泡「已丢进回收站～」。
+  5. **收场**：回 `stand`，`_auto_actions.resume()`。
+  - 支持多文件拖入（确认文案「xx 等 N 个文件」，全部进回收站）；取消/失败均有对应气泡。
+  - 守卫：表演中重入、操控/跟随模式、无 fight 动作、路径无效 → 各自气泡提示并拒绝。
+- **`pet.py`**：`setAcceptDrops(True)` + `dragEnterEvent`/`dropEvent`（取本地文件路径 → `start_destroy_show`）+ `_destroy_running` 标志。
+- **依赖**：`send2trash>=1.8.0` 入 requirements.txt，已装入系统 Python（桌宠运行时）。删除进回收站可恢复。
+
+### 用到的动作（4 个，全部 BB 现有，零新素材）
+`walk_right/walk_left`（走位）、`listen`（确认）、`fight`（摧毁）、`wave`（庆祝）；收场回 `stand`。
+
+### 验证
+- 新增 `unit_tests/test_destroy_show.py`（离屏 QT_QPA_PLATFORM=offscreen）：完整流程（文件进回收站+回 stand）、取消保留文件、无 fight 婉拒，3 例过。全套 37 例系统 Python 全绿。
+- **测试环境特有坑**：离屏时确认窗是「最后一个可见窗口」，关闭它触发 `quitOnLastWindowClosed` 退出事件循环 → 后续 QTimer 全失效。测试必须 `setQuitOnLastWindowClosed(False)` + `pet.show()`。真实 App 宠物常显无此问题。
+
+### 动画删除改版：托盘入口 + 选文件 + 跑过去摧毁（2026-08-14 v2）
+- **需求变更**：去掉「拖拽到宠物身上」；改为托盘菜单「摧毁文件…」→ 文件选择框选文件 → 全屏引导层「点一下文件在屏幕上的位置」（十字准星，Esc 取消）→ 宠物长途跑过去 → listen 确认 → fight 摧毁 → wave 庆祝。
+- **入口**：`tray.py` 新增 `_destroy_file_action` → `destroy_show.begin_destroy_flow(pet, pet)`（QFileDialog 多选 → `_TargetOverlay` 全屏半透明引导层取坐标 → `start_destroy_show_at(pet, paths, pos)`）。
+- **长途走位**：`QPropertyAnimation(pos)` 平滑移动（时长按距离 0.8s~4s，OutQuad），停在目标侧边。关键：走路动作自带逐帧位移（update_position）会与属性动画叠加导致走过头——**冻结该动作的 moveSpeed**（`pet._state_config[state]["moveSpeed"]=0`，caller 侧临时调整，确认阶段恢复；`_UNSET` 哨兵区分原本未设置）。
+- **「删除失败」bug 修复**：根因是 send2trash 现代（IFileOperation）/legacy 两条路都可能失败，且旧代码静默吞异常。现 `_trash_one` 双保险：send2trash → 回退 PowerShell（Microsoft.VisualBasic FileSystem DeleteFile，SendToRecycleBin）；每步成败 + 完整 traceback 打印控制台（`[Peko 摧毁]` 前缀）；失败气泡带简要原因。注意：WorkBuddy 沙箱 shim 会拦截删除（SAFE_DELETE_FAIL_CLOSED），从 WorkBuddy 终端启动的桌宠删除必失败——属环境拦截，气泡会提示「请从普通终端启动桌宠再试」。
+- **测试**：`test_destroy_show.py` 改为新 API（`start_destroy_show_at` + 坐标），真实删除换成可确定的桩（os.remove），断言走位方向/停点（含屏幕钳制）/取消保留/无 fight 婉拒；新增 `_trash_one` 不存在文件分支。全套 38 例系统 Python 全绿。离屏虚拟屏较小会触发停点钳制，断言须复刻钳制公式。
+
+### 动画删除 v3：狙击点选文件（2026-08-14）
+- **需求**：不要文件对话框、不要屏幕变暗；红色准星 + 直接点击桌面/文件夹里的文件图标即选中（参考 MonsterDeleter 的狙击体验，但保留桌面可见性）。
+- **新增 `peko/core/file_picker.py`**（点坐标 → 真实文件路径）：
+  - `uiautomation.ControlFromPoint` 取点击处控件，向上找最近的有名字控件（优先 ListItem）作显示名；
+  - `WindowFromPoint` + `GetAncestor(GA_ROOT)` 定位资源管理器顶层窗口，`Shell.Application` 取该窗口文件夹路径；点在桌面则搜 用户/公共 Desktop；
+  - `match_name_in_folder` 两级匹配（全名 → 去扩展名，兼容「隐藏扩展名」设置）。
+- **`_TargetOverlay` 改透明狙击层**：不变暗，仅顶部提示条 + 红色准星光标（QPixmap 手绘圆环+十字，参考 MonsterDeleter）。点击后**先 hide 遮罩再延迟 150ms 识别**（否则 ControlFromPoint 命中遮罩自己）。认不出 → 气泡提示 + 遮罩重开可再点，Esc 取消。
+- **依赖**：requirements.txt 加 `uiautomation`（已装系统 Python 2.0.29）、`pywin32`。
+- **测试**：新增 `FilePickerTests`（名称匹配纯函数：全名/去扩展名/大小写/不存在），managed Python 可跑；全套 39 例系统 Python 全绿，managed 36 例（1 个历史 test_main PyQt5 报错 + 4 个 Qt 守卫跳过）。UIA 识别部分需真实桌面，手动测试。
+
+### 动画删除 v3.1：真机反馈修复（2026-08-14）
+- **Esc 无法取消**：Tool 窗默认无键盘焦点 → `showEvent` 里 `activateWindow + setFocus + grabKeyboard`（hideEvent 释放），并补「右键=取消」兜底。
+- **准星只在提示条范围生效**：双根因——(1) 全透明（alpha=0）区域在 Windows 上光标/点击穿透到下层 → 全屏刷 `QColor(0,0,0,1)` 不可见底色；(2) `primaryScreen().geometry()` 只盖主屏（用户双屏）→ 改 `QApplication.desktop().geometry()` 覆盖整个虚拟桌面；提示条居中于主屏。
+- **摧毁动画延长到 3s**：fight 循环 3s（`DESTROY_DURATION_MS=3000`），命中点 `DESTROY_STRIKE_MS=1650`（浮字+删除）。
+- **摧毁后跑回右下角**：新增 `_phase_walk_home`（老家坐标与 init_ui 一致：screen-width-20 / height-50），庆祝后走回再收场；取消也走回家。
+- **重构**：走位抽成 `_walk_to(x, y, on_done)`（冻结 moveSpeed + 属性动画），`_frozen_speeds` 改 dict 支持多次走位。
+- 测试：终态断言改为「回到右下角 + moveSpeed 已恢复」，超时放宽到 14s；全套 39 例系统 Python 全绿。

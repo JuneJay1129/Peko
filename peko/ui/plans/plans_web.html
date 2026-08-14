@@ -815,7 +815,9 @@
   }
   function toggleHabitDate(id, date){
     var h = STATE.habits.find(function(x){ return x.id===id; }); if(!h) return;
+    var checked = !h.records[date];
     if (h.records[date]) delete h.records[date]; else h.records[date]=1;
+    if (checked) notifyCompletion("habit", h.title);
     persistHabits(); renderHabits(); renderFocus(); toast(date===today()?(h.records[date]?"已打卡":"已取消打卡"):"已更新");
   }
   function removeHabit(id){
@@ -889,6 +891,7 @@
   function logFocus(min, label){
     STATE.focusLog.push({id:uid(), minutes:min, label:label||"", date:today(), created_at:today()});
     persistFocus(); renderFocusList(); renderFocusToday(); toast("已记录 "+min+" 分钟专注");
+    notifyCompletion("focus", label||("专注 "+min+" 分钟"));
   }
   function startTimer(){
     if (TIMER.running) { pauseTimer(); return; }
@@ -933,13 +936,25 @@
   }
 
   // ---------- 完成 / 打卡 ----------
+  // B3：完成动作 → 通知桌宠（http 走本地服务 /api/event；bridge 走内嵌 WebChannel）
+  function notifyCompletion(kind, label){
+    try{
+      if (MODE==="http"){
+        fetch("/api/event",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind,label:label||""})}).catch(function(){});
+      } else if (MODE==="bridge" && BRIDGE && typeof BRIDGE.recordEvent==="function"){
+        BRIDGE.recordEvent(kind, label||"");
+      }
+    }catch(e){}
+  }
   function markDone(type,id){
     if (type==="plan"){
       var p = STATE.plans.find(function(x){return x.id===id;}); if(!p) return;
       p.status = p.status==="done"?"pending":"done"; p.done_at = p.status==="done"?today():null; p.updated_at=today(); persistPlans();
+      if (p.status==="done") notifyCompletion("plan", p.title);
     } else if (type==="todo"){
       var t = STATE.todos.find(function(x){return x.id===id;}); if(!t) return;
       t.status = t.status==="done"?"pending":"done"; t.done_at = t.status==="done"?today():null; persistTodos();
+      if (t.status==="done") notifyCompletion("todo", t.title);
     } else if (type==="habit"){
       toggleHabitDate(id, today()); return;
     }

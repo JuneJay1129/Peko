@@ -68,6 +68,15 @@ class _Handler(BaseHTTPRequestHandler):
             return None
         return data if isinstance(data, list) else None
 
+    def _read_object(self) -> Optional[dict]:
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        raw = self.rfile.read(length) if length else b"{}"
+        try:
+            data = json.loads(raw or b"{}")
+        except (ValueError, TypeError):
+            return None
+        return data if isinstance(data, dict) else None
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path in ("/", "/index.html", "/plans_web.html"):
@@ -91,6 +100,18 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        # B3：工作台「完成事件」→ 桌宠反馈（靠谱值 + 情绪/动画气泡）。
+        if path == "/api/event":
+            body = self._read_object()
+            if body is None:
+                self._send_json({"error": "expect object"}, 400)
+                return
+            kind = str(body.get("kind") or "task")
+            label = str(body.get("label") or "")
+            from .pet_link import notify_completion
+            total = notify_completion(kind, label)
+            self._send_json({"ok": True, "total": total})
+            return
         if path in ("/api/plans", "/api/todos", "/api/habits", "/api/ledger", "/api/review", "/api/focus"):
             data = self._read_body()
             if data is None:

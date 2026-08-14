@@ -43,6 +43,21 @@ CONTENT_STYLE = """
     QPushButton#sendBtn:hover {
         background-color: #45A049;
     }
+    QPushButton#quickBtn {
+        font-size: 12px;
+        background-color: #E8F5E9;
+        color: #2E7D32;
+        border: 1px solid #4CAF50;
+        border-radius: 8px;
+        padding: 3px 10px;
+    }
+    QPushButton#quickBtn:hover {
+        background-color: #C8E6C9;
+    }
+    QLabel#hintLabel {
+        font-size: 11px;
+        color: #888888;
+    }
     QPushButton#closeBtn {
         font-size: 16px;
         font-weight: 300;
@@ -59,6 +74,18 @@ CONTENT_STYLE = """
         color: #333;
     }
 """
+
+
+# 快捷指令模板：(按钮名, 模板文本, 选中起点, 选中长度)。模板与 nl_intent 的识别句式一一对应，
+# 选中区即用户要改的「关键字段」——选中后直接 typing 即替换。
+# 记账拆成「记支出 / 记收入」两个按钮，模板带「支出/收入」字样，类型一目了然；
+# nl_intent 会按该词自动判定 kind，且不会把「支出/收入」写进标题。
+QUICK_COMMANDS = [
+    ("记支出", "记一笔 支出 午饭 38", 7, 5),      # 选中「午饭 38」
+    ("记收入", "记一笔 收入 兼职 500", 7, 6),     # 选中「兼职 500」
+    ("待办", "提醒我 17:00 交周报", 4, 9),         # 选中「17:00 交周报」
+    ("专注", "开始专注 25 分钟", 5, 2),           # 选中「25」
+]
 
 
 class InputDialog(QDialog):
@@ -95,11 +122,31 @@ class InputDialog(QDialog):
         header_layout.addWidget(close_btn)
         main_layout.addLayout(header_layout)
 
+        # 快捷指令按钮：点击自动填入模板并选中关键字段，用户改几个字即可（全程非 AI）
+        quick_layout = QHBoxLayout()
+        quick_layout.setSpacing(6)
+        for label, template, sel_start, sel_len in QUICK_COMMANDS:
+            btn = QPushButton(label, self)
+            btn.setObjectName("quickBtn")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(
+                lambda checked=False, t=template, s=sel_start, n=sel_len: self.fill_template(t, s, n)
+            )
+            quick_layout.addWidget(btn)
+        quick_layout.addStretch()
+        main_layout.addLayout(quick_layout)
+
         # 输入框
         self.input_field = QLineEdit(self)
-        self.input_field.setPlaceholderText("请输入想说的话...")
+        self.input_field.setPlaceholderText("想说的话，或点上方按钮快速记录...")
         self.input_field.setFocusPolicy(Qt.ClickFocus)
         main_layout.addWidget(self.input_field)
+
+        # 用法提示（非 AI 引导）
+        hint_label = QLabel("点快捷按钮填模板，改选中部分即可；手动输入也行：记一笔 支出 午饭 38 / 记一笔 收入 兼职 500")
+        hint_label.setObjectName("hintLabel")
+        hint_label.setWordWrap(True)
+        main_layout.addWidget(hint_label)
 
         # 发送按钮
         btn_layout = QHBoxLayout()
@@ -117,7 +164,13 @@ class InputDialog(QDialog):
         outer.addWidget(container)
 
         # 与气泡一致：气泡 max_width 200，对话框略大以容纳输入框和按钮
-        self.setFixedSize(260, 160)
+        self.setFixedSize(320, 230)
+
+    def fill_template(self, template: str, sel_start: int, sel_len: int) -> None:
+        """快捷按钮：填入模板并选中关键字段，用户直接 typing 即替换。"""
+        self.input_field.setText(template)
+        self.input_field.setFocus()
+        self.input_field.setSelection(sel_start, sel_len)
 
     def submit_text(self, on_submit):
         """

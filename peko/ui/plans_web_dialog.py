@@ -95,6 +95,15 @@ class PlanBridge(QObject):
         self.store.replace_todos(data)
         self.dataChanged.emit(self.store.to_json_todos())
 
+    @pyqtSlot(str, str)
+    def recordEvent(self, kind: str, label: str) -> None:
+        """B3：内嵌「计划台」里的完成动作 → 桌宠反馈（靠谱值 + 情绪/动画气泡）。"""
+        try:
+            from .pet_link import notify_completion
+            notify_completion(kind, label)
+        except Exception:
+            pass
+
 
 class PlansWebDialog(QDialog):
     """内嵌 Web 工作台的窗口。"""
