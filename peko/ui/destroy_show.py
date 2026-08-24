@@ -1,11 +1,11 @@
 """
 摧毁表演：托盘「摧毁文件…」→ 选文件 → 点一下文件在屏幕上的位置 → 宠物跑过去
-→ listen 确认 → fight 出拳 → 砰！→ 回收站 → wave 庆祝。
+→ listen 确认 → smash 砸烂 → 砰！→ 回收站 → wave 庆祝。
 
-- 仅对拥有 fight 动作的宠物开放（BB）；无 fight 动作的宠物气泡婉拒，不删除。
+- 仅对拥有 smash 动作的宠物开放（BB）；无 smash 动作的宠物气泡婉拒，不删除。
 - 删除优先 send2trash，失败回退 PowerShell（VisualBasic FileSystem，进回收站）；
   全程有确认，真实错误写入日志并在气泡给出简要原因。
-- 五阶段：walk 长途跑过去 → listen 确认 → fight 摧毁（命中瞬间浮字「砰！」+ 删文件）
+- 五阶段：walk 长途跑过去 → listen 确认 → smash 砸烂（命中瞬间浮字「砰！」+ 删文件）
   → wave 庆祝 → stand 收场。
 - 全部为调用侧编排：直接操作 pet 的 current_state / 定时器（与 actions/control.py 同约定），
   不改公共动作逻辑。
@@ -17,7 +17,7 @@ import subprocess
 import traceback
 from typing import Callable, List, Optional
 
-from PyQt5.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QRect, Qt, QTimer, pyqtProperty, pyqtSignal
 from PyQt5.QtGui import QColor, QCursor, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QApplication,
@@ -31,14 +31,20 @@ from PyQt5.QtWidgets import (
 )
 
 STATE_CONFIRM = "listen"      # 确认：竖耳倾听
-STATE_ATTACK = "fight"        # 摧毁：出拳
+STATE_ATTACK = "smash"        # 摧毁：砸烂（攻击文件动作素材）
 STATE_CELEBRATE = "wave"      # 庆祝：挥手
 WALK_MIN_MS = 800             # 跑向目标的最短时长
 WALK_MAX_MS = 4000            # 跑向目标的最长时长
-DESTROY_DURATION_MS = 3000    # 摧毁（出拳）动画总时长
-DESTROY_STRIKE_MS = 1650      # 出拳「命中」时刻（浮字+删除）
+DESTROY_DURATION_MS = 3000    # 摧毁（砸烂）动画总时长
+DESTROY_STRIKE_MS = 1650      # 砸烂「命中」时刻（浮字+删除）
+CELEBRATE_DURATION_MS = 2500  # 庆祝（挥手）时长
 
 _UNSET = object()             # 哨兵：标记动作原本未单独设置 moveSpeed
+
+# 狙击遮罩的半透明背景图（大脸.png，攻击文件动作素材）。
+# 缺失时回退为 alpha=1 的不可见底色，保证功能仍可用。
+_BG_IMAGE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "大脸.png")
+_OVERLAY_BG_OPACITY = 0.6      # 背景图不透明度 0~1：越大越不透明（仍透出桌面图标）
 
 _CONTAINER_STYLE = """
     QFrame#destroyContainer {
@@ -129,7 +135,7 @@ def _trash_one(path: str) -> Optional[str]:
 
 
 class _TargetOverlay(QWidget):
-    """全屏透明狙击层：不变暗，红色准星 + 顶部提示条，点哪就识别哪个文件（Esc 取消）。"""
+    """全屏狙击层：半透明大脸背景 + 红色准星 + 顶部提示条，点哪就识别哪个文件（Esc 取消）。"""
 
     picked = pyqtSignal(QPoint)
     cancelled = pyqtSignal()
@@ -142,6 +148,13 @@ class _TargetOverlay(QWidget):
         # 覆盖整个虚拟桌面（多屏），而非仅主屏
         self.setGeometry(QApplication.desktop().geometry())
         self.setCursor(self._make_crosshair_cursor())
+        # 预加载半透明背景图；为空则回退到不可见底色
+        self._bg = QPixmap(_BG_IMAGE_PATH)
+        self._bg_ok = not self._bg.isNull()
+        # 淡入淡出状态：当前背景不透明度 + 动画对象 + 防重入标记
+        self._bg_opacity = 0.0
+        self._fade_anim: Optional[QPropertyAnimation] = None
+        self._fading_out = False
 
     @staticmethod
     def _make_crosshair_cursor():
@@ -164,16 +177,65 @@ class _TargetOverlay(QWidget):
         painter.end()
         return QCursor(pixmap, center, center)
 
+    # ----- 背景图淡入淡出 -----
+    def get_bg_opacity(self) -> float:
+        return self._bg_opacity
+
+    @pyqtProperty(float)
+    def bgOpacity(self) -> float:
+        return self._bg_opacity
+
+    @bgOpacity.setter
+    def bgOpacity(self, value: float) -> None:
+        self._bg_opacity = float(value)
+        self.update()
+
+    def _fade_in(self) -> None:
+        anim = QPropertyAnimation(self, b"bgOpacity", self)
+        anim.setDuration(350)
+        anim.setStartValue(0.0)
+        anim.setEndValue(_OVERLAY_BG_OPACITY)
+        anim.setEasingCurve(QEasingCurve.OutQuad)
+        self._fade_anim = anim
+        anim.start()
+
+    def _fade_out(self, on_done: Callable[[], None]) -> None:
+        if self._fading_out:
+            return
+        self._fading_out = True
+        anim = QPropertyAnimation(self, b"bgOpacity", self)
+        anim.setDuration(250)
+        anim.setStartValue(self._bg_opacity)
+        anim.setEndValue(0.0)
+        anim.setEasingCurve(QEasingCurve.InQuad)
+        self._fade_anim = anim
+        anim.finished.connect(on_done)
+        anim.start()
+
     def set_hint(self, hint: str) -> None:
         self._hint = hint
         self.update()
 
     def paintEvent(self, event) -> None:
-        # 全屏刷一层 alpha=1 的不可见底色：完全透明（alpha=0）的区域在 Windows 上会
-        # 穿透（光标与点击落到下层窗口），alpha=1 肉眼不可见但能让准星/点击全屏生效。
+        # 基础底色：alpha=1 近乎透明，但能让窗口在全屏「实体化」，
+        # 避免完全透明的区域在 Windows 上穿透（光标/点击落到下层窗口）。
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 1))
+        # 半透明大脸背景图：contain 完整显示（KeepAspectRatio 等比缩到能整个放进主屏，
+        # 不裁切、不变形），居中于主屏（虚拟桌面坐标 -> 本地坐标）。副屏仅保留不可见底色。
+        if self._bg_ok and self._bg_opacity > 0:
+            painter.setOpacity(self._bg_opacity)
+            virt = self.geometry()
+            pg = QApplication.primaryScreen().geometry()
+            local_pg = QRect(pg.x() - virt.x(), pg.y() - virt.y(), pg.width(), pg.height())
+            scaled = self._bg.scaled(
+                local_pg.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            x = local_pg.x() + (local_pg.width() - scaled.width()) // 2
+            y = local_pg.y() + (local_pg.height() - scaled.height()) // 2
+            painter.drawPixmap(x, y, scaled)
+            painter.setOpacity(1.0)
         # 顶部提示条（居中于主屏）
         bar_w, bar_h = 460, 46
         virt = self.geometry()
@@ -196,6 +258,8 @@ class _TargetOverlay(QWidget):
         self.activateWindow()
         self.setFocus(Qt.ActiveWindowFocusReason)
         self.grabKeyboard()
+        # 背景图淡入
+        self._fade_in()
 
     def hideEvent(self, event) -> None:
         self.releaseKeyboard()
@@ -203,18 +267,20 @@ class _TargetOverlay(QWidget):
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
+            if self._fading_out:
+                return
             pos = event.globalPos()
-            self.hide()  # 先藏起来再识别，否则 ControlFromPoint 会命中本遮罩
-            self.picked.emit(pos)
+            # 先淡出、再隐藏、最后才发 picked——确保 UIA 识别时遮罩已不存在
+            self._fade_out(lambda: (self.hide(), self.picked.emit(pos)))
         elif event.button() == Qt.RightButton:
             # 右键 = 取消（狙击 UI 惯例，Esc 之外的兜底）
             self.cancelled.emit()
-            self.close()
+            self._fade_out(lambda: self.close())
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key_Escape:
             self.cancelled.emit()
-            self.close()
+            self._fade_out(lambda: self.close())
 
 
 class _ConfirmDialog(QDialog):
@@ -341,16 +407,12 @@ class DestroyShow:
                     cfg["moveSpeed"] = original
         self._frozen_speeds = {}
 
-    # ----- 阶段 1：长途跑到文件边上 -----
+    # ----- 阶段 1：长途跑到文件上方 -----
     def _phase_walk_to_target(self) -> None:
         pet = self.pet
-        go_right = self.target_pos.x() >= pet.x() + pet.width() // 2
-        # 停在目标侧边：从左边来停目标左侧，从右边来停目标右侧
-        if go_right:
-            end_x = self.target_pos.x() - pet.width() - 20
-        else:
-            end_x = self.target_pos.x() + 20
-        end_y = self.target_pos.y() - pet.height() // 2 + 40
+        # 停在文件正上方：水平居中对齐目标，垂直位于其上 25px（贴着文件顶部）
+        end_x = self.target_pos.x() - pet.width() // 2
+        end_y = self.target_pos.y() - pet.height() - 25
         self._walk_to(end_x, end_y, self._phase_confirm)
 
     # ----- 阶段 2：确认 -----
@@ -398,7 +460,7 @@ class DestroyShow:
         if errors:
             print("[Peko 摧毁失败]", self._delete_error)
 
-    # ----- 阶段 4：庆祝 -----
+    # ----- 阶段 4：庆祝（挥手循环 2.5 秒）-----
     def _phase_celebrate(self) -> None:
         pet = self.pet
         if self._deleted_ok:
@@ -410,7 +472,15 @@ class DestroyShow:
             elif len(reason) > 40:
                 reason = reason[:37] + "..."
             pet.update_bubble(f"摧毁失败：{reason}", duration=3600)
-        _play_once(pet, STATE_CELEBRATE, self._phase_walk_home)
+        # wave 动作循环播放 CELEBRATE_DURATION_MS，随后进入回家阶段
+        if pet.animations.get(STATE_CELEBRATE):
+            pet.current_state = STATE_CELEBRATE
+            pet.current_frame_index = 0
+            pet._apply_state_frame_rate()
+            pet.update_frame()
+            QTimer.singleShot(CELEBRATE_DURATION_MS, self._phase_walk_home)
+        else:
+            self._phase_walk_home()
 
     # ----- 阶段 5：跑回桌面右下角（宠物老家）-----
     def _phase_walk_home(self) -> None:

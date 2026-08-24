@@ -154,6 +154,16 @@
       "frameRate": 10,
       "stateSwitchInterval": 3000
     },
+    "smash": {
+      "frames": [
+        "resource/smash/1.png",
+        "resource/smash/2.png",
+        "resource/smash/3.png",
+        "resource/smash/4.png",
+        "resource/smash/5.png"
+      ],
+      "frameRate": 8
+    },
     "listen": {
       "frames": [
         "resource/listen/0.png",
@@ -259,6 +269,7 @@
     "obese": "肥胖",
     "sulk": "赌气",
     "fight": "打架",
+    "smash": "砸烂",
     "listen": "倾听",
     "cooking": "炒饭",
     "lieDown": "躺下",
