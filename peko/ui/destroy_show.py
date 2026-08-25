@@ -410,9 +410,9 @@ class DestroyShow:
     # ----- 阶段 1：长途跑到文件上方 -----
     def _phase_walk_to_target(self) -> None:
         pet = self.pet
-        # 停在文件正上方：水平居中对齐目标，垂直位于其上 25px（贴着文件顶部）
+        # 停在文件正上方：水平居中对齐目标，垂直偏移 -10px（半个身子压在文件上）
         end_x = self.target_pos.x() - pet.width() // 2
-        end_y = self.target_pos.y() - pet.height() - 25
+        end_y = self.target_pos.y() - pet.height() + 10
         self._walk_to(end_x, end_y, self._phase_confirm)
 
     # ----- 阶段 2：确认 -----
