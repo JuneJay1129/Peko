@@ -106,6 +106,7 @@ class TrayIcon:
         self._hide_action = QAction("隐藏桌宠", self.app)
         self._stop_movement_action = QAction("停止移动", self.app, checkable=True)
         self._talk_action = QAction("与宠物对话", self.app)
+        self._weather_action = QAction("天气", self.app)
         self._api_settings_action = QAction("AI 设置", self.app)
         self._params_action = QAction("动作参数", self.app)
         self._plans_web_action = QAction("计划台", self.app)
@@ -119,6 +120,7 @@ class TrayIcon:
         self._hide_action.triggered.connect(self._on_hide_pets)
         self._stop_movement_action.triggered.connect(self.toggle_movement)
         self._talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
+        self._weather_action.triggered.connect(self._on_weather)
         self._api_settings_action.triggered.connect(self._show_api_settings_dialog)
         self._params_action.triggered.connect(self._show_action_params_dialog)
         self._plans_web_action.triggered.connect(self._show_plans_web_dialog)
@@ -139,6 +141,7 @@ class TrayIcon:
         menu.addAction(self._hide_action)
         menu.addAction(self._stop_movement_action)
         menu.addAction(self._talk_action)
+        menu.addAction(self._weather_action)
         menu.addAction(self._api_settings_action)
         menu.addAction(self._params_action)
         menu.addAction(self._plans_web_action)
@@ -199,6 +202,7 @@ class TrayIcon:
         dock.addAction(self._hide_action)
         dock.addAction(self._stop_movement_action)
         dock.addAction(self._talk_action)
+        dock.addAction(self._weather_action)
         dock.addAction(self._api_settings_action)
         dock.addAction(self._params_action)
         dock.addSeparator()
@@ -303,6 +307,13 @@ class TrayIcon:
         from .plans_web_dialog import open_plans_web_browser
         pet = self.pet_holder[0]
         open_plans_web_browser(pet)
+
+    def _on_weather(self):
+        """托盘「天气」：气泡播报当前天气（缓存命中则秒回，否则后台取数）。"""
+        if not self.pet_holder:
+            return
+        from .weather_report import report_weather
+        report_weather(self.pet_holder[0])
 
     def _on_destroy_file(self):
         """摧毁文件：选文件 → 点屏幕位置 → 宠物跑过去表演摧毁（进回收站）。"""

@@ -70,6 +70,7 @@ class DesktopPet(QWidget):
     桌宠窗口。动作与聊天委托给 actions 与 chat 模块。
     """
     bubble_text_ready = pyqtSignal(str, int)  # text, duration；供 chat 模块 emit 后主线程更新气泡
+    bubble_stream_ready = pyqtSignal(str, int)  # text, duration；假流式（打字机）播报，供天气等模块跨线程使用
 
     def __init__(self, pet_package: Dict[str, Any], frame_rate: int = 10):
         super().__init__()
@@ -141,6 +142,7 @@ class DesktopPet(QWidget):
         self.bubble_timer = QTimer(self)
         self.bubble_timer.timeout.connect(self.hide_bubble)
         self.bubble_text_ready.connect(self._on_bubble_text_ready)
+        self.bubble_stream_ready.connect(self._on_bubble_stream_ready)
         self.typing_timer = QTimer(self)
         self.typing_timer.timeout.connect(self.type_next_character)
 
@@ -1008,6 +1010,11 @@ class DesktopPet(QWidget):
     @pyqtSlot(str, int)
     def _on_bubble_text_ready(self, text: str, duration: int):
         self.update_bubble(text, duration=duration)
+
+    @pyqtSlot(str, int)
+    def _on_bubble_stream_ready(self, text: str, duration: int):
+        """假流式播报：调用打字机逐字显示，跨线程安全地更新气泡。"""
+        self.show_bubble(text, duration=duration, typing_speed=50)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.RightButton:

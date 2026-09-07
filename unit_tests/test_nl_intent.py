@@ -64,8 +64,10 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(intent["minutes"], 25)
 
     def test_plain_chat_not_hijacked(self):
-        self.assertIsNone(nl_intent.parse("今天天气怎么样"))
+        # 注：「今天天气怎么样」已改为走天气直答（见 WeatherIntentTests），此处只保留纯闲聊
         self.assertIsNone(nl_intent.parse("你是谁"))
+        self.assertIsNone(nl_intent.parse("今天好累啊"))
+        self.assertIsNone(nl_intent.parse("讲个笑话"))
         self.assertIsNone(nl_intent.parse(""))
         self.assertIsNone(nl_intent.parse("   "))
 
@@ -129,6 +131,105 @@ class ApplyTests(unittest.TestCase):
             msg = nl_intent.apply(intent, store=store)
             self.assertIn("专注", msg)
             self.assertEqual(store.focus_log(), [])  # 不落盘，避免虚增统计
+
+
+class WeatherIntentTests(unittest.TestCase):
+    """天气查询走非 AI 直答；且不劫持待办与闲聊。"""
+
+    def test_weather_phrases(self):
+        for text in ("今天天气怎么样", "外面多少度", "明天会下雨吗", "今天要带伞吗", "气温怎么样"):
+            intent = nl_intent.parse(text)
+            self.assertIsNotNone(intent, text)
+            self.assertEqual(intent["action"], "ask_weather", text)
+
+    def test_todo_with_umbrella_not_hijacked(self):
+        # 「提醒我带伞」是待办，不能被天气抢走（天气规则排在最后匹配）
+        self.assertEqual(nl_intent.parse("提醒我明天带伞")["action"], "add_todo")
+
+    def test_casual_chat_not_hijacked(self):
+        self.assertIsNone(nl_intent.parse("今天好累啊"))
+        self.assertIsNone(nl_intent.parse("跟我说说话"))
+
+
+class SetCityIntentTests(unittest.TestCase):
+    """纠正城市（解决 IP 定位不准）。口语「我在XX」需命中城市表，明确动词直接信任用户。"""
+
+    def test_casual_known_city(self):
+        intent = nl_intent.parse("我在宁波")
+        self.assertIsNotNone(intent)
+        self.assertEqual(intent["action"], "set_city")
+        self.assertEqual(intent["city"], "宁波")
+
+    def test_casual_with_province_suffix(self):
+        intent = nl_intent.parse("我住在杭州市")
+        self.assertEqual(intent["action"], "set_city")
+        self.assertEqual(intent["city"], "杭州")
+
+    def test_explicit_verb_trusted(self):
+        intent = nl_intent.parse("城市改成 深圳")
+        self.assertEqual(intent["action"], "set_city")
+        self.assertEqual(intent["city"], "深圳")
+        intent2 = nl_intent.parse("定位到 成都")
+        self.assertEqual(intent2["action"], "set_city")
+        self.assertEqual(intent2["city"], "成都")
+
+    def test_casual_unknown_not_set(self):
+        # 「我在上班」不是城市 → 不应误设，交给 AI 闲聊
+        self.assertIsNone(nl_intent.parse("我在上班"))
+        # 口语动词命中但非城市（「我在吃饭」）→ 不误设
+        self.assertIsNone(nl_intent.parse("我在吃饭"))
+
+    def test_explicit_unknown_refused(self):
+        # 明确动词但城市表没有 → 仍不强行设置（避免「城市改成 上班」写进配置）
+        self.assertIsNone(nl_intent.parse("城市改成 火星"))
+
+    def test_weather_phrase_not_hijacked_into_set_city(self):
+        # 「宁波下雨吗」含天气词，应走 ask_weather 而非 set_city
+        intent = nl_intent.parse("宁波下雨吗")
+        self.assertEqual(intent["action"], "ask_weather")
+
+
+class AskWeatherCityIntentTests(unittest.TestCase):
+    """显式城市天气查询（「帮我查看xx的天气」）：一次性查该城市，不改默认城市。"""
+
+    def test_verb_led_with_city(self):
+        intent = nl_intent.parse("帮我查看宁波的天气")
+        self.assertEqual(intent["action"], "ask_weather_city")
+        self.assertEqual(intent["city"], "宁波")
+
+    def test_variants(self):
+        cases = {
+            "查一下杭州天气": "杭州",
+            "查看北京天气": "北京",
+            "查深圳的天气": "深圳",
+            "看看成都天气": "成都",
+        }
+        for text, city in cases.items():
+            with self.subTest(text):
+                intent = nl_intent.parse(text)
+                self.assertEqual(intent["action"], "ask_weather_city", text)
+                self.assertEqual(intent["city"], city, text)
+
+    def test_city_first_phrase(self):
+        # 「宁波天气怎么样」也应识别为查询宁波（不带查/看动词的自然说法）
+        intent = nl_intent.parse("宁波天气怎么样")
+        self.assertEqual(intent["action"], "ask_weather_city")
+        self.assertEqual(intent["city"], "宁波")
+
+    def test_non_city_falls_back_to_default(self):
+        # 「帮我查看今天天气」抽到的是时间词，退化为默认城市查询（ask_weather）
+        intent = nl_intent.parse("帮我查看今天天气")
+        self.assertEqual(intent["action"], "ask_weather")
+
+    def test_does_not_hijack_set_city(self):
+        # 口语/明确动词改城市仍走 set_city，不被天气城市查询抢走
+        self.assertEqual(nl_intent.parse("我在宁波")["action"], "set_city")
+        self.assertEqual(nl_intent.parse("城市改成 深圳")["action"], "set_city")
+
+    def test_explicit_unknown_city_refused(self):
+        # 抽不到城市（如「帮我查看天气」缺城市名）→ 退化为默认 ask_weather
+        intent = nl_intent.parse("帮我查看天气")
+        self.assertEqual(intent["action"], "ask_weather")
 
 
 if __name__ == "__main__":

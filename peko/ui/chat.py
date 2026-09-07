@@ -76,6 +76,33 @@ class ChatHandler:
         except Exception:
             intent = None
         if intent is not None:
+            action = intent.get("action")
+            # 天气是只读查询 + 需联网，单独走异步播报，不进工作台写入流程
+            if action == "ask_weather":
+                try:
+                    from .weather_report import report_weather
+                    report_weather(self.pet)
+                except Exception:
+                    pass
+                return
+            # 显式指定城市的一次性查询（「帮我查看xx的天气」），不改默认城市
+            if action == "ask_weather_city":
+                try:
+                    from .weather_report import report_weather
+                    report_weather(self.pet, intent.get("city"))
+                except Exception:
+                    pass
+                return
+            # 纠正城市（IP 定位不准时）：本地写配置 + 打字机确认，不联网、不进工作台写入
+            if action == "set_city":
+                try:
+                    from ..core.weather import WeatherService
+                    svc = WeatherService()
+                    msg = svc.set_city_by_user(intent.get("city") or "")
+                    self.pet.bubble_stream_ready.emit(msg, REPLY_BUBBLE_DURATION_MS)
+                except Exception:
+                    self.pet.bubble_text_ready.emit("唔…城市没记住，等会儿再试试～", REPLY_BUBBLE_DURATION_MS)
+                return
             self._handle_workspace_intent(intent)
             return
         # 像命令但没写全（如「记一笔」缺金额）→ 给用法提示，不走 AI

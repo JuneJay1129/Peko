@@ -5,6 +5,8 @@
 config/api.json
 config/secrets.json
 config/mood_state.json
+# 天气模块：IP 定位后记住的城市（运行时生成），不提交
+config/weather.json
 *.pyc
 __pycache__/
 .idea/
