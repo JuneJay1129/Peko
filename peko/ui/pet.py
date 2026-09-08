@@ -10,7 +10,10 @@ from typing import Any, Dict, Optional, Tuple
 
 from PyQt5.QtCore import Qt, QTimer, pyqtSlot, pyqtSignal, QDateTime, QRect, QPoint, QPropertyAnimation, QParallelAnimationGroup, QEasingCurve
 from PyQt5.QtGui import QPixmap, QFont
-from PyQt5.QtWidgets import QLabel, QWidget, QApplication, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import (
+    QLabel, QWidget, QApplication, QGraphicsOpacityEffect, QFrame,
+    QVBoxLayout, QHBoxLayout, QGridLayout, QLineEdit, QPushButton,
+)
 
 from ..core.mood import MoodEngine
 from .actions import (
@@ -24,6 +27,90 @@ from .actions import (
 # 动作「控制窗口」：走向屏幕四角后对前台窗口最小化/最大化（仅 Windows）
 WINDOW_CONTROL_STATE = "window_control"
 WINDOW_CONTROL_REACH_THRESHOLD = 25
+
+
+def _bubble_action_qss() -> str:
+    """气泡内安慰对话的选项按钮 / 输入框样式（跟随主题 UI 色板）。"""
+    try:
+        from ..core import appearance as appearance_mod
+        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
+    except Exception:
+        ui = {"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574", "accent_hover": "#b59668",
+              "ink": "#4a3f35", "ink_soft": "#9a8f7f", "border": "#e8dcc4"}
+    return f"""
+    QPushButton {{
+        background-color: {ui['card']};
+        border: 1.5px solid {ui['border']};
+        border-radius: 10px;
+        padding: 11px 14px;
+        color: {ui['ink']};
+        font-size: 14px;
+        font-weight: 600;
+    }}
+    QPushButton:hover {{ background-color: {ui['bg']}; border-color: {ui['accent']}; }}
+    QPushButton:pressed {{ background-color: {ui['border']}; }}
+    QLineEdit {{
+        background-color: {ui['card']};
+        border: 1.5px solid {ui['border']};
+        border-radius: 10px;
+        padding: 9px 12px;
+        color: {ui['ink']};
+        font-size: 13px;
+        selection-background-color: {ui['accent']};
+    }}
+    QLineEdit:focus {{ border-color: {ui['accent']}; }}
+"""
+
+
+def _side_panel_style() -> str:
+    """安慰对话侧面操作面板样式：圆角容器 + 选项按钮 + 输入框（跟随主题）。"""
+    try:
+        from ..core import appearance as appearance_mod
+        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
+    except Exception:
+        ui = {"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574", "accent_hover": "#b59668",
+              "ink": "#4a3f35", "ink_soft": "#9a8f7f", "border": "#e8dcc4"}
+    return f"""
+    QFrame#sidePanel {{
+        background-color: {ui['bg']};
+        border: 1.5px solid {ui['border']};
+        border-radius: 14px;
+    }}
+    QLabel#sideHint {{
+        color: {ui['ink_soft']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QPushButton#sideClose {{
+        background: transparent;
+        border: none;
+        color: {ui['ink_soft']};
+        font-size: 16px;
+        padding: 0 4px;
+    }}
+    QPushButton#sideClose:hover {{ color: #b0554c; }}
+    QPushButton {{
+        background-color: {ui['card']};
+        border: 1.5px solid {ui['border']};
+        border-radius: 10px;
+        padding: 11px 14px;
+        color: {ui['ink']};
+        font-size: 14px;
+        font-weight: 600;
+    }}
+    QPushButton:hover {{ background-color: {ui['bg']}; border-color: {ui['accent']}; }}
+    QPushButton:pressed {{ background-color: {ui['border']}; }}
+    QLineEdit {{
+        background-color: {ui['card']};
+        border: 1.5px solid {ui['border']};
+        border-radius: 10px;
+        padding: 9px 12px;
+        color: {ui['ink']};
+        font-size: 13px;
+        selection-background-color: {ui['accent']};
+    }}
+    QLineEdit:focus {{ border-color: {ui['accent']}; }}
+"""
 
 
 def _default_bubble_style() -> str:
@@ -71,6 +158,7 @@ class DesktopPet(QWidget):
     """
     bubble_text_ready = pyqtSignal(str, int)  # text, duration；供 chat 模块 emit 后主线程更新气泡
     bubble_stream_ready = pyqtSignal(str, int)  # text, duration；假流式（打字机）播报，供天气等模块跨线程使用
+    comfort_turn_ready = pyqtSignal(object)  # 安慰对话轮次（dict），后台 AI 生成后主线程展示
 
     def __init__(self, pet_package: Dict[str, Any], frame_rate: int = 10):
         super().__init__()
@@ -145,6 +233,7 @@ class DesktopPet(QWidget):
         self.bubble_stream_ready.connect(self._on_bubble_stream_ready)
         self.typing_timer = QTimer(self)
         self.typing_timer.timeout.connect(self.type_next_character)
+        self.comfort_turn_ready.connect(self._on_comfort_turn_ready)
 
         from .chat import ChatHandler
         self._chat = ChatHandler(self)
@@ -171,6 +260,8 @@ class DesktopPet(QWidget):
         self._sayings_timer = QTimer(self)
         self._sayings_timer.setSingleShot(True)
         self._sayings_timer.timeout.connect(self._on_sayings_tick)
+        # 主动关心：距上次至少 CARE_MIN_INTERVAL_MS，且每次 sayings tick 以低概率触发
+        self._last_care_ts = 0.0
         if self._sayings_enabled:
             self._schedule_next_saying(initial_delay=True)
 
@@ -277,18 +368,82 @@ class DesktopPet(QWidget):
                 Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
             )
         self.bubble_window.setAttribute(Qt.WA_TranslucentBackground, True)
+        # 气泡内布局：文本 + 安慰对话选项区 + 自由输入行
+        self._bubble_v = QVBoxLayout(self.bubble_window)
+        self._bubble_v.setContentsMargins(0, 0, 0, 0)
+        self._bubble_v.setSpacing(6)
+
         self.bubble_label = QLabel(self.bubble_window)
-        self.bubble_label.setStyleSheet(_bubble_style_from_config(self.bubble_style_config))
+        # 外观主题：读取持久化的主题（'pet' 用宠物自带样式，其余用预置主题）
+        try:
+            from ..core import appearance as appearance_mod
+            theme = appearance_mod.get_theme()
+            style_cfg = appearance_mod.get_bubble_style(theme)
+        except Exception:
+            style_cfg = None
+        if not style_cfg:
+            style_cfg = self.bubble_style_config
+        self.bubble_label.setStyleSheet(_bubble_style_from_config(style_cfg))
         font = QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14)
         font.setBold(True)
         self.bubble_label.setFont(font)
         self.bubble_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.bubble_label.setWordWrap(True)
         self.bubble_label.setContentsMargins(12, 12, 12, 12)
-        self.bubble_label.setVisible(True)
-        self.bubble_label.resize(200, 100)
-        self.bubble_label.move(0, 0)
-        self.bubble_window.resize(200, 100)
+        self.bubble_label.setFixedWidth(200)
+        self._bubble_v.addWidget(self.bubble_label)
+        self.bubble_window.setStyleSheet(_bubble_action_qss())
+
+        # 安慰对话侧面操作面板（选项按钮 + 自由输入，显示在宠物侧边）
+        self._side_panel = QWidget(
+            None, Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
+        )
+        self._side_panel.setAttribute(Qt.WA_TranslucentBackground)
+        self._side_panel.setStyleSheet(_side_panel_style())
+        sp_outer = QVBoxLayout(self._side_panel)
+        sp_outer.setContentsMargins(0, 0, 0, 0)
+        sp_frame = QFrame(self._side_panel)
+        sp_frame.setObjectName("sidePanel")
+        sp_outer.addWidget(sp_frame)
+        fv = QVBoxLayout(sp_frame)
+        fv.setContentsMargins(14, 12, 14, 12)
+        fv.setSpacing(8)
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(8)
+        hint = QLabel("怎么回它？", self._side_panel)
+        hint.setObjectName("sideHint")
+        header.addWidget(hint)
+        header.addStretch(1)
+        self._side_close_btn = QPushButton("×", self._side_panel)
+        self._side_close_btn.setObjectName("sideClose")
+        self._side_close_btn.setCursor(Qt.PointingHandCursor)
+        self._side_close_btn.clicked.connect(self.close_comfort_dialog)
+        header.addWidget(self._side_close_btn)
+        fv.addLayout(header)
+        self._side_opt_grid = QGridLayout()
+        self._side_opt_grid.setHorizontalSpacing(8)
+        self._side_opt_grid.setVerticalSpacing(6)
+        fv.addLayout(self._side_opt_grid)
+        self._side_inp_row = QHBoxLayout()
+        self._side_inp_row.setSpacing(6)
+        self._side_inp_edit = QLineEdit(self._side_panel)
+        self._side_inp_edit.setPlaceholderText("自己说点什么…")
+        self._side_inp_edit.returnPressed.connect(self._bubble_send)
+        self._side_inp_send = QPushButton("发送", self._side_panel)
+        self._side_inp_send.setCursor(Qt.PointingHandCursor)
+        self._side_inp_send.clicked.connect(self._bubble_send)
+        self._side_inp_row.addWidget(self._side_inp_edit, 1)
+        self._side_inp_row.addWidget(self._side_inp_send)
+        fv.addLayout(self._side_inp_row)
+        self._side_panel.hide()
+        self._side_follow_timer = QTimer(self)
+        self._side_follow_timer.setInterval(250)
+        self._side_follow_timer.timeout.connect(self._position_side_panel)
+
+        self._comfort_session = None
+        self._comfort_busy = False
+        self._comfort_ai_mode = False
         self.bubble_window.setVisible(False)
 
         self.update_frame()
@@ -632,6 +787,31 @@ class DesktopPet(QWidget):
             self.update_frame()
         self._pause_auto_for_interaction(outcome.hold_ms)
 
+    def apply_bubble_theme(self, name: str = "") -> None:
+        """应用气泡主题：''/'pet' 用宠物自带样式，其余用预置主题（见 core.appearance）。"""
+        try:
+            from ..core import appearance as appearance_mod
+            style_cfg = appearance_mod.get_bubble_style(name) if name else None
+        except Exception:
+            style_cfg = None
+        if style_cfg is None:
+            style_cfg = self.bubble_style_config
+        self.bubble_label.setStyleSheet(_bubble_style_from_config(style_cfg))
+
+    def comfort(self, text: str = "") -> None:
+        """安慰打气：驱动情绪/动作/浮字（mood.comfort 互动），再显示安慰文案。
+
+        text 为空时用内置语库生成；由 chat 层传入 AI 个性化结果（可选）。
+        """
+        try:
+            self.apply_mood_interaction("comfort")
+        except Exception:
+            pass
+        if not (text or "").strip():
+            from ..core import comfort as comfort_lib
+            text = comfort_lib.build_comfort_text()
+        self.update_bubble(text, duration=4200)
+
     def _on_workspace_completed(self, kind: str, label: str, total: int) -> None:
         """B3：工作台完成事件 → 桌宠即时反馈（情绪 + 动画 + 靠谱值气泡）。
 
@@ -844,38 +1024,212 @@ class DesktopPet(QWidget):
         bx = max(0, min(bx, screen.width() - bw))
         self.bubble_window.move(bx, by)
 
+    # ---------- 安慰对话（头顶气泡 + 侧面操作面板） ----------
+    def _set_bubble_dialog(self, on: bool) -> None:
+        """切换气泡为「安慰对话模式」：气泡放宽以容纳多行文本。"""
+        self.bubble_label.setFixedWidth(340 if on else 200)
+
+    def refresh_theme(self, theme: str = "") -> None:
+        """外观主题切换后刷新气泡与侧面操作面板配色。"""
+        try:
+            if theme:
+                self.apply_bubble_theme(theme)
+            else:
+                from ..core import appearance as appearance_mod
+                self.apply_bubble_theme(appearance_mod.get_theme())
+            self._side_panel.setStyleSheet(_side_panel_style())
+        except Exception:
+            pass
+
+    def close_comfort_dialog(self) -> None:
+        """结束安慰对话：收起侧面操作面板与气泡。"""
+        self._comfort_session = None
+        self._comfort_busy = False
+        self._stop_side_follow()
+        self._side_panel.hide()
+        self._set_bubble_dialog(False)
+        self.bubble_window.hide()
+        self.bubble_timer.stop()
+        self.typing_timer.stop()
+
+    def start_comfort_dialog(self, initial_hint: str = "") -> None:
+        """用桌宠气泡开启引导式安慰对话（无 AI 也能用）。"""
+        try:
+            from ..ai.service import validate_ai_config
+            self._comfort_ai_mode = bool(validate_ai_config())
+        except Exception:
+            self._comfort_ai_mode = False
+        self.refresh_theme()
+        from ..core.comfort import ComfortSession
+        self._comfort_session = ComfortSession()
+        self._comfort_busy = False
+        turn = self._comfort_session.start()
+        hint = (initial_hint or "").strip()
+        if hint:
+            turn = self._comfort_session.respond(hint)
+        self._bubble_show_turn(turn)
+
+    def _bubble_show_turn(self, turn: dict) -> None:
+        """渲染安慰对话的一轮：气泡显示文本，侧面面板显示选项与输入。"""
+        if not self._comfort_session:
+            return
+        self._set_bubble_dialog(True)
+        self.bubble_label.setVisible(True)
+        self.bubble_label.setText(turn.get("text") or "")
+        self._side_render_options(turn.get("options") or [])
+        self.bubble_timer.stop()
+        if turn.get("finished"):
+            self._side_inp_edit.setEnabled(False)
+            self._side_panel.show()
+            self._position_side_panel()
+            self._stop_side_follow()
+            self.bubble_window.adjustSize()
+            self.bubble_window.setVisible(True)
+            self._position_bubble_window()
+            QTimer.singleShot(2800, self.hide_bubble)
+            return
+        self._side_inp_edit.setEnabled(True)
+        self._side_panel.show()
+        self._position_side_panel()
+        self._start_side_follow()
+        self.bubble_window.adjustSize()
+        self.bubble_window.setVisible(True)
+        self._position_bubble_window()
+        # 兜底：对话进行中气泡常驻（20s 无操作才隐藏，防异常卡死）
+        self.bubble_timer.start(20000)
+
+    def _side_render_options(self, options) -> None:
+        while self._side_opt_grid.count():
+            item = self._side_opt_grid.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+        for idx, opt in enumerate(options):
+            btn = QPushButton(opt.get("label", ""), self._side_panel)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda _=False, oid=opt.get("id"): self._bubble_option(oid))
+            self._side_opt_grid.addWidget(btn, idx // 2, idx % 2)
+
+    def _position_side_panel(self) -> None:
+        """将侧面操作面板定位到宠物右侧（超屏放左侧），垂直居中。"""
+        if not self._side_panel.isVisible():
+            return
+        try:
+            pet_global = self.mapToGlobal(self.rect().topLeft())
+            screen = QApplication.desktop().screenGeometry()
+            pw, ph = self.width(), self.height()
+            self._side_panel.adjustSize()
+            sw, sh = self._side_panel.width(), self._side_panel.height()
+            right_x = pet_global.x() + pw + 14
+            left_x = pet_global.x() - sw - 14
+            if right_x + sw <= screen.right():
+                x = right_x
+            elif left_x >= screen.left():
+                x = left_x
+            else:
+                x = max(screen.left(), min(right_x, screen.right() - sw))
+            y = pet_global.y() + (ph - sh) // 2
+            y = max(screen.top(), min(y, screen.bottom() - sh))
+            self._side_panel.move(x, y)
+        except Exception:
+            pass
+
+    def _start_side_follow(self) -> None:
+        try:
+            self._side_follow_timer.start()
+        except Exception:
+            pass
+
+    def _stop_side_follow(self) -> None:
+        try:
+            self._side_follow_timer.stop()
+        except Exception:
+            pass
+
+    def _bubble_option(self, option_id: str) -> None:
+        if self._comfort_busy or not self._comfort_session:
+            return
+        self._comfort_busy = True
+        turn = self._comfort_session.choose(option_id)
+        self._bubble_maybe_ai(turn, user_hint=option_id)
+
+    def _bubble_send(self) -> None:
+        if self._comfort_busy or not self._comfort_session:
+            return
+        text = self._side_inp_edit.text().strip()
+        if not text:
+            return
+        self._side_inp_edit.clear()
+        self._comfort_busy = True
+        turn = self._comfort_session.respond(text)
+        self._bubble_maybe_ai(turn, user_hint=text)
+
+    def _bubble_maybe_ai(self, turn: dict, user_hint: str = "") -> None:
+        """有 AI 且非开场/收尾完成时，后台生成文本覆盖；否则直接渲染。"""
+        if self._comfort_ai_mode and turn.get("stage") != "intro" and not turn.get("finished"):
+            self.bubble_label.setText("…")
+            self.bubble_window.adjustSize()
+            self._bubble_ai_fetch(turn, user_hint)
+            return
+        self._comfort_busy = False
+        self._bubble_show_turn(turn)
+
+    def _bubble_ai_fetch(self, turn: dict, user_hint: str) -> None:
+        """后台线程生成安慰文本，经信号回主线程渲染。"""
+        def _work():
+            try:
+                from ..ai.service import stream_chat, validate_ai_config
+                if not validate_ai_config():
+                    return
+                try:
+                    pet_name = self._pet_display_name()
+                except Exception:
+                    pet_name = "BB鼠"
+                ctx = self._comfort_session.context() if self._comfort_session else ""
+                sys_prompt = (
+                    f"你现在是{pet_name}，一只天真温暖的小仓鼠，最会安慰人。"
+                    f"{ctx}"
+                    "请用 2~4 句简短、温暖、不说教的话回应，像朋友一样站TA这边，给到实实在在的安抚。"
+                )
+                msgs = [{"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_hint or "陪我聊聊"}]
+                text = stream_chat(msgs).strip()
+                if text:
+                    turn["text"] = text
+            except Exception:
+                pass
+            self.comfort_turn_ready.emit(turn)
+        import threading
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_comfort_turn_ready(self, turn: dict) -> None:
+        self._comfort_busy = False
+        self._bubble_show_turn(turn)
+
     def update_bubble(self, text: str, duration: int = 3000) -> None:
+        self._set_bubble_dialog(False)
         self.bubble_label.setVisible(True)
         self.bubble_label.setText(text)
-        max_width = 200
         self.bubble_label.setWordWrap(True)
-        self.bubble_label.setFixedWidth(max_width)
-        metrics = self.bubble_label.fontMetrics()
-        # 用足够大的高度计算换行后的真实尺寸；加 descent 避免汉字下半被裁切
-        br = metrics.boundingRect(0, 0, max_width, 2000, Qt.TextWordWrap, text)
-        w = min(max(br.width() + 24 + 12, 120), 400)  # 左右 contentsMargins 12*2 + 余量
-        h = br.height() + metrics.descent() + 24  # 上下各 12px 留白，descent 防裁切
-        self.bubble_window.resize(w, h)
-        self.bubble_label.setFixedSize(w, h)
-        self.bubble_label.move(0, 0)
+        self.bubble_label.setFixedWidth(200)
+        self.bubble_window.adjustSize()
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
         self.bubble_timer.stop()
         self.bubble_timer.start(duration)
 
     def show_bubble(self, text: str, duration: int = 3000, typing_speed: int = 50) -> None:
+        # 打字机时长自适应：保证长文能完整读完（打字耗时 + 停留），上限 30 秒
+        if typing_speed > 0 and text:
+            needed = typing_speed * len(text) + 1500
+            if duration < needed:
+                duration = min(needed, 30000)
+        self._set_bubble_dialog(False)
         self.bubble_label.setText("")
         self.bubble_label.setVisible(True)
-        max_width = 200
         self.bubble_label.setWordWrap(True)
-        self.bubble_label.setFixedWidth(max_width)
-        metrics = self.bubble_label.fontMetrics()
-        br = metrics.boundingRect(0, 0, max_width, 2000, Qt.TextWordWrap, text)
-        w = min(max(br.width() + 24 + 12, 120), 400)
-        h = br.height() + metrics.descent() + 24
-        self.bubble_window.resize(w, h)
-        self.bubble_label.setFixedSize(w, h)
-        self.bubble_label.move(0, 0)
+        self.bubble_label.setFixedWidth(200)
+        self.bubble_window.adjustSize()
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
         self.full_text = text
@@ -889,18 +1243,15 @@ class DesktopPet(QWidget):
             self.current_text += self.full_text[self.typing_index]
             self.bubble_label.setText(self.current_text)
             self.typing_index += 1
-            metrics = self.bubble_label.fontMetrics()
-            br = metrics.boundingRect(0, 0, 200, 2000, Qt.TextWordWrap, self.current_text)
-            w = min(max(br.width() + 24 + 12, 120), 400)
-            h = br.height() + metrics.descent() + 24
-            self.bubble_window.resize(w, h)
-            self.bubble_label.setFixedSize(w, h)
-            self.bubble_label.move(0, 0)
+            self.bubble_window.adjustSize()
             self._position_bubble_window()
         else:
             self.typing_timer.stop()
 
     def hide_bubble(self):
+        self._set_bubble_dialog(False)
+        self._stop_side_follow()
+        self._side_panel.hide()
         self.bubble_window.hide()
         self.bubble_timer.stop()
 
@@ -910,6 +1261,9 @@ class DesktopPet(QWidget):
         self.typing_timer.stop()
         if hasattr(self, "_sayings_timer") and self._sayings_timer:
             self._sayings_timer.stop()
+        self._stop_side_follow()
+        if hasattr(self, "_side_panel"):
+            self._side_panel.hide()
         self.bubble_window.hide()
 
     def _cleanup_for_destroy(self) -> None:
@@ -979,12 +1333,28 @@ class DesktopPet(QWidget):
         self._sayings_timer.start()
 
     def _on_sayings_tick(self) -> None:
-        """定时到：若当前无气泡则随机选一句用气泡显示，然后安排下一次。"""
+        """定时到：若当前无气泡则随机选一句用气泡显示，然后安排下一次。
+
+        主动关心：以低概率且间隔足够时，从安慰语库取一句暖心话，温和低频、不打扰。
+        """
         if not self._sayings_enabled or not self._sayings_phrases:
             return
         if self.bubble_window.isVisible():
             self._schedule_next_saying()
             return
+        # 温和低频的主动关心：距上次 ≥ 8 分钟且概率 12%
+        try:
+            now_ms = QDateTime.currentMSecsSinceEpoch()
+            if (now_ms - self._last_care_ts) >= 8 * 60 * 1000 and random.random() < 0.12:
+                from ..core import comfort as comfort_lib
+                self._last_care_ts = now_ms
+                care_text = comfort_lib.active_care_text()
+                if care_text:
+                    self.update_bubble(care_text, duration=self._sayings_duration)
+                    self._schedule_next_saying()
+                    return
+        except Exception:
+            pass
         text = random.choice(self._sayings_phrases)
         if text and isinstance(text, str):
             self.update_bubble(text.strip(), duration=self._sayings_duration)

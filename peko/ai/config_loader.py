@@ -1,8 +1,12 @@
 """
-Peko API 配置加载器
-- 从 config/api.json 读取模型配置；API Key 从 config/secrets.json 读取
-- 用户复制 api.json.example → api.json、secrets.json.example → secrets.json，在 secrets.json 中填写 apiKey 即可
-- 打包为 exe 时：config 目录在 exe 同目录下（可写），模板文件从包内读取
+Peko API 配置加载器（v2：通用 OpenAI 兼容三要素）
+
+- 用户只需配置三要素：API URL + API Key + 模型名，即可对接任意 OpenAI 兼容服务
+  （SiliconFlow / DeepSeek / Kimi / GLM / 通义 / OpenRouter / 本地 Ollama 等）。
+- apiKey 写入 config/secrets.json（gitignore）；API URL / 模型名写入 config/api.json。
+- 兼容旧版 v1（models 数组 + modelId）配置：读取时自动迁移为 v2 并落盘。
+- 打包时：config 模板从包内读取，首次运行复制到可写目录
+  （Windows 为 exe 同目录，macOS 为 ~/Library/Application Support/Peko）。
 """
 import json
 import os
@@ -22,6 +26,10 @@ SECRETS_EXAMPLE_PATH = os.path.join(_BUNDLE, "config", "secrets.json.example")
 _USER_API_LEGACY_PATH = os.path.join(CONFIG_DIR, "user_api.json")
 
 _cached_api_config: Optional[Dict[str, Any]] = None
+
+# 基础默认参数（简单聊天够用，不要求用户配置）
+DEFAULT_TEMPERATURE = 0.8
+DEFAULT_MAX_TOKENS = 2000
 
 
 def _load_json(path: str) -> Optional[Dict[str, Any]]:
@@ -45,16 +53,73 @@ def _merge_legacy_user_api(data: Dict[str, Any]) -> Dict[str, Any]:
         data["apiKey"] = legacy["apiKey"]
     if legacy.get("modelId"):
         data["modelId"] = legacy["modelId"]
+    if legacy.get("model") and not data.get("model"):
+        data["model"] = legacy["model"]
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
         _save_secrets(data.get("apiKey", ""))
         full = _load_json(API_CONFIG_PATH) or {}
-        full["modelId"] = data.get("modelId", full.get("defaultModel", "qwen-72b"))
+        full["modelId"] = data.get("modelId", full.get("model", ""))
         with open(API_CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(full, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
     return data
+
+
+def _pick_model_from_v1(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """旧版 v1：从 models 数组里选当前模型（modelId/defaultModel → 第一个 enabled → 第一个）。"""
+    models = data.get("models") or []
+    if not models:
+        return None
+    mid = data.get("modelId") or data.get("defaultModel")
+    for m in models:
+        if m.get("id") == mid:
+            return m
+    for m in models:
+        if m.get("enabled", True):
+            return m
+    return models[0]
+
+
+def _normalize(data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """把 v1/v2 原始配置规范化为内部统一结构（含当前选中模型的 apiUrl/model/modelId）。"""
+    out = dict(data or {})
+    out.setdefault("provider", "openai")
+    out.setdefault("temperature", DEFAULT_TEMPERATURE)
+    out.setdefault("maxTokens", DEFAULT_MAX_TOKENS)
+    if out.get("apiUrl") and out.get("model"):
+        # v2：顶层即三要素
+        out.setdefault("modelId", out["model"])
+        return out
+    # v1：从 models 数组取当前模型
+    m = _pick_model_from_v1(out)
+    if m:
+        out["apiUrl"] = m.get("apiUrl") or ""
+        out["model"] = m.get("model") or ""
+        out["modelId"] = m.get("id") or m.get("model") or ""
+        out.setdefault("temperature", m.get("temperature", DEFAULT_TEMPERATURE))
+        out.setdefault("maxTokens", m.get("maxTokens", DEFAULT_MAX_TOKENS))
+        out.setdefault("provider", m.get("provider", "openai"))
+    else:
+        out.setdefault("apiUrl", "")
+        out.setdefault("model", "")
+        out.setdefault("modelId", "")
+    return out
+
+
+def _to_v2(data: Dict[str, Any]) -> Dict[str, Any]:
+    """内部结构 → v2 落盘格式（apiKey 永远不写进 api.json）。"""
+    return {
+        "version": "2.0.0",
+        "description": "Peko 桌宠 AI 配置：填入 API URL / Key / 模型名即可，任意 OpenAI 兼容服务通用。",
+        "apiUrl": data.get("apiUrl", ""),
+        "model": data.get("model", ""),
+        "modelId": data.get("modelId", data.get("model", "")),
+        "provider": data.get("provider", "openai"),
+        "temperature": data.get("temperature", 0.8),
+        "maxTokens": data.get("maxTokens", 2000),
+    }
 
 
 def _load_secrets() -> Dict[str, Any]:
@@ -81,12 +146,12 @@ def _save_secrets(api_key: str) -> None:
 
 
 def load_api_config() -> Dict[str, Any]:
-    """加载 config/api.json（模型列表等），并合并 config/secrets.json 中的 apiKey。"""
+    """加载配置（v1/v2 均可）并返回规范化结果（含 apiKey）。"""
     global _cached_api_config
     if _cached_api_config is not None:
         return _cached_api_config
     path = API_CONFIG_PATH if os.path.isfile(API_CONFIG_PATH) else API_CONFIG_EXAMPLE_PATH
-    # 打包 exe 首次运行：将 config 模板复制到 exe 同目录，便于用户编辑
+    # 打包 exe 首次运行：将 config 模板复制到可写目录，便于用户编辑
     if not os.path.isfile(API_CONFIG_PATH) and getattr(sys, "frozen", False) and os.path.isfile(API_CONFIG_EXAMPLE_PATH):
         try:
             os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -94,126 +159,142 @@ def load_api_config() -> Dict[str, Any]:
             path = API_CONFIG_PATH
         except Exception:
             pass
-    data = _load_json(path)
-    if data is None:
-        _cached_api_config = {
-            "version": "1.0.0",
-            "apiKey": "",
-            "modelId": "qwen-72b",
-            "defaultModel": "qwen-72b",
-            "models": [
-                {
-                    "id": "qwen-72b",
-                    "name": "Qwen 2.5 72B",
-                    "provider": "siliconflow",
-                    "model": "Qwen/Qwen2.5-72B-Instruct",
-                    "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
-                    "temperature": 0.8,
-                    "maxTokens": 2000,
-                    "enabled": True,
-                }
-            ],
-        }
-        secrets = _load_secrets()
-        if secrets.get("apiKey") and secrets.get("apiKey") != "your-api-key-here":
-            _cached_api_config["apiKey"] = secrets["apiKey"]
+
+    raw = _load_json(path) or {}
+    was_v1 = bool(raw.get("models")) and not raw.get("apiUrl")
+    data = _normalize(raw)
+    data = _merge_legacy_user_api(data)
+
+    # v1 → v2 迁移落盘（仅当本地有 api.json 可写时才改写）
+    if was_v1 and os.path.isfile(API_CONFIG_PATH):
+        try:
+            with open(API_CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(_to_v2(data), f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    # 合并 secrets.json 中的 apiKey
+    secrets = _load_secrets()
+    if secrets.get("apiKey") and secrets["apiKey"] != "your-api-key-here":
+        data["apiKey"] = secrets["apiKey"]
+    elif data.get("apiKey") and not os.path.isfile(SECRETS_PATH):
+        # 一次性迁移：原 api.json 中有 apiKey 则写入 secrets.json，并从 api.json 文件中移除
+        _save_secrets(data["apiKey"])
+        try:
+            path = API_CONFIG_PATH
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    full = json.load(f)
+                full.pop("apiKey", None)
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(full, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
     else:
-        data = _merge_legacy_user_api(data)
-        if "apiKey" not in data:
-            data["apiKey"] = ""
-        secrets = _load_secrets()
-        if secrets.get("apiKey") and secrets.get("apiKey") != "your-api-key-here":
-            data["apiKey"] = secrets["apiKey"]
-        elif data.get("apiKey") and not os.path.isfile(SECRETS_PATH):
-            # 一次性迁移：原 api.json 中有 apiKey 则写入 secrets.json，并从 api.json 文件中移除
-            _save_secrets(data["apiKey"])
-            try:
-                path = API_CONFIG_PATH
-                if os.path.isfile(path):
-                    with open(path, "r", encoding="utf-8") as f:
-                        full = json.load(f)
-                    full.pop("apiKey", None)
-                    with open(path, "w", encoding="utf-8") as f:
-                        json.dump(full, f, ensure_ascii=False, indent=2)
-            except Exception:
-                pass
-        if "modelId" not in data:
-            data["modelId"] = data.get("defaultModel", "qwen-72b")
-        _cached_api_config = data
+        data.setdefault("apiKey", "")
+
+    _cached_api_config = data
     return _cached_api_config
 
 
+def get_ai_config() -> Dict[str, Any]:
+    """返回当前生效的 AI 配置（三要素 + 参数）。"""
+    cfg = load_api_config()
+    return {
+        "apiKey": cfg.get("apiKey", ""),
+        "apiUrl": cfg.get("apiUrl", ""),
+        "model": cfg.get("model", ""),
+        "modelId": cfg.get("modelId", cfg.get("model", "")),
+        "provider": cfg.get("provider", "openai"),
+        "temperature": cfg.get("temperature", 0.8),
+        "maxTokens": cfg.get("maxTokens", 2000),
+    }
+
+
 def get_models() -> List[Dict[str, Any]]:
-    """获取已启用的模型列表。"""
+    """返回模型列表（兼容旧接口）。v2 下为当前模型的单元素列表。"""
     cfg = load_api_config()
-    models = cfg.get("models") or []
-    return [m for m in models if m.get("enabled", True)]
-
-
-def get_default_model_id() -> str:
-    """获取默认模型 ID。"""
-    cfg = load_api_config()
-    return cfg.get("defaultModel") or "qwen-72b"
+    if cfg.get("models"):
+        return [m for m in cfg["models"] if m.get("enabled", True)]
+    model = cfg.get("model", "")
+    if model:
+        return [{
+            "id": cfg.get("modelId", model),
+            "name": model,
+            "model": model,
+            "apiUrl": cfg.get("apiUrl", ""),
+            "provider": cfg.get("provider", "openai"),
+            "temperature": cfg.get("temperature", 0.8),
+            "maxTokens": cfg.get("maxTokens", 2000),
+            "enabled": True,
+        }]
+    return []
 
 
 def get_model_by_id(model_id: str) -> Optional[Dict[str, Any]]:
-    """根据 ID 获取模型配置。"""
+    """按 id 找模型（v2 下 id 即模型名）。"""
+    if not model_id:
+        return None
     for m in get_models():
         if m.get("id") == model_id:
             return m
     return None
 
 
+def get_default_model_id() -> str:
+    """返回当前默认模型（v2 下即模型名）。"""
+    return get_ai_config().get("model") or ""
+
+
 def load_user_api_config() -> Dict[str, Any]:
-    """从 api.json 中读取用户配置（apiKey、modelId），兼容旧调用。"""
-    cfg = load_api_config()
-    return {"apiKey": cfg.get("apiKey", ""), "modelId": cfg.get("modelId") or cfg.get("defaultModel")}
-
-
-def save_user_api_config(api_key: str = "", model_id: str = "") -> None:
-    """将 apiKey 写入 config/secrets.json，将 modelId 写入 config/api.json。"""
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    if api_key is not None:
-        _save_secrets(api_key)
-    if model_id:
-        path = API_CONFIG_PATH
-        if not os.path.isfile(path) and os.path.isfile(API_CONFIG_EXAMPLE_PATH):
-            shutil.copy(API_CONFIG_EXAMPLE_PATH, path)
-        data = _load_json(path) or {}
-        data["modelId"] = model_id
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    global _cached_api_config
-    _cached_api_config = None
-
-
-def get_ai_config() -> Dict[str, Any]:
-    """从 api.json 读取 apiKey、modelId 等，供 AI 调用使用。"""
-    cfg = load_api_config()
-    model_id = cfg.get("modelId") or os.environ.get("PEKO_AI_MODEL_ID") or get_default_model_id()
-    api_key = cfg.get("apiKey") or os.environ.get("PEKO_AI_KEY") or os.environ.get("VITE_AI_KEY") or ""
-
-    model_cfg = get_model_by_id(model_id)
-    if model_cfg is None:
-        model_cfg = get_model_by_id(get_default_model_id()) or (get_models() or [{}])[0]
-
+    """兼容旧接口：返回用户当前配置（apiKey、modelId、model、apiUrl 等）。"""
+    cfg = get_ai_config()
     return {
-        "apiKey": api_key,
-        "modelId": model_id,
-        "model": model_cfg.get("model", "gpt-3.5-turbo"),
-        "apiUrl": model_cfg.get("apiUrl", "https://api.openai.com/v1/chat/completions"),
-        "provider": model_cfg.get("provider", "openai"),
-        "temperature": model_cfg.get("temperature", 0.8),
-        "maxTokens": model_cfg.get("maxTokens", 2000),
+        "apiKey": cfg.get("apiKey", ""),
+        "modelId": cfg.get("modelId", ""),
+        "model": cfg.get("model", ""),
+        "apiUrl": cfg.get("apiUrl", ""),
+        "provider": cfg.get("provider", "openai"),
+        "temperature": cfg.get("temperature", 0.8),
+        "maxTokens": cfg.get("maxTokens", 2000),
     }
 
 
+def save_ai_settings(
+    api_url: str = "",
+    api_key: str = "",
+    model: str = "",
+    temperature: Optional[float] = None,
+    max_tokens: Optional[int] = None,
+) -> None:
+    """通用保存入口：apiUrl/model 写入 api.json，apiKey 写入 secrets.json。"""
+    global _cached_api_config
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+
+    cur = _load_json(API_CONFIG_PATH) or _load_json(API_CONFIG_EXAMPLE_PATH) or {}
+    cur = _normalize(cur)
+    new_api = _to_v2({
+        "apiUrl": api_url.strip() or cur.get("apiUrl", ""),
+        "model": model.strip() or cur.get("model", ""),
+        "modelId": model.strip() or cur.get("modelId", cur.get("model", "")),
+        "provider": "openai",
+        "temperature": temperature if temperature is not None else cur.get("temperature", DEFAULT_TEMPERATURE),
+        "maxTokens": int(max_tokens) if max_tokens is not None else cur.get("maxTokens", DEFAULT_MAX_TOKENS),
+    })
+    with open(API_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(new_api, f, ensure_ascii=False, indent=2)
+    # apiKey 留空时保留现有值，避免误清空
+    if api_key:
+        _save_secrets(api_key.strip())
+    _cached_api_config = None
+
+
+def save_user_api_config(api_key: str = "", model_id: str = "") -> None:
+    """兼容旧接口：等价于 save_ai_settings(api_key=..., model=...)。"""
+    save_ai_settings(api_key=api_key, model=model_id)
+
+
 def validate_ai_config() -> bool:
-    """验证当前 AI 配置是否可用。"""
+    """三要素（URL + Key + 模型名）齐备即可用。"""
     cfg = get_ai_config()
-    if cfg.get("provider") == "spark":
-        return bool(
-            cfg.get("apiKey")
-            or (os.environ.get("SPARKAI_APP_ID") and os.environ.get("SPARKAI_API_KEY"))
-        )
-    return bool(cfg.get("apiKey") and cfg.get("apiUrl"))
+    return bool(cfg.get("apiKey") and cfg.get("apiUrl") and cfg.get("model"))

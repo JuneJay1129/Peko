@@ -96,6 +96,13 @@ INTERACTION_DEFS: Dict[str, Dict[str, Any]] = {
         "bubbles": ["我已经竖起耳朵啦。", "想听你说话，现在就开始。", "来聊天吧，我在认真听。"],
         "delta": {"mood": 9, "satiety": -2, "energy": -3},
     },
+    "comfort": {
+        "label": "安慰我",
+        "hold_ms": 3200,
+        "states": ["listen", "stand", "wave", "longing"],
+        "bubbles": ["别难过，我在这儿陪着你。", "抱抱你，一切都会好起来的。", "你已经很棒了，我支持你。"],
+        "delta": {"mood": 10, "satiety": 0, "energy": 2},
+    },
 }
 
 

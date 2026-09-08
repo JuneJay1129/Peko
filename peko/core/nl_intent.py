@@ -170,6 +170,21 @@ def _parse_weather_city(t: str) -> Optional[Dict[str, Any]]:
     return {"action": "ask_weather_city", "city": name}
 
 
+def _parse_comfort(t: str) -> Optional[Dict[str, Any]]:
+    """安慰打气：压力大 / 被指责 / 低气压时的情绪陪伴。返回 {action:comfort}。
+
+    放在意图链最后，避免劫持「提醒我带伞」这类任务型语句；命中即安慰，
+    文案由 comfort 模块（语库 / AI）生成。
+    """
+    try:
+        from .comfort import should_comfort
+    except Exception:
+        return None
+    if should_comfort(t):
+        return {"action": "comfort"}
+    return None
+
+
 def _parse_set_city(t: str) -> Optional[Dict[str, Any]]:
     """纠正城市（解决 IP 定位不准）。返回 {action:set_city, city}。
 
@@ -215,6 +230,7 @@ def parse(text: str) -> Optional[Dict[str, Any]]:
         or _parse_weather_city(t)
         or _parse_weather(t)
         or _parse_set_city(t)
+        or _parse_comfort(t)
     )
 
 

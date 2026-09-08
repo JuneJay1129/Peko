@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import traceback
 from typing import Callable, List, Optional
 
@@ -110,7 +111,9 @@ def _trash_one(path: str) -> Optional[str]:
         first_err = f"{type(e).__name__}: {e}"
         print(f"[Peko 摧毁] send2trash 失败: {path}")
         traceback.print_exc()
-    # 回退：PowerShell VisualBasic FileSystem（进回收站）
+    # 回退：PowerShell VisualBasic FileSystem（进回收站，仅 Windows；macOS 上 send2trash 已覆盖）
+    if sys.platform != "win32":
+        return first_err or "删除未生效"
     try:
         esc = path.replace("'", "''")
         ps = (

@@ -6,9 +6,10 @@ import sys
 _spec_dir = os.path.dirname(os.path.abspath(SPEC))
 _project_root = os.path.dirname(_spec_dir)
 
-# 打包图标：Windows 用 icon.ico（或 inco.ico），macOS 用 icon.icns，统一放在项目根目录
-if sys.platform == 'darwin' and os.path.isfile(os.path.join(_project_root, 'icon.icns')):
-    exe_icon = os.path.join(_project_root, 'icon.icns')
+# 打包图标：macOS 只认 .icns（PyInstaller 在 darwin 上不接受 .ico，缺省用默认图标）；
+# Windows 用 icon.ico（或 inco.ico）。统一放在项目根目录。
+if sys.platform == 'darwin':
+    exe_icon = os.path.join(_project_root, 'icon.icns') if os.path.isfile(os.path.join(_project_root, 'icon.icns')) else None
 elif os.path.isfile(os.path.join(_project_root, 'icon.ico')):
     exe_icon = os.path.join(_project_root, 'icon.ico')
 elif os.path.isfile(os.path.join(_project_root, 'inco.ico')):
@@ -24,25 +25,29 @@ _datas = [
 if exe_icon:
     _datas.append((exe_icon, '.'))
 
+# 跨平台 hiddenimports；keyboard 仅 Windows 支持（macOS 未安装时避免 PyInstaller 告警）
+_hidden = [
+    'PyQt5.QtCore',
+    'PyQt5.QtGui',
+    'PyQt5.QtWidgets',
+    'PyQt5.QtWebEngineWidgets',
+    'PyQt5.QtWebEngineCore',
+    'PyQt5.QtWebChannel',
+    'openai',
+    'pynput',
+    'pynput.keyboard',
+    'pynput._util',
+    'requests',
+]
+if sys.platform == 'win32':
+    _hidden.append('keyboard')
+
 a = Analysis(
     [os.path.join(_project_root, 'main.py')],
     pathex=[_project_root],
     binaries=[],
     datas=_datas,
-    hiddenimports=[
-        'PyQt5.QtCore',
-        'PyQt5.QtGui',
-        'PyQt5.QtWidgets',
-        'PyQt5.QtWebEngineWidgets',
-        'PyQt5.QtWebEngineCore',
-        'PyQt5.QtWebChannel',
-        'openai',
-        'keyboard',
-        'pynput',
-        'pynput.keyboard',
-        'pynput._util',
-        'requests',
-    ],
+    hiddenimports=_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

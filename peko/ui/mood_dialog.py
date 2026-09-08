@@ -19,54 +19,62 @@ from PyQt5.QtWidgets import (
 )
 
 
-PANEL_STYLE = """
-    QFrame#panel {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #fff8ef, stop:1 #f9ecd8);
-        border: 1px solid #e7d3b3;
+def _panel_style() -> str:
+    """右键互动面板样式：按当前外观主题的 UI 色板生成（进度条语义色保留）。"""
+    try:
+        from ..core import appearance as ap
+        ui = ap.get_ui_style(ap.get_theme())
+    except Exception:
+        ui = {"bg": "#f9ecd8", "card": "#ffffff", "accent": "#b9692f", "accent_hover": "#e0a86a",
+              "ink": "#4f3f33", "ink_soft": "#846b57", "border": "#e7d3b3"}
+    return f"""
+    QFrame#panel {{
+        background: {ui['bg']};
+        border: 1px solid {ui['border']};
         border-radius: 20px;
-    }
-    QLabel#titleLabel {
-        color: #4f3f33;
+    }}
+    QLabel#titleLabel {{
+        color: {ui['ink']};
         font-size: 17px;
         font-weight: 700;
-    }
-    QLabel#badgeLabel {
-        color: #8d5d2f;
+    }}
+    QLabel#badgeLabel {{
+        color: {ui['accent']};
         font-size: 13px;
         font-weight: 700;
-        background: rgba(255, 255, 255, 0.7);
+        background: {ui['card']};
+        border: 1px solid {ui['border']};
         border-radius: 10px;
         padding: 5px 10px;
-    }
-    QLabel#descLabel {
-        color: #5b4a3d;
+    }}
+    QLabel#descLabel {{
+        color: {ui['ink']};
         font-size: 13px;
-    }
-    QLabel#metaLabel {
-        color: #846b57;
+    }}
+    QLabel#metaLabel {{
+        color: {ui['ink_soft']};
         font-size: 12px;
-    }
-    QLabel#sectionLabel {
-        color: #6d5644;
+    }}
+    QLabel#sectionLabel {{
+        color: {ui['ink']};
         font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.5px;
-    }
-    QLabel#statLabel {
-        color: #5d4a3a;
+    }}
+    QLabel#statLabel {{
+        color: {ui['ink']};
         font-size: 12px;
         font-weight: 700;
-    }
-    QLabel#statHint {
-        color: #8b6f58;
+    }}
+    QLabel#statHint {{
+        color: {ui['ink_soft']};
         font-size: 11px;
-    }
-    QPushButton#closeBtn {
-        background: rgba(255, 255, 255, 0.85);
-        border: 1px solid #e2c7a5;
+    }}
+    QPushButton#closeBtn {{
+        background: {ui['card']};
+        border: 1px solid {ui['border']};
         border-radius: 15px;
-        color: #8a715c;
+        color: {ui['ink_soft']};
         font-size: 18px;
         font-weight: 400;
         min-width: 30px;
@@ -74,63 +82,58 @@ PANEL_STYLE = """
         min-height: 30px;
         max-height: 30px;
         padding: 0;
-    }
-    QPushButton#closeBtn:hover {
-        background: #fff0e2;
-        border-color: #e0a86a;
-        color: #b9692f;
-    }
-    QProgressBar {
+    }}
+    QPushButton#closeBtn:hover {{
+        background: {ui['border']};
+        color: {ui['ink']};
+    }}
+    QProgressBar {{
         border: none;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.7);
-        color: #6d5644;
+        background: {ui['border']};
+        color: {ui['ink']};
         text-align: center;
         height: 16px;
         font-size: 11px;
         font-weight: 700;
-    }
-    QProgressBar#moodBar::chunk {
+    }}
+    QProgressBar#moodBar::chunk {{
         border-radius: 8px;
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
             stop:0 #f0bf77, stop:1 #d28e51);
-    }
-    QProgressBar#satietyBar::chunk {
+    }}
+    QProgressBar#satietyBar::chunk {{
         border-radius: 8px;
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
             stop:0 #76c17a, stop:1 #4ea861);
-    }
-    QProgressBar#energyBar::chunk {
+    }}
+    QProgressBar#energyBar::chunk {{
         border-radius: 8px;
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
             stop:0 #74b6ff, stop:1 #4c86e6);
-    }
-    QPushButton#actionBtn {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #ffffff, stop:1 #fff3e6);
-        border: 1px solid #ecd2b1;
+    }}
+    QPushButton#actionBtn {{
+        background: {ui['card']};
+        border: 1px solid {ui['border']};
         border-radius: 14px;
         padding: 10px 14px;
-        color: #6b513c;
+        color: {ui['accent']};
         font-size: 13px;
         font-weight: 700;
         min-height: 42px;
-    }
-    QPushButton#actionBtn:hover {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #fff6ec, stop:1 #ffe6cf);
-        border-color: #e0a86a;
-        color: #5a4738;
-    }
-    QPushButton#actionBtn:pressed {
-        background: #ffe6cf;
-        border-color: #d99a55;
+    }}
+    QPushButton#actionBtn:hover {{
+        background: {ui['bg']};
+        border-color: {ui['accent']};
+    }}
+    QPushButton#actionBtn:pressed {{
+        background: {ui['border']};
         padding-top: 12px;
         padding-bottom: 8px;
-    }
-    QPushButton#actionBtn:focus {
-        border-color: #e0a86a;
-    }
+    }}
+    QPushButton#actionBtn:focus {{
+        border-color: {ui['accent']};
+    }}
 """
 
 
@@ -160,7 +163,7 @@ class MoodDialog(QDialog):
     def _build_ui(self) -> None:
         container = QFrame(self)
         container.setObjectName("panel")
-        container.setStyleSheet(PANEL_STYLE)
+        container.setStyleSheet(_panel_style())
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)

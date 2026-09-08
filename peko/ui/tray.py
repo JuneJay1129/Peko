@@ -11,65 +11,73 @@ from PyQt5.QtGui import QIcon, QCursor
 
 from ..core.pet_manager import RESOURCE_DIR, get_app_exe_icon_path
 
-# 托盘右键菜单样式：暖色圆角，与桌宠面板风格一致
-TRAY_MENU_STYLE = """
-    QMenu {
-        background-color: #faf3e0;
-        border: 1px solid #e8dcc4;
+def _menu_style() -> str:
+    """托盘菜单样式：按当前外观主题的 UI 色板生成（暖色圆角）。"""
+    try:
+        from ..core import appearance as appearance_mod
+        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
+    except Exception:
+        ui = {"bg": "#faf3e0", "card": "#fffef8", "accent": "#c4a574", "accent_hover": "#b59668",
+              "ink": "#4a3f35", "ink_soft": "#a09888", "border": "#e8dcc4"}
+    return f"""
+    QMenu {{
+        background-color: {ui['bg']};
+        border: 1px solid {ui['border']};
         border-radius: 10px;
         padding: 6px 0;
         min-width: 160px;
-    }
-    QMenu::item {
+    }}
+    QMenu::item {{
         padding: 8px 24px 8px 16px;
         font-size: 13px;
-        color: #4a3f35;
-    }
-    QMenu::item:selected {
-        background-color: #e8dcc4;
-        color: #3d3329;
-    }
-    QMenu::item:disabled {
-        color: #a09888;
-    }
-    QMenu::separator {
+        color: {ui['ink']};
+    }}
+    QMenu::item:selected {{
+        background-color: {ui['border']};
+        color: {ui['ink']};
+    }}
+    QMenu::item:disabled {{
+        color: {ui['ink_soft']};
+    }}
+    QMenu::separator {{
         height: 1px;
-        background-color: #e8dcc4;
+        background-color: {ui['border']};
         margin: 4px 12px;
-    }
-    QMenu::indicator {
+    }}
+    QMenu::indicator {{
         width: 14px;
         height: 14px;
         border-radius: 3px;
-        border: 1px solid #c4a574;
-        background-color: #fffef8;
+        border: 1px solid {ui['accent']};
+        background-color: {ui['card']};
         margin-left: 8px;
-    }
-    QMenu::indicator:checked {
-        background-color: #c4a574;
-    }
+    }}
+    QMenu::indicator:checked {{
+        background-color: {ui['accent']};
+    }}
 """
 
 
 def _tray_icon_path(pet_holder) -> str:
-    """优先 exe 同款图标；否则当前宠物 resource/icon.png，再否则 stand 首帧。"""
+    """托盘图标：优先 exe 同款图标；否则当前宠物 resource/icon.png，再否则 stand 首帧。"""
     app_icon = get_app_exe_icon_path()
     if app_icon:
         return app_icon
-    if not pet_holder:
-        return ""
-    pkg = pet_holder[0].pet_package
-    pet_dir = pkg.get("_pet_dir", "")
-    if pet_dir:
-        icon_path = os.path.join(pet_dir, RESOURCE_DIR, "icon.png")
-        if os.path.isfile(icon_path):
-            return icon_path
-        # 回退：使用 stand 首帧（animations.stand 为 { "frames": [...] }）
-        stand = (pkg.get("animations") or {}).get("stand") or {}
-        frames = stand.get("frames") or []
-        if frames and os.path.isfile(frames[0]):
-            return frames[0]
-    return ""
+    pet_icon = ""
+    if pet_holder:
+        pkg = pet_holder[0].pet_package
+        pet_dir = pkg.get("_pet_dir", "")
+        if pet_dir:
+            icon_path = os.path.join(pet_dir, RESOURCE_DIR, "icon.png")
+            if os.path.isfile(icon_path):
+                pet_icon = icon_path
+            else:
+                # 回退：使用 stand 首帧（animations.stand 为 { "frames": [...] }）
+                stand = (pkg.get("animations") or {}).get("stand") or {}
+                frames = stand.get("frames") or []
+                if frames and os.path.isfile(frames[0]):
+                    pet_icon = frames[0]
+    return pet_icon
 
 
 class TrayIcon:
@@ -86,83 +94,86 @@ class TrayIcon:
         self.on_switch_pet = on_switch_pet
         self.clone_pets = clone_pets if clone_pets is not None else []
         self.set_clone_mode = set_clone_mode
+        self._follower = None  # 召唤跟班（FollowerPet）
         icon_path = _tray_icon_path(pet_holder)
         self.tray_icon = QSystemTrayIcon(QIcon(icon_path) if icon_path else QIcon(), self.app)
         self.create_tray_menu()
 
     def update_icon(self):
-        """切换宠物后更新托盘图标（仍优先 exe 同款图标）"""
+        """切换宠物后更新托盘图标（优先 exe 同款图标）。"""
         icon_path = _tray_icon_path(self.pet_holder)
         if icon_path:
             self.tray_icon.setIcon(QIcon(icon_path))
 
+    def refresh_theme(self) -> None:
+        """外观主题切换后刷新托盘 / Dock 菜单及其「模式」子菜单配色。"""
+        try:
+            for attr in ("_tray_menu", "_mode_menu", "_follower_menu", "_dock_menu", "_dock_mode_menu"):
+                m = getattr(self, attr, None)
+                if m is not None:
+                    m.setStyleSheet(_menu_style())
+        except Exception:
+            pass
+
     def create_tray_menu(self):
+        """托盘菜单：高频操作 + 常用功能（安慰/摧毁/模式）+ 设置入口。"""
         menu = QMenu()
-        menu.setStyleSheet(TRAY_MENU_STYLE)
+        menu.setStyleSheet(_menu_style())
         menu.setMinimumWidth(180)
-        pet = self.pet_holder[0] if self.pet_holder else None
 
         self._show_action = QAction("显示桌宠", self.app)
         self._hide_action = QAction("隐藏桌宠", self.app)
-        self._stop_movement_action = QAction("停止移动", self.app, checkable=True)
         self._talk_action = QAction("与宠物对话", self.app)
-        self._weather_action = QAction("天气", self.app)
-        self._api_settings_action = QAction("AI 设置", self.app)
-        self._params_action = QAction("动作参数", self.app)
-        self._plans_web_action = QAction("计划台", self.app)
-        self._plans_web_browser_action = QAction("工作台", self.app)
+        self._comfort_action = QAction("安慰我", self.app)
+        self._destroy_file_action = QAction("摧毁文件…", self.app)
+        self._settings_action = QAction("设置…", self.app)
+        self._exit_action = QAction("退出", self.app)
+
+        self._show_action.triggered.connect(self._on_show_pets)
+        self._hide_action.triggered.connect(self._on_hide_pets)
+        self._talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
+        self._comfort_action.triggered.connect(self._on_comfort)
+        self._destroy_file_action.triggered.connect(self._on_destroy_file)
+        self._settings_action.triggered.connect(self.open_settings)
+        self._exit_action.triggered.connect(self.exit_app)
+
+        menu.addAction(self._show_action)
+        menu.addAction(self._hide_action)
+        menu.addAction(self._talk_action)
+        menu.addSeparator()
+        menu.addAction(self._comfort_action)
+        menu.addAction(self._destroy_file_action)
+
+        # 模式子菜单（自动/操控/跟随/分身 + 停止移动）
+        self._stop_movement_action = QAction("停止移动", self.app, checkable=True)
+        self._stop_movement_action.triggered.connect(self.toggle_movement)
         self._auto_mode_action = QAction("自动模式", self.app, checkable=True)
         self._control_mode_action = QAction("操控模式", self.app, checkable=True)
         self._follow_mouse_action = QAction("跟随鼠标", self.app, checkable=True)
         self._clone_mode_action = QAction("分身模式", self.app, checkable=True)
-        self._destroy_file_action = QAction("摧毁文件…", self.app)
-        self._show_action.triggered.connect(self._on_show_pets)
-        self._hide_action.triggered.connect(self._on_hide_pets)
-        self._stop_movement_action.triggered.connect(self.toggle_movement)
-        self._talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
-        self._weather_action.triggered.connect(self._on_weather)
-        self._api_settings_action.triggered.connect(self._show_api_settings_dialog)
-        self._params_action.triggered.connect(self._show_action_params_dialog)
-        self._plans_web_action.triggered.connect(self._show_plans_web_dialog)
-        self._plans_web_browser_action.triggered.connect(self._show_plans_web_browser_dialog)
         self._auto_mode_action.triggered.connect(self._on_auto_mode)
         self._control_mode_action.triggered.connect(self._on_control_mode)
         self._follow_mouse_action.triggered.connect(self._on_follow_mouse_mode)
         self._clone_mode_action.triggered.connect(self._on_clone_mode)
-        self._destroy_file_action.triggered.connect(self._on_destroy_file)
-
-        # 默认自动模式
         self._auto_mode_action.setChecked(True)
-        self._control_mode_action.setChecked(False)
-        self._follow_mouse_action.setChecked(False)
-        self._clone_mode_action.setChecked(False)
 
-        menu.addAction(self._show_action)
-        menu.addAction(self._hide_action)
-        menu.addAction(self._stop_movement_action)
-        menu.addAction(self._talk_action)
-        menu.addAction(self._weather_action)
-        menu.addAction(self._api_settings_action)
-        menu.addAction(self._params_action)
-        menu.addAction(self._plans_web_action)
-        menu.addAction(self._plans_web_browser_action)
-        menu.addAction(self._destroy_file_action)
-        menu.addSeparator()
-        menu.addAction(self._auto_mode_action)
-        menu.addAction(self._control_mode_action)
-        menu.addAction(self._follow_mouse_action)
-        menu.addAction(self._clone_mode_action)
-        menu.addSeparator()
+        mode_menu = menu.addMenu("模式")
+        mode_menu.setStyleSheet(_menu_style())
+        self._mode_menu = mode_menu
+        for act in (self._auto_mode_action, self._control_mode_action,
+                    self._follow_mouse_action, self._clone_mode_action):
+            mode_menu.addAction(act)
+        mode_menu.addSeparator()
+        mode_menu.addAction(self._stop_movement_action)
 
-        self._tray_switch_menu = menu.addMenu("切换宠物")
-        self._tray_switch_menu.setStyleSheet(TRAY_MENU_STYLE)
-        self._tray_switch_menu.setMinimumWidth(180)
-        self._populate_switch_menu(self._tray_switch_menu)
+        # 召唤跟班（大/中/小；已有跟班时显示「取消跟班」）
+        self._follower_menu = menu.addMenu("召唤跟班")
+        self._follower_menu.setStyleSheet(_menu_style())
+        self._update_follower_menu()
 
         menu.addSeparator()
-
-        self._exit_action = QAction("退出", self.app)
-        self._exit_action.triggered.connect(self.exit_app)
+        menu.addAction(self._settings_action)
+        menu.addSeparator()
         menu.addAction(self._exit_action)
 
         self.tray_icon.setContextMenu(menu)
@@ -173,56 +184,45 @@ class TrayIcon:
             self._install_macos_dock_menu()
         self.tray_icon.show()
 
-    def _on_tray_menu_about_to_show(self) -> None:
-        self._update_mode_actions_checked()
-        if getattr(self, "_tray_switch_menu", None):
-            self._populate_switch_menu(self._tray_switch_menu)
+    def open_settings(self) -> None:
+        """打开「设置」页（托盘 / Dock 入口）。"""
+        from .settings_dialog import SettingsDialog
+        dialog = SettingsDialog(self)
+        dialog.exec_()
 
-    def _populate_switch_menu(self, switch_menu: QMenu) -> None:
-        """填充「切换宠物」子菜单（托盘与 Dock 共用逻辑）。"""
-        switch_menu.clear()
-        try:
-            from ..core.pet_manager import get_available_pets, get_pet
-            for pid in get_available_pets():
-                pkg = get_pet(pid)
-                name = pkg.get("name", pid)
-                act = QAction(name, self.app)
-                act.triggered.connect(lambda checked, id=pid: self.on_switch_pet(id) if self.on_switch_pet else None)
-                switch_menu.addAction(act)
-        except Exception:
-            pass
+    def _on_tray_menu_about_to_show(self) -> None:
+        self.refresh_theme()
+        self._update_follower_menu()
+        self._update_mode_actions_checked()
 
     def _install_macos_dock_menu(self) -> None:
-        """Dock 图标菜单：与托盘相同项。Qt 文档：setAsDockMenu 仅 macOS。"""
+        """Dock 图标菜单：与托盘一致的精简项。Qt 文档：setAsDockMenu 仅 macOS。"""
         dock = QMenu()
         if not hasattr(dock, "setAsDockMenu"):
             return
-        dock.setStyleSheet(TRAY_MENU_STYLE)
+        self._dock_menu = dock
+        dock.setStyleSheet(_menu_style())
         dock.addAction(self._show_action)
         dock.addAction(self._hide_action)
-        dock.addAction(self._stop_movement_action)
         dock.addAction(self._talk_action)
-        dock.addAction(self._weather_action)
-        dock.addAction(self._api_settings_action)
-        dock.addAction(self._params_action)
         dock.addSeparator()
-        dock.addAction(self._auto_mode_action)
-        dock.addAction(self._control_mode_action)
-        dock.addAction(self._follow_mouse_action)
-        dock.addAction(self._clone_mode_action)
+        dock.addAction(self._comfort_action)
+        dock.addAction(self._destroy_file_action)
+        mode_menu = dock.addMenu("模式")
+        mode_menu.setStyleSheet(_menu_style())
+        self._dock_mode_menu = mode_menu
+        for act in (self._auto_mode_action, self._control_mode_action,
+                    self._follow_mouse_action, self._clone_mode_action):
+            mode_menu.addAction(act)
+        mode_menu.addSeparator()
+        mode_menu.addAction(self._stop_movement_action)
+        self._dock_follower_menu = dock.addMenu("召唤跟班")
+        self._dock_follower_menu.setStyleSheet(_menu_style())
+        self._fill_follower_menu(self._dock_follower_menu)
         dock.addSeparator()
-        self._dock_switch_menu = dock.addMenu("切换宠物")
-        self._dock_switch_menu.setStyleSheet(TRAY_MENU_STYLE)
-        self._populate_switch_menu(self._dock_switch_menu)
+        dock.addAction(self._settings_action)
         dock.addSeparator()
         dock.addAction(self._exit_action)
-
-        def _dock_about_to_show():
-            self._update_mode_actions_checked()
-            if getattr(self, "_dock_switch_menu", None):
-                self._populate_switch_menu(self._dock_switch_menu)
-
-        dock.aboutToShow.connect(_dock_about_to_show)
         dock.setAsDockMenu()
 
     def _on_tray_activated_macos(self, reason):
@@ -249,6 +249,7 @@ class TrayIcon:
             p.hide()
 
     def exit_app(self):
+        self._dismiss_follower()
         pets = self._all_pets()
         if not pets:
             self.tray_icon.hide()
@@ -314,6 +315,52 @@ class TrayIcon:
             return
         from .weather_report import report_weather
         report_weather(self.pet_holder[0])
+
+    def _fill_follower_menu(self, menu) -> None:
+        """填充「召唤跟班」子菜单：有可见跟班 → 取消；否则大/中/小。"""
+        menu.clear()
+        follower = getattr(self, "_follower", None)
+        if follower is not None and follower.isVisible():
+            act = QAction("取消跟班", self.app)
+            act.triggered.connect(self._dismiss_follower)
+            menu.addAction(act)
+        else:
+            if follower is not None:
+                self._follower = None  # 跟班已自动退出
+            from .follower import SCALE_OPTIONS
+            for label, scale in SCALE_OPTIONS:
+                act = QAction(label, self.app)
+                act.triggered.connect(lambda _=False, s=scale: self._on_summon_follower(s))
+                menu.addAction(act)
+
+    def _update_follower_menu(self) -> None:
+        for m in (getattr(self, "_follower_menu", None), getattr(self, "_dock_follower_menu", None)):
+            if m is not None:
+                self._fill_follower_menu(m)
+
+    def _on_summon_follower(self, scale: float) -> None:
+        """召唤一只跟班桌宠（完全跟随主宠动作；当前只允许一只）。"""
+        if self._follower is not None:
+            self._dismiss_follower()
+        if not self.pet_holder:
+            return
+        from .follower import FollowerPet
+        self._follower = FollowerPet(master=self.pet_holder[0], holder=self.pet_holder, scale=scale)
+        self._follower.show()
+
+    def _dismiss_follower(self) -> None:
+        if self._follower is not None:
+            try:
+                self._follower.close()
+            except Exception:
+                pass
+            self._follower = None
+
+    def _on_comfort(self):
+        """托盘「安慰我」：用桌宠气泡开启引导式安慰对话（多轮，无 AI 也能用）。"""
+        if not self.pet_holder:
+            return
+        self.pet_holder[0].start_comfort_dialog()
 
     def _on_destroy_file(self):
         """摧毁文件：选文件 → 点屏幕位置 → 宠物跑过去表演摧毁（进回收站）。"""

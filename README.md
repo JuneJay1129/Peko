@@ -58,39 +58,46 @@ python main.py
 
 **自定义 exe/应用图标**：在项目根目录放置 **`icon.ico`**（Windows）或 **`icon.icns`**（macOS），重新打包即可；未放置则使用系统默认图标。
 
-首次运行 Windows exe 时，会在其**所在目录**下自动创建 `config` 并写入 `api.json`、`secrets.json` 模板；首次运行 macOS `Peko.app` 时，会在 `~/Library/Application Support/Peko/config` 自动创建配置模板；在对应的 `secrets.json` 中填写 API Key 即可使用。宠物资源已打进包内，无需单独携带 `pets` 目录。
+首次运行 Windows exe 时，会在其**所在目录**下自动创建 `config` 并写入 `api.json`、`secrets.json` 模板；首次运行 macOS `Peko.app` 时，会在 `~/Library/Application Support/Peko/config` 自动创建配置模板；之后在托盘「AI 设置」里填 API URL / Key / 模型名即可使用。宠物资源已打进包内，无需单独携带 `pets` 目录。
 
 ---
 
-## ⚙️ 配置 AI（config 模板 + 本地配置）
+## ⚙️ 配置 AI（通用三要素：URL + Key + 模型名）
 
-配置分为**可提交的模板**与**本地实际配置**（不提交，避免泄露 API Key）：
+Peko 对接**任意 OpenAI 兼容服务**（SiliconFlow / DeepSeek / Kimi / GLM / 通义 / OpenRouter / 本地 Ollama 等），只需三要素：
 
-1. **复制模板**（首次使用）  
-   - `config/api.json.example` → `config/api.json`（模型与 endpoint）  
-   - `config/secrets.json.example` → `config/secrets.json`（API Key）
-2. **填写 API Key**：在 **`config/secrets.json`** 中把 `"your-api-key-here"` 改成你的 API Key（SiliconFlow / OpenAI 等）。
-3. **选择模型**：在 **`config/api.json`** 中设置 **modelId**，需与其中 `models` 列表里某一项的 `id` 一致（如 `1`、`qwen-72b`、`deepseek-v3` 等）。
+1. **API URL**：完整请求地址，如 `https://api.siliconflow.cn/v1/chat/completions`
+2. **API Key**：你的密钥（写在 `config/secrets.json`，不提交）
+3. **模型名**：如 `deepseek-ai/DeepSeek-V3.2`、`gpt-4o`、`deepseek-chat`
 
-`config/api.json` 与 `config/secrets.json` 已加入 `.gitignore`，仅本机存在；可推送的只有 `api.json.example` 和 `secrets.json.example`。
+**推荐方式**：托盘菜单 →「AI 设置」，在页面里填入 URL / Key / 模型名，可先点「测试连接」验证，再「保存并应用」。
+
+**手动方式**：把模板复制为本地配置后编辑：
+- `config/api.json.example` → `config/api.json`（填 `apiUrl` 与 `model`）
+- `config/secrets.json.example` → `config/secrets.json`（填 `apiKey`）
+
+旧版 `models` 数组格式会自动迁移为新格式。`config/api.json` 与 `config/secrets.json` 已加入 `.gitignore`，仅本机存在；可推送的只有 `api.json.example` 和 `secrets.json.example`。
 
 示例：
 
-- **secrets.json**（仅本地，勿提交）：
+- **api.json**（URL 与模型名）：
+```json
+{
+  "version": "2.0.0",
+  "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
+  "model": "deepseek-ai/DeepSeek-V3.2",
+  "temperature": 0.8,
+  "maxTokens": 2000
+}
+```
+
+- **secrets.json**（API Key，仅本地勿提交）：
 ```json
 {
   "apiKey": "你的 API Key"
 }
 ```
 
-- **api.json** 顶层字段：
-```json
-{
-  "modelId": "1",
-  "defaultModel": "1",
-  "models": [ ... ]
-}
-```
 
 ---
 
@@ -151,9 +158,9 @@ Peko/
 │       └── file_picker.py  # 狙击点选文件识别（UI Automation + Shell）
 ├── data/                   # 运行时数据（工作台六模块 JSON、靠谱值等，本地产物）
 ├── config/
-│   ├── api.json.example    # 模型配置模板（可推送）
+│   ├── api.json.example    # AI 配置模板：API URL + 模型名（可推送）
 │   ├── secrets.json.example # API Key 模板（可推送）
-│   ├── api.json             # 本地：模型选择（不提交）
+│   ├── api.json             # 本地：API URL / 模型名（不提交）
 │   └── secrets.json         # 本地：API Key（不提交）
 ├── pets/
 │   └── <宠物id>/

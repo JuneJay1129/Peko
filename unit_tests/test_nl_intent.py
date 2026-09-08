@@ -64,10 +64,10 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(intent["minutes"], 25)
 
     def test_plain_chat_not_hijacked(self):
-        # 注：「今天天气怎么样」已改为走天气直答（见 WeatherIntentTests），此处只保留纯闲聊
+        # 注：「今天天气怎么样」已改为走天气直答（见 WeatherIntentTests），「今天好累啊」走安慰（见 ComfortIntentTests）
         self.assertIsNone(nl_intent.parse("你是谁"))
-        self.assertIsNone(nl_intent.parse("今天好累啊"))
         self.assertIsNone(nl_intent.parse("讲个笑话"))
+        self.assertIsNone(nl_intent.parse("今天中午吃啥"))
         self.assertIsNone(nl_intent.parse(""))
         self.assertIsNone(nl_intent.parse("   "))
 
@@ -147,7 +147,8 @@ class WeatherIntentTests(unittest.TestCase):
         self.assertEqual(nl_intent.parse("提醒我明天带伞")["action"], "add_todo")
 
     def test_casual_chat_not_hijacked(self):
-        self.assertIsNone(nl_intent.parse("今天好累啊"))
+        # 「今天好累啊」是低气压表达 → 走安慰（ComfortIntentTests 覆盖）；其余闲聊不劫持
+        self.assertEqual(nl_intent.parse("今天好累啊")["action"], "comfort")
         self.assertIsNone(nl_intent.parse("跟我说说话"))
 
 

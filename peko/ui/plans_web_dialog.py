@@ -17,7 +17,7 @@ from ..core import plans_store as ps
 
 try:
     from PyQt5.QtCore import Qt, QUrl, QObject, QTimer, pyqtSignal, pyqtSlot, QFile, QIODevice
-    from PyQt5.QtWidgets import QDialog, QMessageBox, QDesktopWidget, QApplication
+    from PyQt5.QtWidgets import QDialog, QMessageBox, QDesktopWidget, QApplication, QWidget, QVBoxLayout
     from PyQt5.QtWebEngineWidgets import QWebEngineView
     from PyQt5.QtWebChannel import QWebChannel
 
@@ -187,3 +187,36 @@ def open_plans_web_browser(pet: "Optional[DesktopPet]" = None) -> None:
             QDesktopServices.openUrl(QUrl.fromLocalFile(_HTML_PATH))
         except Exception:
             pass
+
+
+class PlansWebPanel(QWidget):
+    """Web 工作台内嵌面板（供「设置」页使用）：QWebEngineView + QWebChannel 实时桥接。"""
+
+    def __init__(self, pet: "Optional[DesktopPet]" = None, parent=None):
+        super().__init__(parent)
+        self.pet = pet
+        self.store = ps.PlansStore(__file__)
+        self.view = QWebEngineView(self)
+        self.view.setContextMenuPolicy(Qt.NoContextMenu)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.view)
+
+        self.bridge = PlanBridge(self.store)
+        self.channel = QWebChannel(self)
+        self.channel.registerObject("bridge", self.bridge)
+        self.view.page().setWebChannel(self.channel)
+        _ensure_webchannel_js()
+        self.view.load(QUrl.fromLocalFile(_HTML_PATH))
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(2000)
+        self._timer.timeout.connect(self._poll)
+        self._timer.start()
+
+    def _poll(self):
+        if self.isVisible():
+            self.view.page().runJavaScript(
+                "var b=document.getElementById('btnRefresh'); if(b) b.click();",
+                lambda _: None,
+            )

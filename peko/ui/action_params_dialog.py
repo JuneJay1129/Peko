@@ -26,99 +26,90 @@ if TYPE_CHECKING:
 # 标题栏高度，此区域内按下可拖动窗口
 HEADER_DRAG_HEIGHT = 56
 
-# ---- 主题色板（暖色奶油风，统一动作参数与互动面板）----
-ACCENT_TOP = "#f6bd92"
-ACCENT_BOTTOM = "#e08f5e"
-ACCENT_TEXT = "#b9692f"
-INK = "#3d2e1f"
-INK_SOFT = "#7a6350"
-
-CONTAINER_STYLE = """
-    QFrame#dialogContainer {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #fff7ee, stop:1 #fdeede);
-        border: 1px solid #f0d9bd;
+def _styles() -> str:
+    """动作参数面板样式：按当前外观主题的 UI 色板生成（容器 + 卡片 + 控件）。"""
+    try:
+        from ..core import appearance as appearance_mod
+        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
+    except Exception:
+        ui = {"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574", "accent_hover": "#b59668",
+              "ink": "#4a3f35", "ink_soft": "#9a8f7f", "border": "#e8dcc4"}
+    accent_top, accent_bot = ui["accent"], ui["accent_hover"]
+    return f"""
+    QFrame#dialogContainer {{
+        background: {ui['bg']};
+        border: 1px solid {ui['border']};
         border-radius: 24px;
-    }
-"""
-
-# 每一行的小卡片容器
-ROW_CONTAINER_STYLE = """
-    QFrame#rowContainer {
-        background: rgba(255, 255, 255, 0.62);
-        border: 1px solid rgba(232, 210, 184, 0.9);
+    }}
+    QFrame#rowContainer {{
+        background: {ui['card']};
+        border: 1px solid {ui['border']};
         border-radius: 16px;
         padding: 14px 18px;
-    }
-"""
-ROW_MIN_WIDTH = 484  # 小容器最小宽度，保证对齐一致
-ROW_SPACING = 14     # 卡片之间的纵向间距
-
-CONTENT_STYLE = """
-    QLabel { font-size: 14px; color: #5b4636; }
-    QLabel.paramLabel { font-weight: 700; }
-    QComboBox {
+    }}
+    QLabel {{ font-size: 14px; color: {ui['ink']}; }}
+    QLabel.paramLabel {{ font-weight: 700; }}
+    QComboBox {{
         font-size: 14px;
-        color: #5b4636;
-        border: 1px solid #e6d4ba;
+        color: {ui['ink']};
+        border: 1px solid {ui['border']};
         border-radius: 12px;
         padding: 4px 12px;
-        background: #fffdf8;
+        background: {ui['card']};
         min-height: 30px;
         text-align: center;
-    }
-    QComboBox:focus { border-color: #e0a86a; }
-    QComboBox:hover { border-color: #ecc79a; background: #fff7ec; }
-    QComboBox::drop-down {
+    }}
+    QComboBox:focus {{ border-color: {ui['accent']}; }}
+    QComboBox:hover {{ border-color: {ui['accent_hover']}; background: {ui['bg']}; }}
+    QComboBox::drop-down {{
         subcontrol-origin: padding;
         subcontrol-position: right center;
         width: 32px;
-        border-left: 1px solid #ecd2b1;
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #fff6ec, stop:1 #ffe6cf);
+        border-left: 1px solid {ui['border']};
+        background: {ui['bg']};
         border-top-right-radius: 11px;
         border-bottom-right-radius: 11px;
-    }
-    QComboBox::down-arrow {
+    }}
+    QComboBox::down-arrow {{
         width: 12px;
         height: 12px;
-    }
-    QComboBox QAbstractItemView {
-        background: #fffdf8;
-        border: 1px solid #e6d4ba;
-        selection-background-color: #fbe4cf;
-        selection-color: #5b4636;
+    }}
+    QComboBox QAbstractItemView {{
+        background: {ui['card']};
+        border: 1px solid {ui['border']};
+        selection-background-color: {ui['border']};
+        selection-color: {ui['ink']};
         padding: 2px;
-    }
-    QSlider::groove:horizontal {
+    }}
+    QSlider::groove:horizontal {{
         height: 8px;
-        background: #f1e6d3;
+        background: {ui['border']};
         border-radius: 4px;
-    }
-    QSlider::sub-page:horizontal {
+    }}
+    QSlider::sub-page:horizontal {{
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 #f6bd92, stop:1 #e08f5e);
+            stop:0 {accent_top}, stop:1 {accent_bot});
         border-radius: 4px;
-    }
-    QSlider::handle:horizontal {
+    }}
+    QSlider::handle:horizontal {{
         width: 20px;
         height: 20px;
         margin: -6px 0;
         background: qradialgradient(cx:0.35, cy:0.35, radius:0.7,
-            stop:0 #ffffff, stop:1 #eaa068);
+            stop:0 #ffffff, stop:1 {accent_top});
         border: 2px solid #ffffff;
         border-radius: 10px;
-    }
-    QSlider::handle:horizontal:hover { background: qradialgradient(cx:0.35, cy:0.35, radius:0.7,
-            stop:0 #ffffff, stop:1 #e08f5e); }
-    QLabel.rangeLabel {
+    }}
+    QSlider::handle:horizontal:hover {{ background: qradialgradient(cx:0.35, cy:0.35, radius:0.7,
+            stop:0 #ffffff, stop:1 {accent_bot}); }}
+    QLabel.rangeLabel {{
         font-size: 12px;
-        color: #9a8068;
+        color: {ui['ink_soft']};
         min-width: 110px;
-    }
-    QLabel.valueBadge {
+    }}
+    QLabel.valueBadge {{
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #f6bd92, stop:1 #e08f5e);
+            stop:0 {accent_top}, stop:1 {accent_bot});
         color: #ffffff;
         font-size: 13px;
         font-weight: 700;
@@ -126,26 +117,29 @@ CONTENT_STYLE = """
         padding: 4px 12px;
         min-width: 60px;
         qproperty-alignment: AlignCenter;
-    }
-    QPushButton#closeBtn {
+    }}
+    QPushButton#closeBtn {{
         font-size: 20px;
         font-weight: 400;
-        background: rgba(255, 255, 255, 0.85);
-        color: #8a715c;
-        border: 1px solid #e6d4ba;
+        background: {ui['card']};
+        color: {ui['ink_soft']};
+        border: 1px solid {ui['border']};
         border-radius: 18px;
         padding: 0;
         min-width: 38px;
         max-width: 38px;
         min-height: 38px;
         max-height: 38px;
-    }
-    QPushButton#closeBtn:hover {
-        background: #fff0e2;
-        color: #b9692f;
-        border-color: #e0a86a;
-    }
+    }}
+    QPushButton#closeBtn:hover {{
+        background: {ui['bg']};
+        color: {ui['accent']};
+        border-color: {ui['accent_hover']};
+    }}
 """
+
+ROW_MIN_WIDTH = 484  # 小容器最小宽度，保证对齐一致
+ROW_SPACING = 14     # 卡片之间的纵向间距
 
 # 参数范围 (min, max, 步长)
 FRAME_RATE_RANGE = (1, 60)
@@ -189,7 +183,7 @@ class ActionParamsDialog(QDialog):
 
         container = QFrame(self)
         container.setObjectName("dialogContainer")
-        container.setStyleSheet(CONTAINER_STYLE + ROW_CONTAINER_STYLE + CONTENT_STYLE)
+        container.setStyleSheet(_styles())
 
         main_layout = QVBoxLayout(container)
         main_layout.setSpacing(ROW_SPACING)
@@ -461,6 +455,173 @@ class ActionParamsDialog(QDialog):
             state_switch_interval=None,
             move_speed=value,
         )
+
+    def _on_size_changed(self, value: int) -> None:
+        self.size_label.setText(f"{value}%")
+        if self._block_signals or not self.pet:
+            return
+        self.pet.set_display_scale(value / 100.0)
+
+
+class ActionParamsPanel(QWidget):
+    """动作参数面板（内嵌版，供「设置」页使用）：滑动条实时调整单个动作参数。"""
+
+    def __init__(self, parent=None, pet=None):
+        super().__init__(parent)
+        self.pet = pet
+        self.setStyleSheet(_styles())
+        self._block_signals = False
+        self._build()
+        if self.pet is not None:
+            self._load_for_current_action()
+            self._load_size()
+
+    def apply_theme(self):
+        """外观主题切换后刷新配色。"""
+        self.setStyleSheet(_styles())
+
+    def _build(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(ROW_SPACING)
+
+        # 针对动作：下拉（卡片）
+        action_frame = QFrame()
+        action_frame.setObjectName("rowContainer")
+        action_row = QHBoxLayout(action_frame)
+        action_row.setContentsMargins(0, 0, 0, 0)
+        action_row.setSpacing(12)
+        action_label = QLabel("🐾 针对动作：")
+        _bold(action_label)
+        action_row.addWidget(action_label)
+        self.action_combo = QComboBox(self)
+        if self.pet is not None:
+            for value, display in _action_choices(self.pet):
+                self.action_combo.addItem(display, value)
+            self.action_combo.setEditable(True)
+            self.action_combo.lineEdit().setReadOnly(True)
+            self.action_combo.lineEdit().setAlignment(Qt.AlignCenter)
+        self.action_combo.setCursor(Qt.PointingHandCursor)
+        self.action_combo.setMinimumHeight(34)
+        self.action_combo.currentIndexChanged.connect(self._on_action_changed)
+        action_row.addWidget(self.action_combo, 1)
+        root.addWidget(action_frame)
+
+        # 动画帧率
+        self.frame_rate_label = QLabel(self)
+        _badge(self.frame_rate_label)
+        root.addWidget(self._build_slider_card(
+            "✨ 动画帧率（帧/秒）：", self.frame_rate_label, FRAME_RATE_RANGE,
+            "frame_rate_slider", self._on_frame_rate_changed))
+        # 状态切换间隔
+        self.interval_label = QLabel(self)
+        _badge(self.interval_label)
+        root.addWidget(self._build_slider_card(
+            "😴 状态切换间隔（毫秒）：", self.interval_label, INTERVAL_RANGE,
+            "interval_slider", self._on_interval_changed, step=500))
+        # 移动速度
+        self.move_speed_label = QLabel(self)
+        _badge(self.move_speed_label)
+        root.addWidget(self._build_slider_card(
+            "🏃 移动速度（像素/帧）：", self.move_speed_label, MOVE_SPEED_RANGE,
+            "move_speed_slider", self._on_move_speed_changed))
+        # 宠物大小
+        self.size_label = QLabel(self)
+        _badge(self.size_label)
+        root.addWidget(self._build_slider_card(
+            "📐 宠物大小（%）：", self.size_label, SIZE_SCALE_RANGE,
+            "size_slider", self._on_size_changed))
+
+        root.addStretch(1)
+
+    def _build_slider_card(self, caption: str, badge: QLabel, range_tuple, attr: str, handler, step: int = 1) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("rowContainer")
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        label = QLabel(caption)
+        _bold(label)
+        layout.addWidget(label)
+        slider = QSlider(Qt.Horizontal, self)
+        div = max(1, step)
+        slider.setRange(range_tuple[0] // div, range_tuple[1] // div)
+        slider.valueChanged.connect(handler)
+        setattr(self, attr, slider)
+        layout.addWidget(self._slider_row(slider, badge, range_tuple, step=step))
+        return frame
+
+    def _slider_row(self, slider, value_label, range_tuple, step=1) -> QWidget:
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 6, 0, 0)
+        layout.setSpacing(16)
+        range_lbl = QLabel(f"{range_tuple[0]}–{range_tuple[1]}")
+        range_lbl.setObjectName("rangeLabel")
+        layout.addWidget(range_lbl)
+        layout.addWidget(slider, 1)
+        layout.addWidget(value_label)
+        return row
+
+    def _current_action_value(self) -> str:
+        idx = self.action_combo.currentIndex()
+        return self.action_combo.itemData(idx) if idx >= 0 else "__all__"
+
+    def _load_for_current_action(self) -> None:
+        if self.pet is None:
+            return
+        state = self._current_action_value()
+        params = self.pet.get_action_params_for_state(state if state != "__all__" else None)
+        self._block_signals = True
+        self.frame_rate_slider.setValue(params.get("frameRate", 10))
+        iv = params.get("stateSwitchInterval", 5000)
+        self.interval_slider.setValue(max(INTERVAL_RANGE[0] // 500, min(INTERVAL_RANGE[1] // 500, iv // 500)))
+        self.move_speed_slider.setValue(params.get("moveSpeed", 15))
+        self._block_signals = False
+        self._update_labels()
+
+    def _load_size(self) -> None:
+        if self.pet is None:
+            return
+        scale = self.pet.get_display_scale()
+        self._block_signals = True
+        self.size_slider.setValue(max(SIZE_SCALE_RANGE[0], min(SIZE_SCALE_RANGE[1], int(scale * 100))))
+        self._block_signals = False
+        self.size_label.setText(f"{self.size_slider.value()}%")
+
+    def _update_labels(self) -> None:
+        self.frame_rate_label.setText(str(self.frame_rate_slider.value()))
+        self.interval_label.setText(str(self.interval_slider.value() * 500))
+        self.move_speed_label.setText(str(self.move_speed_slider.value()))
+        self.size_label.setText(f"{self.size_slider.value()}%")
+
+    def _on_action_changed(self) -> None:
+        self._load_for_current_action()
+
+    def _on_frame_rate_changed(self, value: int) -> None:
+        self._update_labels()
+        if self._block_signals or not self.pet:
+            return
+        state = self._current_action_value()
+        self.pet.set_action_params_for_state(state if state != "__all__" else None,
+                                             frame_rate=value, state_switch_interval=None, move_speed=None)
+
+    def _on_interval_changed(self, value: int) -> None:
+        ms = value * 500
+        self.interval_label.setText(str(ms))
+        if self._block_signals or not self.pet:
+            return
+        state = self._current_action_value()
+        self.pet.set_action_params_for_state(state if state != "__all__" else None,
+                                             frame_rate=None, state_switch_interval=ms, move_speed=None)
+
+    def _on_move_speed_changed(self, value: int) -> None:
+        self._update_labels()
+        if self._block_signals or not self.pet:
+            return
+        state = self._current_action_value()
+        self.pet.set_action_params_for_state(state if state != "__all__" else None,
+                                             frame_rate=None, state_switch_interval=None, move_speed=value)
 
     def _on_size_changed(self, value: int) -> None:
         self.size_label.setText(f"{value}%")

@@ -11,68 +11,74 @@ def _dialog_font():
     """跨平台字体：Mac 无 Microsoft YaHei，用 PingFang SC。"""
     return QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14, QFont.Bold)
 
-# 与宠物气泡一致：半透明白底、绿色边框、圆角 15px、padding 10px
-CONTAINER_STYLE = """
-    QFrame#dialogContainer {
-        background-color: rgba(255, 255, 255, 0.9);
-        border: 2px solid #4CAF50;
+
+def _dialog_styles() -> str:
+    """对话框样式：按当前外观主题的 UI 色板生成（容器 + 控件）。"""
+    try:
+        from ..core import appearance as ap
+        ui = ap.get_ui_style(ap.get_theme())
+    except Exception:
+        ui = {"bg": "#faf3e0", "card": "#ffffff", "accent": "#4CAF50", "accent_hover": "#45A049",
+              "ink": "#333333", "ink_soft": "#888888", "border": "#CCCCCC"}
+    return f"""
+    QFrame#dialogContainer {{
+        background-color: {ui['card']};
+        border: 2px solid {ui['accent']};
         border-radius: 15px;
         padding: 10px;
-    }
-"""
-
-CONTENT_STYLE = """
-    QLineEdit {
+    }}
+    QLineEdit {{
         font-size: 14px;
-        border: 1px solid #CCCCCC;
+        border: 1px solid {ui['border']};
         border-radius: 8px;
         padding: 5px;
-        background: white;
-        selection-background-color: #4CAF50;
-    }
-    QLineEdit:focus {
-        border-color: #4CAF50;
-    }
-    QPushButton#sendBtn {
+        background: {ui['card']};
+        color: {ui['ink']};
+        selection-background-color: {ui['accent']};
+    }}
+    QLineEdit:focus {{
+        border-color: {ui['accent']};
+    }}
+    QPushButton#sendBtn {{
         font-size: 14px;
-        background-color: #4CAF50;
-        color: white;
+        background-color: {ui['accent']};
+        color: #ffffff;
         border-radius: 10px;
         padding: 5px 15px;
-    }
-    QPushButton#sendBtn:hover {
-        background-color: #45A049;
-    }
-    QPushButton#quickBtn {
+    }}
+    QPushButton#sendBtn:hover {{
+        background-color: {ui['accent_hover']};
+    }}
+    QPushButton#quickBtn {{
         font-size: 12px;
-        background-color: #E8F5E9;
-        color: #2E7D32;
-        border: 1px solid #4CAF50;
+        background-color: {ui['bg']};
+        color: {ui['accent']};
+        border: 1px solid {ui['accent']};
         border-radius: 8px;
         padding: 3px 10px;
-    }
-    QPushButton#quickBtn:hover {
-        background-color: #C8E6C9;
-    }
-    QLabel#hintLabel {
+    }}
+    QPushButton#quickBtn:hover {{
+        background-color: {ui['border']};
+    }}
+    QLabel#hintLabel {{
         font-size: 11px;
-        color: #888888;
-    }
-    QPushButton#closeBtn {
+        color: {ui['ink_soft']};
+    }}
+    QPushButton#closeBtn {{
         font-size: 16px;
         font-weight: 300;
         background: transparent;
-        color: #666;
+        color: {ui['ink_soft']};
         border: none;
         border-radius: 10px;
         padding: 2px 8px;
         min-width: 28px;
         min-height: 28px;
-    }
-    QPushButton#closeBtn:hover {
-        background-color: rgba(0,0,0,0.08);
-        color: #333;
-    }
+    }}
+    QPushButton#closeBtn:hover {{
+        background-color: {ui['border']};
+        color: {ui['ink']};
+    }}
 """
 
 
@@ -101,7 +107,7 @@ class InputDialog(QDialog):
         # 圆角容器
         container = QFrame(self)
         container.setObjectName("dialogContainer")
-        container.setStyleSheet(CONTAINER_STYLE + CONTENT_STYLE)
+        container.setStyleSheet(_dialog_styles())
 
         main_layout = QVBoxLayout(container)
         main_layout.setSpacing(10)
@@ -112,7 +118,11 @@ class InputDialog(QDialog):
         header_layout.setContentsMargins(0, 0, 0, 4)
         title_label = QLabel("与宠物对话")
         title_label.setFont(_dialog_font())
-        title_label.setStyleSheet("color: black;")
+        try:
+            from ..core import appearance as ap
+            title_label.setStyleSheet(f"color: {ap.get_ui_style(ap.get_theme())['ink']};")
+        except Exception:
+            title_label.setStyleSheet("color: black;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         close_btn = QPushButton("×", self)

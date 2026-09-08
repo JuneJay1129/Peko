@@ -59,14 +59,29 @@ jobs:
 
       - name: Verify macOS artifact
         run: |
-          if [ -d "dist/Peko.app" ]; then
-            echo "OK: dist/Peko.app exists"
-            ls -la dist/
-          else
-            echo "ERROR: dist/Peko.app not found"
+          set -e
+          APP="dist/Peko.app"
+          if [ ! -d "$APP" ]; then
+            echo "ERROR: $APP not found"
             ls -la dist/ || true
             exit 1
           fi
+          echo "OK: $APP exists"
+          BIN="$APP/Contents/MacOS/Peko"
+          if [ ! -x "$BIN" ]; then
+            echo "ERROR: main binary missing or not executable: $BIN"
+            ls -la "$APP/Contents/MacOS/" || true
+            exit 1
+          fi
+          echo "OK: main binary executable"
+          # QtWebEngineProcess 是 PyQtWebEngine 内嵌式关键运行时，必须打进 .app
+          WEBENGINE=$(find "$APP" -name "QtWebEngineProcess*" | head -1)
+          if [ -n "$WEBENGINE" ]; then
+            echo "OK: QtWebEngineProcess bundled: $WEBENGINE"
+          else
+            echo "WARN: QtWebEngineProcess not found in $APP (工作台内嵌页面会无法打开)"
+          fi
+          ls -la dist/
         working-directory: ${{ github.workspace }}
 
       - name: Archive macOS app

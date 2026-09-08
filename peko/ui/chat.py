@@ -103,6 +103,16 @@ class ChatHandler:
                 except Exception:
                     self.pet.bubble_text_ready.emit("唔…城市没记住，等会儿再试试～", REPLY_BUBBLE_DURATION_MS)
                 return
+            # 安慰打气：压力/难过/被指责时的情绪陪伴；配了 AI 走个性化，否则用内置语库
+            if action == "comfort":
+                try:
+                    self._handle_comfort(text)
+                except Exception:
+                    try:
+                        self.pet.comfort()
+                    except Exception:
+                        pass
+                return
             self._handle_workspace_intent(intent)
             return
         # 像命令但没写全（如「记一笔」缺金额）→ 给用法提示，不走 AI
@@ -114,6 +124,10 @@ class ChatHandler:
             self.pet.bubble_text_ready.emit(hint, REPLY_BUBBLE_DURATION_MS)
             return
         threading.Thread(target=self._fetch_response, args=(text,), daemon=True).start()
+
+    def _handle_comfort(self, text: str) -> None:
+        """安慰打气（对话式）：用桌宠气泡多轮引导倾诉；无 AI 也能用。"""
+        self.pet.start_comfort_dialog(initial_hint=text)
 
     def _handle_workspace_intent(self, intent) -> None:
         """C5：执行自然语言 → 工作台写入；专注类用 QTimer 做结束提醒（不落盘）。"""
