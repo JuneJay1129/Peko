@@ -37,7 +37,7 @@ THEMES: Dict[str, Dict[str, Any]] = {
             "border": "2px solid #e8c07a",
             "borderRadius": "16px",
             "padding": "10px 14px",
-            "fontSize": "14px",
+            "fontSize": "15px",
             "color": "#5a4632",
         },
         "ui": {
@@ -52,7 +52,7 @@ THEMES: Dict[str, Dict[str, Any]] = {
             "border": "2px solid #7ec8a3",
             "borderRadius": "16px",
             "padding": "10px 14px",
-            "fontSize": "14px",
+            "fontSize": "15px",
             "color": "#2f6b4f",
         },
         "ui": {
@@ -67,7 +67,7 @@ THEMES: Dict[str, Dict[str, Any]] = {
             "border": "2px solid #eba9c0",
             "borderRadius": "16px",
             "padding": "10px 14px",
-            "fontSize": "14px",
+            "fontSize": "15px",
             "color": "#8a4a62",
         },
         "ui": {
@@ -82,7 +82,7 @@ THEMES: Dict[str, Dict[str, Any]] = {
             "border": "2px solid #6a6a7e",
             "borderRadius": "16px",
             "padding": "10px 14px",
-            "fontSize": "14px",
+            "fontSize": "15px",
             "color": "#f0f0f4",
         },
         "ui": {

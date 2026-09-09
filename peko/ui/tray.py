@@ -108,7 +108,8 @@ class TrayIcon:
     def refresh_theme(self) -> None:
         """外观主题切换后刷新托盘 / Dock 菜单及其「模式」子菜单配色。"""
         try:
-            for attr in ("_tray_menu", "_mode_menu", "_follower_menu", "_dock_menu", "_dock_mode_menu"):
+            for attr in ("_tray_menu", "_mode_menu", "_follower_menu", "_effect_menu",
+                         "_dock_menu", "_dock_mode_menu", "_dock_effect_menu"):
                 m = getattr(self, attr, None)
                 if m is not None:
                     m.setStyleSheet(_menu_style())
@@ -125,6 +126,7 @@ class TrayIcon:
         self._hide_action = QAction("隐藏桌宠", self.app)
         self._talk_action = QAction("与宠物对话", self.app)
         self._comfort_action = QAction("安慰我", self.app)
+        self._weather_action = QAction("查看天气", self.app)
         self._destroy_file_action = QAction("摧毁文件…", self.app)
         self._settings_action = QAction("设置…", self.app)
         self._exit_action = QAction("退出", self.app)
@@ -133,6 +135,7 @@ class TrayIcon:
         self._hide_action.triggered.connect(self._on_hide_pets)
         self._talk_action.triggered.connect(lambda: self.pet_holder[0].show_custom_input_dialog() if self.pet_holder else None)
         self._comfort_action.triggered.connect(self._on_comfort)
+        self._weather_action.triggered.connect(self._on_weather)
         self._destroy_file_action.triggered.connect(self._on_destroy_file)
         self._settings_action.triggered.connect(self.open_settings)
         self._exit_action.triggered.connect(self.exit_app)
@@ -142,6 +145,7 @@ class TrayIcon:
         menu.addAction(self._talk_action)
         menu.addSeparator()
         menu.addAction(self._comfort_action)
+        menu.addAction(self._weather_action)
         menu.addAction(self._destroy_file_action)
 
         # 模式子菜单（自动/操控/跟随/分身 + 停止移动）
@@ -170,6 +174,11 @@ class TrayIcon:
         self._follower_menu = menu.addMenu("召唤跟班")
         self._follower_menu.setStyleSheet(_menu_style())
         self._update_follower_menu()
+
+        # 特效装饰子菜单
+        self._effect_menu = menu.addMenu("特效装饰")
+        self._effect_menu.setStyleSheet(_menu_style())
+        self._fill_effect_menu(self._effect_menu)
 
         menu.addSeparator()
         menu.addAction(self._settings_action)
@@ -207,6 +216,7 @@ class TrayIcon:
         dock.addAction(self._talk_action)
         dock.addSeparator()
         dock.addAction(self._comfort_action)
+        dock.addAction(self._weather_action)
         dock.addAction(self._destroy_file_action)
         mode_menu = dock.addMenu("模式")
         mode_menu.setStyleSheet(_menu_style())
@@ -355,6 +365,63 @@ class TrayIcon:
             except Exception:
                 pass
             self._follower = None
+
+    def _fill_effect_menu(self, menu) -> None:
+        """填充特效装饰子菜单。"""
+        menu.clear()
+        from .effects import EFFECTS
+        current = self._get_effect_config()
+        for key, info in EFFECTS.items():
+            act = QAction(info["name"], self.app, checkable=True)
+            act.setChecked(key == current)
+            act.triggered.connect(lambda _=False, k=key: self._on_set_effect(k))
+            menu.addAction(act)
+
+    def _get_effect_config(self) -> str:
+        """读取当前特效配置。"""
+        import json
+        import os
+        from ..core.runtime_paths import get_writable_root
+        cfg_path = os.path.join(get_writable_root(module_file=__file__), "config", "effects.json")
+        if os.path.exists(cfg_path):
+            try:
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return data.get("current", "none")
+            except Exception:
+                pass
+        return "none"
+
+    def _save_effect_config(self, name: str) -> None:
+        """保存特效配置。"""
+        import json
+        import os
+        from ..core.runtime_paths import get_writable_root
+        cfg_path = os.path.join(get_writable_root(module_file=__file__), "config", "effects.json")
+        try:
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump({"current": name}, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"[Tray] 保存特效配置失败: {e}")
+
+    def _on_set_effect(self, name: str) -> None:
+        """切换特效。"""
+        if not self.pet_holder:
+            return
+        pet = self.pet_holder[0]
+        ok = pet.set_effect(name)
+        if ok:
+            self._save_effect_config(name)
+        # 刷新所有特效菜单的勾选状态
+        for m in (getattr(self, "_effect_menu", None), getattr(self, "_dock_effect_menu", None)):
+            if m is not None:
+                self._fill_effect_menu(m)
+
+    def _refresh_theme_effect_menu(self) -> None:
+        """刷新主题时同步特效菜单样式。"""
+        for m in (getattr(self, "_effect_menu", None), getattr(self, "_dock_effect_menu", None)):
+            if m is not None:
+                m.setStyleSheet(_menu_style())
 
     def _on_comfort(self):
         """托盘「安慰我」：用桌宠气泡开启引导式安慰对话（多轮，无 AI 也能用）。"""

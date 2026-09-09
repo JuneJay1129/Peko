@@ -194,6 +194,8 @@ def main():
             tray.update_icon()
         if was_visible:
             new_pet.show()
+        # 恢复特效
+        _load_effect(new_pet)
         # 欢迎语
         name = pkg.get("name", pet_id)
         welcome_msg = f"Hi！我是 {name}。用 L+Enter 和我对话吧～"
@@ -206,6 +208,24 @@ def main():
         )
 
     tray.on_switch_pet = switch_pet
+
+    # 加载保存的特效
+    def _load_effect(pet_widget):
+        try:
+            import json
+            import os
+            from .core.runtime_paths import get_writable_root
+            cfg_path = os.path.join(get_writable_root(module_file=__file__), "config", "effects.json")
+            if os.path.exists(cfg_path):
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                effect_name = data.get("current", "none")
+                if effect_name and effect_name != "none":
+                    pet_widget.set_effect(effect_name)
+        except Exception as e:
+            print(f"[Main] 加载特效配置失败: {e}")
+
+    _load_effect(pet)
     pet.show()
     welcome = pet_package.get("description") or f"我是 {pet_package.get('name', default_id)}，用 L+Enter 和我对话吧！"
     # macOS 上 pynput 需要辅助功能权限，添加提示

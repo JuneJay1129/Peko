@@ -1,11 +1,11 @@
 {
   "city": "杭州",
   "cond": "小雨",
-  "temp_c": 26,
-  "feels_c": 29,
-  "humidity": 91,
-  "wind": "↙15km/h",
+  "temp_c": 23,
+  "feels_c": 24,
+  "humidity": 82,
+  "wind": "↓18km/h",
   "source": "wttr.in",
-  "fetched_at": "2026-09-02T12:07",
+  "fetched_at": "2026-09-09T11:24",
   "level": "live"
 }

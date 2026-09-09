@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
 )
 
 from ..core.mood import MoodEngine
+from .effects import EffectOverlay, EFFECTS
 from .actions import (
     AutoActions,
     ControlActions,
@@ -55,7 +56,7 @@ def _bubble_action_qss() -> str:
         border-radius: 10px;
         padding: 9px 12px;
         color: {ui['ink']};
-        font-size: 13px;
+        font-size: 14px;
         selection-background-color: {ui['accent']};
     }}
     QLineEdit:focus {{ border-color: {ui['accent']}; }}
@@ -78,7 +79,7 @@ def _side_panel_style() -> str:
     }}
     QLabel#sideHint {{
         color: {ui['ink_soft']};
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
     }}
     QPushButton#sideClose {{
@@ -106,7 +107,7 @@ def _side_panel_style() -> str:
         border-radius: 10px;
         padding: 9px 12px;
         color: {ui['ink']};
-        font-size: 13px;
+        font-size: 14px;
         selection-background-color: {ui['accent']};
     }}
     QLineEdit:focus {{ border-color: {ui['accent']}; }}
@@ -122,8 +123,8 @@ def _default_bubble_style() -> str:
         border-top-right-radius: 15px;
         border-bottom-left-radius: 15px;
         border-bottom-right-radius: 15px;
-        padding: 10px;
-        font-size: 14px;
+        padding: 12px;
+        font-size: 15px;
         color: black;
     """
 
@@ -136,7 +137,7 @@ def _bubble_style_from_config(bubble_style: Dict[str, Any]) -> str:
     border = bubble_style.get("border", "2px solid rgba(76, 175, 80, 0.85)")
     radius = bubble_style.get("borderRadius", "15px")
     padding = bubble_style.get("padding", "10px")
-    font_size = bubble_style.get("fontSize", "14px")
+    font_size = bubble_style.get("fontSize", "15px")
     color = bubble_style.get("color", "black")
     return f"""
         background-color: {bg};
@@ -384,13 +385,13 @@ class DesktopPet(QWidget):
         if not style_cfg:
             style_cfg = self.bubble_style_config
         self.bubble_label.setStyleSheet(_bubble_style_from_config(style_cfg))
-        font = QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14)
+        font = QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 15)
         font.setBold(True)
         self.bubble_label.setFont(font)
         self.bubble_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.bubble_label.setWordWrap(True)
-        self.bubble_label.setContentsMargins(12, 12, 12, 12)
-        self.bubble_label.setFixedWidth(200)
+        self.bubble_label.setContentsMargins(14, 14, 14, 14)
+        self.bubble_label.setFixedWidth(220)
         self._bubble_v.addWidget(self.bubble_label)
         self.bubble_window.setStyleSheet(_bubble_action_qss())
 
@@ -446,8 +447,33 @@ class DesktopPet(QWidget):
         self._comfort_ai_mode = False
         self.bubble_window.setVisible(False)
 
+        # 特效叠加层
+        self.effect_overlay = EffectOverlay(self)
+        self._current_effect = "none"
+
         self.update_frame()
         self.setFocusPolicy(Qt.StrongFocus)
+
+    def set_effect(self, name: str) -> bool:
+        """切换特效。name 为 EFFECTS 中的 key，返回是否成功。"""
+        if name not in EFFECTS:
+            return False
+        self._current_effect = name
+        self.effect_overlay.set_effect(name)
+        # 重置暂停状态（切换特效时，若气泡显示着且新特效是 think，则暂停；否则恢复）
+        bubble_visible = self.bubble_window.isVisible() if hasattr(self, "bubble_window") else False
+        should_pause = (name == "think" and bubble_visible)
+        self.effect_overlay.set_paused(should_pause)
+        if name == "none":
+            self.effect_overlay.hide()
+        else:
+            self.effect_overlay.follow_pet()
+            self.effect_overlay.show()
+            self.effect_overlay.raise_()
+        return True
+
+    def get_effect(self) -> str:
+        return self._current_effect
 
     def set_control_mode(self, on: bool) -> None:
         """切换为操控模式或自动/跟随模式。"""
@@ -1027,7 +1053,7 @@ class DesktopPet(QWidget):
     # ---------- 安慰对话（头顶气泡 + 侧面操作面板） ----------
     def _set_bubble_dialog(self, on: bool) -> None:
         """切换气泡为「安慰对话模式」：气泡放宽以容纳多行文本。"""
-        self.bubble_label.setFixedWidth(340 if on else 200)
+        self.bubble_label.setFixedWidth(380 if on else 220)
 
     def refresh_theme(self, theme: str = "") -> None:
         """外观主题切换后刷新气泡与侧面操作面板配色。"""
@@ -1051,6 +1077,7 @@ class DesktopPet(QWidget):
         self.bubble_window.hide()
         self.bubble_timer.stop()
         self.typing_timer.stop()
+        self._notify_effect_bubble_hidden()
 
     def start_comfort_dialog(self, initial_hint: str = "") -> None:
         """用桌宠气泡开启引导式安慰对话（无 AI 也能用）。"""
@@ -1086,6 +1113,7 @@ class DesktopPet(QWidget):
             self.bubble_window.adjustSize()
             self.bubble_window.setVisible(True)
             self._position_bubble_window()
+            self._notify_effect_bubble_shown()
             QTimer.singleShot(2800, self.hide_bubble)
             return
         self._side_inp_edit.setEnabled(True)
@@ -1095,6 +1123,7 @@ class DesktopPet(QWidget):
         self.bubble_window.adjustSize()
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
+        self._notify_effect_bubble_shown()
         # 兜底：对话进行中气泡常驻（20s 无操作才隐藏，防异常卡死）
         self.bubble_timer.start(20000)
 
@@ -1211,12 +1240,13 @@ class DesktopPet(QWidget):
         self.bubble_label.setVisible(True)
         self.bubble_label.setText(text)
         self.bubble_label.setWordWrap(True)
-        self.bubble_label.setFixedWidth(200)
+        self.bubble_label.setFixedWidth(220)
         self.bubble_window.adjustSize()
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
         self.bubble_timer.stop()
         self.bubble_timer.start(duration)
+        self._notify_effect_bubble_shown()
 
     def show_bubble(self, text: str, duration: int = 3000, typing_speed: int = 50) -> None:
         # 打字机时长自适应：保证长文能完整读完（打字耗时 + 停留），上限 30 秒
@@ -1228,7 +1258,7 @@ class DesktopPet(QWidget):
         self.bubble_label.setText("")
         self.bubble_label.setVisible(True)
         self.bubble_label.setWordWrap(True)
-        self.bubble_label.setFixedWidth(200)
+        self.bubble_label.setFixedWidth(220)
         self.bubble_window.adjustSize()
         self.bubble_window.setVisible(True)
         self._position_bubble_window()
@@ -1237,6 +1267,7 @@ class DesktopPet(QWidget):
         self.typing_index = 0
         self.typing_timer.start(typing_speed)
         self.bubble_timer.start(duration)
+        self._notify_effect_bubble_shown()
 
     def type_next_character(self):
         if self.typing_index < len(self.full_text):
@@ -1254,6 +1285,17 @@ class DesktopPet(QWidget):
         self._side_panel.hide()
         self.bubble_window.hide()
         self.bubble_timer.stop()
+        self._notify_effect_bubble_hidden()
+
+    def _notify_effect_bubble_shown(self):
+        """气泡显示时，通知特效层：如果是思考特效则暂停（避让对话气泡）。"""
+        if hasattr(self, "effect_overlay") and self._current_effect == "think":
+            self.effect_overlay.set_paused(True)
+
+    def _notify_effect_bubble_hidden(self):
+        """气泡隐藏时，恢复思考特效。"""
+        if hasattr(self, "effect_overlay") and self._current_effect == "think":
+            self.effect_overlay.set_paused(False)
 
     def _stop_bubble_timers(self):
         """停止所有与气泡相关的定时器并隐藏气泡，用于关闭窗口前清理，避免关闭后定时器再次弹出气泡。"""
@@ -1265,6 +1307,7 @@ class DesktopPet(QWidget):
         if hasattr(self, "_side_panel"):
             self._side_panel.hide()
         self.bubble_window.hide()
+        self._notify_effect_bubble_hidden()
 
     def _cleanup_for_destroy(self) -> None:
         """彻底清理：停止所有定时器并关闭气泡窗口，用于分身模式退出时，避免气泡残留和卡顿。"""
@@ -1320,6 +1363,12 @@ class DesktopPet(QWidget):
         self._close_interaction_panel()
         self._clear_ui_effects()
         self._mood_engine.save()
+        # 关闭特效叠加层
+        if hasattr(self, "effect_overlay"):
+            try:
+                self.effect_overlay.close()
+            except Exception:
+                pass
         super().closeEvent(event)
 
     def _schedule_next_saying(self, initial_delay: bool = False) -> None:
