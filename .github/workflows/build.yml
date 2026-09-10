@@ -1,11 +1,18 @@
-# 一次构建同时产出 Windows 与 macOS 可执行程序
-# 使用：推送到 GitHub 后到 Actions 页运行，或 push 时自动运行，从 Artifacts 下载两个平台的产物
+# 一次构建同时产出三个安装包：Windows + macOS Intel + macOS Apple Silicon
+# 使用：push 到 main 自动出 Artifacts；打 tag v* 自动发布 Release
+#
+# 产物：
+#   - Peko-Windows.zip          — Windows (x64)
+#   - Peko-macOS-Intel.zip      — macOS Intel (x86_64)
+#   - Peko-macOS-AppleSilicon.zip — macOS Apple Silicon (arm64)
 
-name: Build Peko (Windows + macOS)
+name: Build Peko (3 平台)
 
 on:
   push:
     branches: [main, master]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -29,15 +36,20 @@ jobs:
         run: packaging\build.bat
         working-directory: ${{ github.workspace }}
 
+      - name: Package zip
+        run: |
+          Compress-Archive -Path dist\Peko.exe -DestinationPath dist\Peko-Windows.zip
+        working-directory: ${{ github.workspace }}
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: Peko-Windows
-          path: dist/Peko.exe
+          path: dist/Peko-Windows.zip
 
-  build-macos:
-    name: Build macOS
-    runs-on: macos-latest
+  build-macos-intel:
+    name: Build macOS Intel (x86_64)
+    runs-on: macos-13  # macos-13 是 Intel runner，原生 x86_64
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +57,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          architecture: "x64"
 
       - name: Install dependencies
         run: |
@@ -54,44 +67,93 @@ jobs:
       - name: Build
         env:
           MACOSX_DEPLOYMENT_TARGET: "10.15"
-        run: bash packaging/build_mac.sh
+        run: |
+          export MACOSX_DEPLOYMENT_TARGET=10.15
+          pyinstaller packaging/main.spec
+          # 重命名带架构标识
+          mv dist/Peko.app dist/Peko-Intel.app
         working-directory: ${{ github.workspace }}
 
-      - name: Verify macOS artifact
+      - name: Verify & archive
         run: |
           set -e
-          APP="dist/Peko.app"
-          if [ ! -d "$APP" ]; then
-            echo "ERROR: $APP not found"
-            ls -la dist/ || true
-            exit 1
-          fi
-          echo "OK: $APP exists"
-          BIN="$APP/Contents/MacOS/Peko"
-          if [ ! -x "$BIN" ]; then
-            echo "ERROR: main binary missing or not executable: $BIN"
-            ls -la "$APP/Contents/MacOS/" || true
-            exit 1
-          fi
-          echo "OK: main binary executable"
-          # QtWebEngineProcess 是 PyQtWebEngine 内嵌式关键运行时，必须打进 .app
-          WEBENGINE=$(find "$APP" -name "QtWebEngineProcess*" | head -1)
-          if [ -n "$WEBENGINE" ]; then
-            echo "OK: QtWebEngineProcess bundled: $WEBENGINE"
-          else
-            echo "WARN: QtWebEngineProcess not found in $APP (工作台内嵌页面会无法打开)"
-          fi
-          ls -la dist/
+          APP="dist/Peko-Intel.app"
+          test -d "$APP" || (echo "ERROR: $APP not found"; ls -la dist/; exit 1)
+          file "$APP/Contents/MacOS/Peko"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/Peko-macOS-Intel.zip"
+          ls -lh dist/
         working-directory: ${{ github.workspace }}
 
-      - name: Archive macOS app
-        run: |
-          ditto -c -k --sequesterRsrc --keepParent "dist/Peko.app" "dist/Peko-macOS.zip"
-          ls -la dist/
-        working-directory: ${{ github.workspace }}
-
-      - name: Upload macOS artifact
+      - name: Upload macOS Intel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Peko-macOS
-          path: dist/Peko-macOS.zip
+          name: Peko-macOS-Intel
+          path: dist/Peko-macOS-Intel.zip
+
+  build-macos-arm:
+    name: Build macOS Apple Silicon (arm64)
+    runs-on: macos-latest  # 最新 macOS runner 是 arm64 (M1+)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: "arm64"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller Pillow
+
+      - name: Build
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          export MACOSX_DEPLOYMENT_TARGET=11.0
+          pyinstaller packaging/main.spec
+          # 重命名带架构标识
+          mv dist/Peko.app dist/Peko-AppleSilicon.app
+        working-directory: ${{ github.workspace }}
+
+      - name: Verify & archive
+        run: |
+          set -e
+          APP="dist/Peko-AppleSilicon.app"
+          test -d "$APP" || (echo "ERROR: $APP not found"; ls -la dist/; exit 1)
+          file "$APP/Contents/MacOS/Peko"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/Peko-macOS-AppleSilicon.zip"
+          ls -lh dist/
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload macOS Apple Silicon artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Peko-macOS-AppleSilicon
+          path: dist/Peko-macOS-AppleSilicon.zip
+
+  release:
+    name: Release (打 tag 时触发)
+    needs: [build-windows, build-macos-intel, build-macos-arm]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: ls -lhR artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/Peko-Windows/Peko-Windows.zip
+            artifacts/Peko-macOS-Intel/Peko-macOS-Intel.zip
+            artifacts/Peko-macOS-AppleSilicon/Peko-macOS-AppleSilicon.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false

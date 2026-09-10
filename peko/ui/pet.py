@@ -352,6 +352,17 @@ class DesktopPet(QWidget):
         self.label.setFixedSize(self.size())
         self.label.setScaledContents(False)
 
+        # macOS 可见性守卫：切换桌面/Space 或系统隐藏后自动恢复显示
+        # 防止切桌面后宠物"消失"的问题
+        self._visibility_guard_timer = None
+        if sys.platform == "darwin":
+            self._visibility_guard_timer = QTimer(self)
+            self._visibility_guard_timer.setInterval(2000)
+            self._visibility_guard_timer.timeout.connect(self._ensure_visible)
+            self._visibility_guard_timer.start()
+            # 标记：上次显式隐藏的时间，避免守卫和显式隐藏冲突
+            self._last_hide_manually_ms = 0
+
         screen_geometry = QApplication.desktop().screenGeometry()
         screen_width, screen_height = screen_geometry.width(), screen_geometry.height()
         pet_width, pet_height = self.width(), self.height()
@@ -1358,6 +1369,30 @@ class DesktopPet(QWidget):
         self.update_frame()
         self.update()
 
+    def hide(self):
+        """显式隐藏时记录时间，避免可见性守卫立即拉回来。"""
+        import sys
+        if sys.platform == "darwin" and hasattr(self, "_last_hide_manually_ms"):
+            from PyQt5.QtCore import QDateTime
+            self._last_hide_manually_ms = QDateTime.currentMSecsSinceEpoch()
+        super().hide()
+
+    def _ensure_visible(self) -> None:
+        """macOS 可见性守卫：如果应该显示却被系统隐藏了，重新显示。"""
+        if not hasattr(self, "_last_hide_manually_ms"):
+            return
+        # 如果最近 3 秒内显式隐藏过，不守卫
+        from PyQt5.QtCore import QDateTime
+        if QDateTime.currentMSecsSinceEpoch() - self._last_hide_manually_ms < 3000:
+            return
+        # 分身模式永远保持显示；主宠只要没被手动隐藏就保持显示
+        if not self.isVisible():
+            clone = getattr(self, "clone_mode", False)
+            if clone:
+                self.show()
+            elif not getattr(self, "_user_hidden", False):
+                self.show()
+
     def closeEvent(self, event):
         self._stop_bubble_timers()
         self._close_interaction_panel()
@@ -1537,8 +1572,24 @@ class DesktopPet(QWidget):
     def keyPressEvent(self, event):
         if self.control_mode and self._control_actions.handle_key_press(event):
             event.accept()
-        else:
-            super().keyPressEvent(event)
+            return
+        # ESC：退出控制模式（若在控制模式）、关闭安慰对话（若开着）、否则隐藏宠物
+        if event.key() == Qt.Key_Escape:
+            if self.control_mode:
+                self.set_control_mode(False)
+                event.accept()
+                return
+            # 如果安慰对话开着，先关安慰
+            if getattr(self, "_comfort_session", None) is not None:
+                self.close_comfort_dialog()
+                event.accept()
+                return
+            # 普通状态：ESC 隐藏宠物
+            if self.isVisible():
+                self.hide()
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
         if self.control_mode and self._control_actions.handle_key_release(event):

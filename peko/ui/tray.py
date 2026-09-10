@@ -189,6 +189,7 @@ class TrayIcon:
         self._tray_menu = menu
         menu.aboutToShow.connect(self._on_tray_menu_about_to_show)
         if sys.platform == "darwin":
+            menu.aboutToHide.connect(self._on_tray_menu_about_to_hide_macos)
             self.tray_icon.activated.connect(self._on_tray_activated_macos)
             self._install_macos_dock_menu()
         self.tray_icon.show()
@@ -236,7 +237,9 @@ class TrayIcon:
         dock.setAsDockMenu()
 
     def _on_tray_activated_macos(self, reason):
-        """macOS 上 Qt 往往不把右键映射为 Context，需在 Trigger 等场景手动弹出菜单。"""
+        """macOS 上 Qt 往往不把右键映射为 Context，需在 Trigger 等场景手动弹出菜单。
+        分身模式下多窗口置顶会抢焦点，弹出菜单前先把宠物窗口临时降下，确保菜单可见可点。"""
+        import sys
         if reason == QSystemTrayIcon.DoubleClick:
             return
         if reason in (
@@ -244,7 +247,27 @@ class TrayIcon:
             QSystemTrayIcon.Context,
             QSystemTrayIcon.MiddleClick,
         ):
+            # 分身模式下：临时降低所有宠物窗口层级，避免抢托盘菜单焦点
+            clone_pets = getattr(self, "clone_pets", []) or []
+            if len(clone_pets) > 0 and self.pet_holder:
+                all_pets = list(self.pet_holder) + list(clone_pets)
+                for p in all_pets:
+                    try:
+                        p.lower()
+                    except Exception:
+                        pass
             self._tray_menu.popup(QCursor.pos())
+
+    def _on_tray_menu_about_to_hide_macos(self):
+        """macOS 托盘菜单关闭后：恢复宠物窗口置顶层级（分身模式下临时降下的）。"""
+        clone_pets = getattr(self, "clone_pets", []) or []
+        if len(clone_pets) > 0 and self.pet_holder:
+            all_pets = list(self.pet_holder) + list(clone_pets)
+            for p in all_pets:
+                try:
+                    p.raise_()
+                except Exception:
+                    pass
 
     def _all_pets(self):
         """当前所有宠物窗口（主宠 + 分身），用于显示/隐藏/退出等。"""

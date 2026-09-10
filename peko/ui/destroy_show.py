@@ -532,10 +532,18 @@ def start_destroy_show_at(pet, paths: List[str], target_pos: QPoint) -> bool:
 
 
 def begin_destroy_flow(pet, parent: Optional[QWidget] = None) -> None:
-    """托盘入口：狙击点选文件（红色准星，不变暗）→ 识别文件 → 宠物跑过去摧毁。"""
+    """托盘入口：狙击点选文件（红色准星，不变暗）→ 识别文件 → 宠物跑过去摧毁。
+    macOS 等不支持 UIA 点选的平台，降级为文件选择对话框。"""
+    import sys
     if getattr(pet, "_destroy_running", False):
         pet.update_bubble("上一场还没演完呢。", duration=2200)
         return
+
+    # 非 Windows 平台（macOS/Linux）：UIA/Shell 不可用，降级为文件选择对话框
+    if sys.platform != "win32":
+        _begin_destroy_flow_file_dialog(pet, parent)
+        return
+
     overlay = _TargetOverlay("点击要摧毁的文件图标（Esc 取消）")
     pet._destroy_overlay = overlay  # 挂宠物上保活
 
@@ -560,3 +568,28 @@ def begin_destroy_flow(pet, parent: Optional[QWidget] = None) -> None:
     overlay.picked.connect(on_picked)
     overlay.cancelled.connect(on_cancel)
     overlay.show()
+
+
+def _begin_destroy_flow_file_dialog(pet, parent: Optional[QWidget] = None) -> None:
+    """macOS/Linux 降级方案：文件选择对话框选文件 → 宠物跑到屏幕中间表演摧毁。"""
+    from PyQt5.QtWidgets import QFileDialog
+    from PyQt5.QtCore import QPoint, QTimer, QCoreApplication
+    from PyQt5.QtWidgets import QApplication
+
+    files, _ = QFileDialog.getOpenFileNames(
+        parent or pet,
+        "选择要摧毁的文件",
+        "",
+        "所有文件 (*)"
+    )
+    if not files:
+        return
+
+    # 让对话框先关闭，免得挡住宠物表演
+    QCoreApplication.processEvents()
+
+    # 表演位置：屏幕中间偏下（宠物跑得到的位置）
+    screen = QApplication.primaryScreen().availableGeometry()
+    pos = QPoint(screen.center().x(), screen.center().y() + screen.height() // 6)
+
+    start_destroy_show_at(pet, files, pos)
