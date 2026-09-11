@@ -49,7 +49,7 @@ jobs:
 
   build-macos-intel:
     name: Build macOS Intel (x86_64)
-    runs-on: macos-13  # macos-13 是 Intel runner，原生 x86_64
+    runs-on: macos-latest  # 改用 arm64 runner + Rosetta 2 交叉编译；macos-13 Intel runner 极稀缺、长期排队
     steps:
       - uses: actions/checkout@v4
 
@@ -59,17 +59,19 @@ jobs:
           python-version: "3.11"
           architecture: "x64"
 
-      - name: Install dependencies
+      - name: Install dependencies (x86_64 via Rosetta)
         run: |
-          pip install -r requirements.txt
-          pip install pyinstaller Pillow
+          export MACOSX_DEPLOYMENT_TARGET=10.15
+          arch -x86_64 python -m pip install --upgrade pip
+          arch -x86_64 python -m pip install -r requirements.txt
+          arch -x86_64 python -m pip install pyinstaller Pillow
 
-      - name: Build
+      - name: Build (cross-compile x86_64 via Rosetta)
         env:
           MACOSX_DEPLOYMENT_TARGET: "10.15"
         run: |
           export MACOSX_DEPLOYMENT_TARGET=10.15
-          pyinstaller packaging/main.spec
+          arch -x86_64 python -m PyInstaller packaging/main.spec
           # 重命名带架构标识
           mv dist/Peko.app dist/Peko-Intel.app
         working-directory: ${{ github.workspace }}
@@ -79,7 +81,7 @@ jobs:
           set -e
           APP="dist/Peko-Intel.app"
           test -d "$APP" || (echo "ERROR: $APP not found"; ls -la dist/; exit 1)
-          file "$APP/Contents/MacOS/Peko"
+          file "$APP/Contents/MacOS/Peko" | grep -q "executable x86_64" || (echo "ERROR: not an x86_64 binary"; file "$APP/Contents/MacOS/Peko"; exit 1)
           ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/Peko-macOS-Intel.zip"
           ls -lh dist/
         working-directory: ${{ github.workspace }}
