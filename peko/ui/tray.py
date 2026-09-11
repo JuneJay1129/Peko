@@ -230,6 +230,10 @@ class TrayIcon:
         self._dock_follower_menu = dock.addMenu("召唤跟班")
         self._dock_follower_menu.setStyleSheet(_menu_style())
         self._fill_follower_menu(self._dock_follower_menu)
+        # 特效装饰子菜单（与托盘一致；切换特效后 _on_set_effect 会同步刷新勾选）
+        self._dock_effect_menu = dock.addMenu("特效装饰")
+        self._dock_effect_menu.setStyleSheet(_menu_style())
+        self._fill_effect_menu(self._dock_effect_menu)
         dock.addSeparator()
         dock.addAction(self._settings_action)
         dock.addSeparator()
