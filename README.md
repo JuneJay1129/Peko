@@ -16,6 +16,8 @@
 - **快捷指令（无需 AI）**：对话输入框内置「记支出 / 记收入 / 待办 / 专注」快捷按钮，自动填入模板并选中关键字段，改几个字即发；也可直接输入「记一笔 支出 午饭 38」「提醒我 17:00 交周报」「开始专注 25 分钟」这类口语指令，自动落入工作台对应模块
 - **完成联动**：在工作台完成待办 / 打卡习惯 / 记录专注时，宠物即时给出情绪 + 动画反馈，并累计「靠谱值」
 - **动画删除**：托盘「摧毁文件…」→ 红色狙击准星直接点选桌面 / 文件夹里的文件图标 → 宠物长途跑过去确认、出拳「摧毁」并送入回收站（可恢复），随后自行跑回桌面右下角
+- **天气播报**：托盘「查询城市天气…」输入城市名即可直查（无需 API Key），聊天框也能问；实时源失败时按缓存 → 本地推断逐级降级
+- **外观主题**：设置页切换主题后，宠物气泡、侧面操作面板、托盘菜单（macOS 含 Dock 菜单）同步换色
 
 ---
 
@@ -129,48 +131,72 @@ python scripts/scaffold_pet.py dog "小狗" "我"
 
 ```
 Peko/
-├── main.py                 # 入口：python main.py
-├── packaging/              # 打包入口：Windows/macOS 本地脚本 + PyInstaller spec
-│   ├── build.bat           # 本地 Windows 打包
-│   ├── build_mac.sh        # 本地 macOS 打包
-│   └── main.spec           # PyInstaller 打包配置
-├── peko/                   # 主包
-│   ├── main.py             # 应用逻辑入口
-│   ├── ui/                 # UI 组件
-│   │   ├── pet.py          # 桌宠组件（宠物包 + 插槽）
-│   │   ├── tray.py         # 托盘：显示/隐藏、切换宠物、工作台、摧毁文件、退出
-│   │   ├── chat.py         # 对话：AI 闲聊 + 非 AI 快捷指令路由
-│   │   ├── input_dialog.py  # 对话输入框（快捷指令按钮 + 模板填入）
-│   │   ├── destroy_show.py # 摧毁表演编排（狙击点选 → 走位 → 确认 → 出拳 → 回家）
-│   │   ├── pet_link.py     # 工作台「完成事件」→ 宠物反馈通道
-│   │   ├── plans_web_dialog.py  # 工作台内嵌窗（QWebChannel 桥接）
-│   │   ├── workbench_server.py  # 工作台本地同步服务（网页版读写同一份数据）
-│   │   └── api_settings_dialog.py  # API/模型设置对话框
-│   ├── ai/                 # AI 服务
-│   │   ├── config_loader.py # API/模型配置加载
-│   │   └── service.py      # 统一 AI 调用（OpenAI 兼容 + 讯飞星火）
-│   └── core/               # 核心逻辑
-│       ├── pet_manager.py  # 宠物包注册与发现
-│       ├── mood.py         # 心情/饱食/精力状态机与互动
-│       ├── plans_store.py  # 工作台数据层（六模块，原子写，单一真相源）
-│       ├── nl_intent.py    # 非 AI 自然语言指令解析（记账/待办/专注）
-│       ├── pet_bond.py     # 靠谱值计数（完成联动）
-│       └── file_picker.py  # 狙击点选文件识别（UI Automation + Shell）
-├── data/                   # 运行时数据（工作台六模块 JSON、靠谱值等，本地产物）
-├── config/
-│   ├── api.json.example    # AI 配置模板：API URL + 模型名（可推送）
-│   ├── secrets.json.example # API Key 模板（可推送）
-│   ├── api.json             # 本地：API URL / 模型名（不提交）
-│   └── secrets.json         # 本地：API Key（不提交）
-├── pets/
-│   └── <宠物id>/
-│       ├── pet_config.json
-│       └── resource/       # 该宠物专属资源（stand、walk_left、icon.png 等）
-├── scripts/
-│   ├── scaffold_pet.py     # 快速新增宠物脚手架
-│   ├── devide_frames.py   # 分割精灵表为单帧
-│   └── test_animation.py   # 动画预览测试
+├── main.py                     # 入口：python main.py
+├── requirements.txt
+├── packaging/                  # 打包脚本与 PyInstaller 配置
+│   ├── build.bat               # Windows 本地打包
+│   ├── build_mac.sh            # macOS 本地打包
+│   ├── build_mac_universal.sh  # macOS 通用二进制
+│   └── main.spec               # PyInstaller 配置
+├── peko/
+│   ├── main.py                 # 应用装配：QApplication + 宠物包 + 托盘 + 热键
+│   ├── core/                   # 纯 Python 业务层（不依赖 PyQt5，可单测）
+│   │   ├── config_store.py     # JSON 读写门面（config/ 用户设置 vs data/ 运行状态）
+│   │   ├── bus.py              # 进程内事件总线（theme_changed）
+│   │   ├── pet_registry.py     # 主宠 / 分身注册中心
+│   │   ├── effect_state.py     # 特效选择持久化（config/effects.json）
+│   │   ├── runtime_paths.py    # 源码态 / 冻结态可写目录与图标查找
+│   │   ├── pet_manager.py      # 宠物包发现与加载
+│   │   ├── mood.py             # 心情 / 饱食 / 精力状态机
+│   │   ├── comfort.py          # 安慰打气对话状态机
+│   │   ├── nl_intent.py        # 口语指令 → 工作台写入
+│   │   ├── plans_store.py      # 工作台数据层（六模块，原子写）
+│   │   ├── pet_bond.py         # 靠谱值计数
+│   │   ├── weather.py          # 天气获取 / 缓存 / 降级
+│   │   ├── appearance.py       # 外观主题注册与持久化
+│   │   └── file_picker.py      # 狙击点选文件识别
+│   ├── ui/                     # 界面层（唯一依赖 PyQt5）
+│   │   ├── pet.py              # DesktopPet：窗口 / 动画帧 / 拖拽 / Mixin 组装
+│   │   ├── pet_parts/          # DesktopPet 拆出的五个 Mixin + 气泡样式函数
+│   │   │   ├── bubbles.py      # 气泡 + 打字机
+│   │   │   ├── bubble_style.py # 气泡 / 侧栏 QSS（纯函数）
+│   │   │   ├── comfort_flow.py # 安慰对话流程
+│   │   │   ├── interaction_panel.py  # 心情面板 / 飘字
+│   │   │   ├── sayings.py      # 随机文案
+│   │   │   └── state_params.py # 帧率 / 动作参数 / 缩放
+│   │   ├── tray.py             # 托盘 + macOS Dock 菜单（_MENU_SPEC 同源）
+│   │   ├── style_kit.py        # 色板 / 字体 / 通用 QSS
+│   │   ├── settings_dialog.py  # 设置页（切主题广播 theme_changed）
+│   │   ├── chat.py             # 对话窗口
+│   │   ├── input_dialog.py     # 对话输入框（快捷指令）
+│   │   ├── mood_dialog.py      # 心情面板
+│   │   ├── action_params_dialog.py  # 动作参数调节
+│   │   ├── effects.py          # 特效装饰系统
+│   │   ├── follower.py         # 召唤跟班
+│   │   ├── destroy_show.py     # 摧毁表演编排
+│   │   ├── weather_report.py   # 天气播报入口
+│   │   ├── pet_link.py         # 工作台完成事件 → 宠物反馈
+│   │   ├── plans_web_dialog.py # 内嵌工作台窗口（QWebChannel）
+│   │   ├── plans/plans_web.html # 单文件工作台前端
+│   │   └── workbench_server.py # 本地同步服务（127.0.0.1:18340）
+│   └── ai/
+│       ├── config_loader.py    # AI 三要素配置（含 v1→v2 迁移）
+│       └── service.py          # OpenAI 兼容调用
+├── pets/<宠物id>/              # 每个宠物独立 pet_config.json + resource/
+├── config/                     # 用户设置：appearance / effects / api / secrets
+├── data/                       # 运行状态与工作台数据：plans / todos / habits / ledger / review / focus / mood_state / weather_cache（不入库）
+├── unit_tests/                 # 55 个单元测试（见 docs/testing.md）
+├── docs/
+│   ├── architecture.md         # 分层与模块职责
+│   ├── testing.md              # 测试跑法与覆盖矩阵
+│   └── archive/                # 过时设计稿
+└── scripts/
+    ├── scaffold_pet.py         # 新增宠物脚手架
+    ├── devide_frames.py        # 精灵表切帧
+    └── _wb_server_runner.py    # 独立启动工作台服务
 ```
+
+分层与模块职责、测试覆盖矩阵见 [`docs/architecture.md`](docs/architecture.md) 与 [`docs/testing.md`](docs/testing.md)；2026-08 的工作台设计稿已归档到 [`docs/archive/`](docs/archive/)。
 
 ---
 

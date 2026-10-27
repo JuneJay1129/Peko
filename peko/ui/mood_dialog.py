@@ -21,12 +21,8 @@ from PyQt5.QtWidgets import (
 
 def _panel_style() -> str:
     """右键互动面板样式：按当前外观主题的 UI 色板生成（进度条语义色保留）。"""
-    try:
-        from ..core import appearance as ap
-        ui = ap.get_ui_style(ap.get_theme())
-    except Exception:
-        ui = {"bg": "#f9ecd8", "card": "#ffffff", "accent": "#b9692f", "accent_hover": "#e0a86a",
-              "ink": "#4f3f33", "ink_soft": "#846b57", "border": "#e7d3b3"}
+    from .style_kit import palette
+    ui = palette()
     return f"""
     QFrame#panel {{
         background: {ui['bg']};

@@ -20,7 +20,9 @@ from PyQt5.QtWidgets import (
 
 
 def _font_family() -> str:
-    return "PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei UI"
+    """跨平台字体（已收敛到 style_kit.font_family）。"""
+    from .style_kit import font_family
+    return font_family()
 
 
 def _build_style(ui: dict) -> str:
@@ -96,13 +98,9 @@ def _build_style(ui: dict) -> str:
 
 
 def _current_style() -> str:
-    try:
-        from ..core import appearance as ap
-        return _build_style(ap.get_ui_style(ap.get_theme()))
-    except Exception:
-        return _build_style({"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574",
-                             "accent_hover": "#b59668", "ink": "#4a3f35",
-                             "ink_soft": "#9a8f7f", "border": "#e8dcc4"})
+    """设置页全局样式：色板统一走 style_kit.palette（含唯一兜底）。"""
+    from .style_kit import palette
+    return _build_style(palette())
 
 NAV_ITEMS = ("AI", "天气", "动作参数", "计划台", "宠物", "外观")
 PLANS_INDEX = NAV_ITEMS.index("计划台")
@@ -125,7 +123,7 @@ class SettingsDialog(QDialog):
     # ---------- 工具 ----------
     def _pet(self):
         try:
-            return self.tray.pet_holder[0]
+            return self.tray.registry.current()
         except Exception:
             return None
 
@@ -430,7 +428,11 @@ class SettingsDialog(QDialog):
         return page
 
     def _apply_theme(self, key: str):
-        """切换全局主题：持久化 + 刷新设置页自身 + 宠物气泡 + 托盘菜单。"""
+        """切换全局主题：持久化 + 刷新设置页自身 + 总线广播 theme_changed。
+
+        宠物气泡与托盘菜单的刷新由各自订阅 core.bus 的 theme_changed 完成，
+        新增可主题化组件只需自行订阅，无需再改这里。
+        """
         try:
             from ..core import appearance as appearance_mod
             appearance_mod.save_appearance(theme=key)
@@ -445,16 +447,10 @@ class SettingsDialog(QDialog):
                     panel.apply_theme()
                 except Exception:
                     pass
-        # 宠物气泡 + 侧面操作面板
-        pet = self._pet()
-        if pet is not None and hasattr(pet, "refresh_theme"):
-            try:
-                pet.refresh_theme(key)
-            except Exception:
-                pass
-        # 托盘菜单
+        # 广播：宠物气泡 + 侧面操作面板 + 托盘菜单各自订阅刷新
         try:
-            self.tray.refresh_theme()
+            from ..core.bus import bus
+            bus.emit("theme_changed", key)
         except Exception:
             pass
 

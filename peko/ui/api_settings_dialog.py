@@ -19,17 +19,15 @@ from ..ai.service import test_connection
 
 
 def _font_family() -> str:
-    return "PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei"
+    """跨平台字体（已收敛到 style_kit.font_family）。"""
+    from .style_kit import font_family
+    return font_family()
 
 
 def _panel_style() -> str:
     """AI 面板样式：按当前外观主题的 UI 色板生成。"""
-    try:
-        from ..core import appearance as appearance_mod
-        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
-    except Exception:
-        ui = {"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574", "accent_hover": "#b59668",
-              "ink": "#4a3f35", "ink_soft": "#9a8f7f", "border": "#e8dcc4"}
+    from .style_kit import palette
+    ui = palette()
     return f"""
     QWidget {{ background-color: transparent; font-family: '{_font_family()}'; }}
     QLabel {{ color: {ui['ink']}; font-size: 14px; }}
@@ -226,8 +224,8 @@ class ApiSettingsDialog(QDialog):
         layout.setContentsMargins(28, 24, 28, 20)
         title = QLabel("AI 设置")
         try:
-            from ..core import appearance as appearance_mod
-            ink = appearance_mod.get_ui_style(appearance_mod.get_theme())["ink"]
+            from .style_kit import palette
+            ink = palette()["ink"]
         except Exception:
             ink = "#3d3329"
         title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {ink};")

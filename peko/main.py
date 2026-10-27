@@ -12,13 +12,14 @@ from PyQt5.QtCore import QMetaObject, Qt, QTimer
 from .ui.pet import DesktopPet
 from .ui.tray import TrayIcon
 from .core.pet_manager import get_pet, get_available_pets, get_default_pet_id, discover_pets
+from .core.pet_registry import PetRegistry
 
 # 分身模式下的宠物数量（当前主宠 + 14 个分身 = 15 个）
 CLONE_COUNT = 15
 
 
-def _schedule_pet_warning(pet_holder, message: str, duration: int = 9000) -> None:
-    pet = pet_holder[0] if pet_holder else None
+def _schedule_pet_warning(registry, message: str, duration: int = 9000) -> None:
+    pet = registry.current() if registry else None
     if pet is None:
         return
 
@@ -40,14 +41,14 @@ def _tray_is_available() -> bool:
 
 
 
-def _create_tray_icon(app, pet_holder, on_switch_pet=None, clone_pets=None, set_clone_mode=None):
+def _create_tray_icon(app, registry, on_switch_pet=None, clone_pets=None, set_clone_mode=None):
     if not _tray_is_available():
         return None
-    return TrayIcon(app, pet_holder, on_switch_pet=on_switch_pet, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
+    return TrayIcon(app, registry, on_switch_pet=on_switch_pet, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
 
 
 
-def global_hotkey_listener(pet_holder):
+def global_hotkey_listener(registry):
     """使用 pynput 监听 L+Enter 快捷键（跨平台）。
 
     使用 HotKey + Listener.canonical：各平台虚拟键不同（如 Windows 上 L 为 vk 76，
@@ -57,8 +58,11 @@ def global_hotkey_listener(pet_holder):
         from pynput import keyboard
 
         def invoke_dialog():
+            pet = registry.current()
+            if pet is None:
+                return
             QMetaObject.invokeMethod(
-                pet_holder[0],
+                pet,
                 "show_custom_input_dialog",
                 Qt.QueuedConnection,
             )
@@ -81,8 +85,11 @@ def global_hotkey_listener(pet_holder):
                 import keyboard
                 while True:
                     keyboard.wait("l+enter")
+                    pet = registry.current()
+                    if pet is None:
+                        continue
                     QMetaObject.invokeMethod(
-                        pet_holder[0],
+                        pet,
                         "show_custom_input_dialog",
                         Qt.QueuedConnection,
                     )
@@ -90,7 +97,7 @@ def global_hotkey_listener(pet_holder):
                 pass
         elif sys.platform == "darwin":
             _schedule_pet_warning(
-                pet_holder,
+                registry,
                 "快捷键监听组件未安装，先用托盘里的“与宠物对话”吧。",
             )
     except Exception as e:
@@ -98,7 +105,7 @@ def global_hotkey_listener(pet_holder):
         if sys.platform == "darwin":
             print("[Peko] macOS 提示：请在「系统偏好设置 > 安全性与隐私 > 辅助功能」中授权本应用")
             _schedule_pet_warning(
-                pet_holder,
+                registry,
                 "L+Enter 需要辅助功能权限；你也可以先用托盘里的“与宠物对话”。",
             )
 
@@ -119,37 +126,40 @@ def main():
     pet_package = get_pet(default_id)
     frame_rate = 10
     pet = DesktopPet(pet_package, frame_rate=frame_rate)
-    pet_holder = [pet]
+    registry = PetRegistry()
+    registry.set_master(pet)
     clone_pets = []  # 分身模式下额外 14 个窗口
+    registry.set_clones(clone_pets)  # 引用同一列表：原地增删自动同步
 
     def set_clone_mode(on: bool):
         nonlocal clone_pets
         if on:
-            pet_holder[0].set_control_mode(False)
-            pet_holder[0].set_follow_mouse_mode(False)
-            pkg = pet_holder[0].pet_package
+            pet = registry.current()
+            pet.set_control_mode(False)
+            pet.set_follow_mouse_mode(False)
+            pkg = pet.pet_package
             desktop = QApplication.desktop()
             screen = desktop.screenGeometry()
             available = desktop.availableGeometry()
             sw = screen.width()
-            pw = pet_holder[0].width()
-            ph = pet_holder[0].height()
+            pw = pet.width()
+            ph = pet.height()
             # 任务栏上方一行：宠物底边贴住任务栏顶部
             taskbar_top = available.y() + available.height()
             row_y = taskbar_top - ph
-            pet_holder[0].clone_mode = True
-            pet_holder[0].clone_mode_row_y = row_y
+            pet.clone_mode = True
+            pet.clone_mode_row_y = row_y
             # 15 只沿任务栏上方水平排开，均匀分布
             margin = 12
             if CLONE_COUNT <= 1:
-                pet_holder[0].move(margin, row_y)
+                pet.move(margin, row_y)
             else:
                 step = (sw - 2 * margin - pw) / max(1, CLONE_COUNT - 1)
                 for i in range(CLONE_COUNT):
                     x = int(margin + i * step)
                     x = max(0, min(x, sw - pw))
                     if i == 0:
-                        pet_holder[0].move(x, row_y)
+                        pet.move(x, row_y)
                     else:
                         new_pet = DesktopPet(pkg, frame_rate=frame_rate)
                         new_pet.clone_mode = True
@@ -168,14 +178,15 @@ def main():
                 except Exception:
                     pass
             clone_pets.clear()
-            pet_holder[0].clone_mode = False
-            if hasattr(pet_holder[0], "clone_mode_row_y"):
-                del pet_holder[0].clone_mode_row_y
+            pet = registry.current()
+            pet.clone_mode = False
+            if hasattr(pet, "clone_mode_row_y"):
+                del pet.clone_mode_row_y
 
-    tray = _create_tray_icon(app, pet_holder, on_switch_pet=None, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
+    tray = _create_tray_icon(app, registry, on_switch_pet=None, clone_pets=clone_pets, set_clone_mode=set_clone_mode)
     if tray is None:
         _schedule_pet_warning(
-            pet_holder,
+            registry,
             "当前系统托盘不可用；桌宠会继续运行，但请不要关闭主窗口。",
             duration=12000,
         )
@@ -184,12 +195,12 @@ def main():
         nonlocal clone_pets
         if clone_pets:
             set_clone_mode(False)
-        old = pet_holder[0]
+        old = registry.current()
         pkg = get_pet(pet_id)
         new_pet = DesktopPet(pkg, frame_rate=frame_rate)
         was_visible = old.isVisible()
         old.close()
-        pet_holder[0] = new_pet
+        registry.set_master(new_pet)
         if tray is not None:
             tray.update_icon()
         if was_visible:
@@ -209,19 +220,13 @@ def main():
 
     tray.on_switch_pet = switch_pet
 
-    # 加载保存的特效
+    # 加载保存的特效（已收敛到 core.effect_state，托盘与启动共用唯一入口）
     def _load_effect(pet_widget):
         try:
-            import json
-            import os
-            from .core.runtime_paths import get_writable_root
-            cfg_path = os.path.join(get_writable_root(module_file=__file__), "config", "effects.json")
-            if os.path.exists(cfg_path):
-                with open(cfg_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                effect_name = data.get("current", "none")
-                if effect_name and effect_name != "none":
-                    pet_widget.set_effect(effect_name)
+            from .core import effect_state
+            effect_name = effect_state.get_current()
+            if effect_name and effect_name != "none":
+                pet_widget.set_effect(effect_name)
         except Exception as e:
             print(f"[Main] 加载特效配置失败: {e}")
 
@@ -238,7 +243,7 @@ def main():
     )
 
     hotkey_thread = threading.Thread(
-        target=global_hotkey_listener, args=(pet_holder,), daemon=True
+        target=global_hotkey_listener, args=(registry,), daemon=True
     )
     hotkey_thread.start()
 

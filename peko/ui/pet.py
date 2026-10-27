@@ -16,6 +16,15 @@ from PyQt5.QtWidgets import (
 )
 
 from ..core.mood import MoodEngine
+from .pet_parts.bubble_style import (
+    _bubble_action_qss, _side_panel_style,
+    _default_bubble_style, _bubble_style_from_config,
+)
+from .pet_parts.bubbles import BubbleMixin
+from .pet_parts.comfort_flow import ComfortFlowMixin
+from .pet_parts.interaction_panel import InteractionPanelMixin
+from .pet_parts.sayings import SayingsMixin
+from .pet_parts.state_params import StateParamsMixin
 from .effects import EffectOverlay, EFFECTS
 from .actions import (
     AutoActions,
@@ -30,130 +39,15 @@ WINDOW_CONTROL_STATE = "window_control"
 WINDOW_CONTROL_REACH_THRESHOLD = 25
 
 
-def _bubble_action_qss() -> str:
-    """气泡内安慰对话的选项按钮 / 输入框样式（跟随主题 UI 色板）。"""
-    try:
-        from ..core import appearance as appearance_mod
-        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
-    except Exception:
-        ui = {"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574", "accent_hover": "#b59668",
-              "ink": "#4a3f35", "ink_soft": "#9a8f7f", "border": "#e8dcc4"}
-    return f"""
-    QPushButton {{
-        background-color: {ui['card']};
-        border: 1.5px solid {ui['border']};
-        border-radius: 10px;
-        padding: 11px 14px;
-        color: {ui['ink']};
-        font-size: 14px;
-        font-weight: 600;
-    }}
-    QPushButton:hover {{ background-color: {ui['bg']}; border-color: {ui['accent']}; }}
-    QPushButton:pressed {{ background-color: {ui['border']}; }}
-    QLineEdit {{
-        background-color: {ui['card']};
-        border: 1.5px solid {ui['border']};
-        border-radius: 10px;
-        padding: 9px 12px;
-        color: {ui['ink']};
-        font-size: 14px;
-        selection-background-color: {ui['accent']};
-    }}
-    QLineEdit:focus {{ border-color: {ui['accent']}; }}
-"""
 
 
-def _side_panel_style() -> str:
-    """安慰对话侧面操作面板样式：圆角容器 + 选项按钮 + 输入框（跟随主题）。"""
-    try:
-        from ..core import appearance as appearance_mod
-        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
-    except Exception:
-        ui = {"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574", "accent_hover": "#b59668",
-              "ink": "#4a3f35", "ink_soft": "#9a8f7f", "border": "#e8dcc4"}
-    return f"""
-    QFrame#sidePanel {{
-        background-color: {ui['bg']};
-        border: 1.5px solid {ui['border']};
-        border-radius: 14px;
-    }}
-    QLabel#sideHint {{
-        color: {ui['ink_soft']};
-        font-size: 13px;
-        font-weight: 600;
-    }}
-    QPushButton#sideClose {{
-        background: transparent;
-        border: none;
-        color: {ui['ink_soft']};
-        font-size: 16px;
-        padding: 0 4px;
-    }}
-    QPushButton#sideClose:hover {{ color: #b0554c; }}
-    QPushButton {{
-        background-color: {ui['card']};
-        border: 1.5px solid {ui['border']};
-        border-radius: 10px;
-        padding: 11px 14px;
-        color: {ui['ink']};
-        font-size: 14px;
-        font-weight: 600;
-    }}
-    QPushButton:hover {{ background-color: {ui['bg']}; border-color: {ui['accent']}; }}
-    QPushButton:pressed {{ background-color: {ui['border']}; }}
-    QLineEdit {{
-        background-color: {ui['card']};
-        border: 1.5px solid {ui['border']};
-        border-radius: 10px;
-        padding: 9px 12px;
-        color: {ui['ink']};
-        font-size: 14px;
-        selection-background-color: {ui['accent']};
-    }}
-    QLineEdit:focus {{ border-color: {ui['accent']}; }}
-"""
 
 
-def _default_bubble_style() -> str:
-    return """
-        background-color: rgba(255, 255, 255, 0.72);
-        border: 2px solid rgba(76, 175, 80, 0.85);
-        border-radius: 15px;
-        border-top-left-radius: 15px;
-        border-top-right-radius: 15px;
-        border-bottom-left-radius: 15px;
-        border-bottom-right-radius: 15px;
-        padding: 12px;
-        font-size: 15px;
-        color: black;
-    """
 
 
-def _bubble_style_from_config(bubble_style: Dict[str, Any]) -> str:
-    """从宠物包的 bubbleStyle 生成 QSS（可扩展）。"""
-    if not bubble_style:
-        return _default_bubble_style()
-    bg = bubble_style.get("backgroundColor", "rgba(255, 255, 255, 0.72)")
-    border = bubble_style.get("border", "2px solid rgba(76, 175, 80, 0.85)")
-    radius = bubble_style.get("borderRadius", "15px")
-    padding = bubble_style.get("padding", "10px")
-    font_size = bubble_style.get("fontSize", "15px")
-    color = bubble_style.get("color", "black")
-    return f"""
-        background-color: {bg};
-        border: {border};
-        border-radius: {radius};
-        border-top-left-radius: {radius};
-        border-top-right-radius: {radius};
-        border-bottom-left-radius: {radius};
-        border-bottom-right-radius: {radius};
-        padding: {padding};
-        font-size: {font_size};
-        color: {color};
-    """
 
 
-class DesktopPet(QWidget):
+class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, InteractionPanelMixin, QWidget):
     """
     桌宠窗口。动作与聊天委托给 actions 与 chat 模块。
     """
@@ -462,6 +356,10 @@ class DesktopPet(QWidget):
         self.effect_overlay = EffectOverlay(self)
         self._current_effect = "none"
 
+        # 主题切换总线：settings 广播 theme_changed 后气泡/侧栏自动刷新
+        from ..core.bus import bus
+        bus.subscribe("theme_changed", self.refresh_theme)
+
         self.update_frame()
         self.setFocusPolicy(Qt.StrongFocus)
 
@@ -517,323 +415,32 @@ class DesktopPet(QWidget):
             if not self.control_mode:
                 self._auto_actions.resume()
 
-    def _get_current_frame_rate(self) -> int:
-        if self.follow_mouse_mode and getattr(self, "_follow_mouse_frame_rate", None) is not None:
-            return max(1, min(60, self._follow_mouse_frame_rate))
-        cfg = self._get_effective_state_config(self.current_state)
-        return cfg.get("frameRate") or self.frame_rate
 
-    def _get_effective_state_config(self, state_name: str) -> Dict[str, Any]:
-        """在分身模式下，为特定动作应用 cloneModeActions 中的 frameRate/stateSwitchInterval 覆盖，并叠加每个分身的随机抖动。"""
-        cfg = self._state_config.get(state_name, {}) or {}
-        if not getattr(self, "clone_mode", False):
-            return cfg
-        ov = self._clone_mode_action_overrides.get(state_name)
-        if not isinstance(ov, dict) or not ov:
-            effective = dict(cfg)
-        else:
-            effective = dict(cfg)
-            effective.update(ov)
 
-        # 叠加分身抖动：让同一个动作在不同宠物实例上表现不同
-        jit = getattr(self, "_clone_mode_action_jitter", None) or {}
-        fr_mul = float(jit.get("frameRateMul", 1.0))
-        si_mul = float(jit.get("stateSwitchIntervalMul", 1.0))
-        ms_mul = float(jit.get("moveSpeedMul", 1.0))
 
-        if "frameRate" in effective and isinstance(effective.get("frameRate"), (int, float)):
-            effective["frameRate"] = int(max(1, min(60, round(float(effective["frameRate"]) * fr_mul))))
-        if "stateSwitchInterval" in effective and isinstance(effective.get("stateSwitchInterval"), (int, float)):
-            effective["stateSwitchInterval"] = int(max(500, min(120000, round(float(effective["stateSwitchInterval"]) * si_mul))))
-        if "moveSpeed" in effective and isinstance(effective.get("moveSpeed"), (int, float)):
-            effective["moveSpeed"] = int(max(1, min(50, round(float(effective["moveSpeed"]) * ms_mul))))
 
-        return effective
 
-    def _apply_state_frame_rate(self) -> None:
-        fps = max(1, self._get_current_frame_rate())
-        self.timer.setInterval(max(50, 1000 // fps))
 
-    def get_action_params(self) -> Dict[str, Any]:
-        """供参数面板读取：当前动作相关参数。"""
-        return {
-            "frameRate": self.frame_rate,
-            "stateSwitchInterval": self.state_switch_interval,
-            "moveSpeed": self.move_speed,
-        }
 
-    def get_action_params_for_state(self, state_name: Optional[str]) -> Dict[str, Any]:
-        """获取指定动作的参数；state_name 为 None 或空时返回全局默认。"""
-        if not state_name or state_name == "__all__":
-            return self.get_action_params()
-        cfg = self._state_config.get(state_name, {})
-        return {
-            "frameRate": cfg.get("frameRate") or self.frame_rate,
-            "stateSwitchInterval": cfg.get("stateSwitchInterval") or self.state_switch_interval,
-            "moveSpeed": cfg.get("moveSpeed") or self.move_speed,
-        }
 
-    def set_action_params_for_state(
-        self,
-        state_name: Optional[str],
-        frame_rate: Optional[int] = None,
-        state_switch_interval: Optional[int] = None,
-        move_speed: Optional[int] = None,
-    ) -> None:
-        """仅更新指定动作的参数；state_name 为 None 或 '__all__' 时更新全局并应用到所有动作。"""
-        if not state_name or state_name == "__all__":
-            self.set_action_params(
-                frame_rate=frame_rate,
-                state_switch_interval=state_switch_interval,
-                move_speed=move_speed,
-                apply_to_all_states=True,
-            )
-            return
-        if state_name not in self._state_config:
-            return
-        cfg = self._state_config[state_name]
-        if frame_rate is not None:
-            cfg["frameRate"] = max(1, min(60, frame_rate))
-        if state_switch_interval is not None:
-            cfg["stateSwitchInterval"] = max(500, min(120000, state_switch_interval))
-        if move_speed is not None:
-            cfg["moveSpeed"] = max(1, min(50, move_speed))
-        self._apply_state_frame_rate()
-        if not self.control_mode and not self.follow_mouse_mode and hasattr(self, "_auto_actions"):
-            self._auto_actions.schedule_next()
 
-    def get_display_scale(self) -> float:
-        """当前宠物显示缩放比例，1.0 为配置的原始大小。"""
-        return getattr(self, "_display_scale", 1.0)
 
-    def set_display_scale(self, scale: float) -> None:
-        """设置宠物显示缩放比例（如 0.5～2.0），立即生效。"""
-        scale = max(0.5, min(2.0, float(scale)))
-        self._display_scale = scale
-        if not hasattr(self, "_base_display_width"):
-            return
-        w = max(1, int(self._base_display_width * scale))
-        h = max(1, int(self._base_display_height * scale))
-        self.setFixedSize(w, h)
-        if hasattr(self, "label"):
-            self.label.setFixedSize(self.size())
-        self.update_frame()
-        self._position_bubble_window()
 
-    def set_action_params(
-        self,
-        frame_rate: Optional[int] = None,
-        state_switch_interval: Optional[int] = None,
-        move_speed: Optional[int] = None,
-        apply_to_all_states: bool = True,
-    ) -> None:
-        """
-        实时更新动作参数并生效。
-        apply_to_all_states 为 True 时同时更新各状态覆盖值；会立即刷新帧率与状态切换定时器。
-        """
-        if frame_rate is not None:
-            self.frame_rate = max(1, min(60, frame_rate))
-            if apply_to_all_states:
-                for cfg in self._state_config.values():
-                    cfg["frameRate"] = self.frame_rate
-        if state_switch_interval is not None:
-            self.state_switch_interval = max(500, min(120000, state_switch_interval))
-            if apply_to_all_states:
-                for cfg in self._state_config.values():
-                    cfg["stateSwitchInterval"] = self.state_switch_interval
-        if move_speed is not None:
-            self.move_speed = max(1, min(50, move_speed))
-            if apply_to_all_states:
-                for cfg in self._state_config.values():
-                    cfg["moveSpeed"] = self.move_speed
-        self._apply_state_frame_rate()
-        if not self.control_mode and not self.follow_mouse_mode and hasattr(self, "_auto_actions"):
-            self._auto_actions.schedule_next()
 
-    @pyqtSlot()
-    def show_custom_input_dialog(self):
-        """委托给聊天模块。"""
-        self._close_interaction_panel()
-        if self._chat:
-            self._chat.show_dialog()
 
-    def _pet_display_name(self) -> str:
-        return str(self.pet_package.get("name") or self.pet_package.get("id") or "Peko")
 
-    def can_show_interaction_panel(self) -> bool:
-        return not self.control_mode and not self.follow_mouse_mode and not getattr(self, "clone_mode", False)
 
-    def _close_interaction_panel(self) -> None:
-        if self._interaction_panel is not None:
-            self._interaction_panel.hide()
 
-    def _get_interaction_panel(self):
-        if self._interaction_panel is None:
-            from .mood_dialog import MoodDialog
 
-            self._interaction_panel = MoodDialog(self, self._mood_engine.get_interaction_options())
-            self._interaction_panel.interactionRequested.connect(self.apply_mood_interaction)
-        self._refresh_interaction_panel()
-        return self._interaction_panel
 
-    def _refresh_interaction_panel(self) -> None:
-        if self._interaction_panel is None:
-            return
-        self._interaction_panel.update_view(self._mood_engine.get_view(self._pet_display_name()))
 
-    def show_mood_panel(self, global_pos=None) -> None:
-        if not self.can_show_interaction_panel():
-            self.update_bubble("切回自动模式后再来互动吧。", duration=2200)
-            return
-        panel = self._get_interaction_panel()
-        if global_pos is None:
-            global_pos = self.mapToGlobal(self.rect().center())
-        pet_origin = self.mapToGlobal(self.rect().topLeft())
-        pet_rect = QRect(pet_origin.x(), pet_origin.y(), self.width(), self.height())
-        panel.show_at(global_pos, pet_rect=pet_rect)
 
-    def is_interaction_locked(self) -> bool:
-        return QDateTime.currentMSecsSinceEpoch() < getattr(self, "_interaction_lock_until_ms", 0)
 
-    def get_interaction_lock_remaining_ms(self) -> int:
-        return max(0, int(getattr(self, "_interaction_lock_until_ms", 0) - QDateTime.currentMSecsSinceEpoch()))
 
-    def _pause_auto_for_interaction(self, hold_ms: int) -> None:
-        self.state_timer.stop()
-        self._interaction_resume_timer.stop()
-        self._interaction_lock_until_ms = QDateTime.currentMSecsSinceEpoch() + max(500, hold_ms)
-        self._interaction_resume_timer.start(max(500, hold_ms))
 
-    def _show_floating_effects(self, effect_items) -> None:
-        if not effect_items:
-            return
-        pet_origin = self.mapToGlobal(self.rect().topLeft())
-        center_x = pet_origin.x() + self.width() // 2
-        base_y = pet_origin.y() - 12
 
-        for index, item in enumerate(effect_items[:3]):
-            text = str(item.get("text") or "").strip()
-            if not text:
-                continue
-            color = str(item.get("color") or "#d28e51")
-            effect_label = QLabel(text)
-            effect_label.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            effect_label.setAttribute(Qt.WA_TranslucentBackground, True)
-            effect_label.setStyleSheet(
-                "background: rgba(255, 252, 245, 0.96);"
-                f"border: 1px solid {color};"
-                "border-radius: 12px;"
-                f"color: {color};"
-                "padding: 5px 10px;"
-                "font-size: 12px;"
-                "font-weight: 700;"
-            )
-            effect_label.adjustSize()
 
-            start_x = center_x - effect_label.width() // 2 + (index - 1) * 18
-            start_y = base_y - index * 10
-            start_pos = QPoint(start_x, start_y)
-            end_pos = QPoint(start_x + (index - 1) * 10, start_y - 52 - index * 10)
 
-            opacity = QGraphicsOpacityEffect(effect_label)
-            effect_label.setGraphicsEffect(opacity)
-            opacity.setOpacity(1.0)
-
-            move_anim = QPropertyAnimation(effect_label, b"pos", self)
-            move_anim.setDuration(850)
-            move_anim.setStartValue(start_pos)
-            move_anim.setEndValue(end_pos)
-            move_anim.setEasingCurve(QEasingCurve.OutCubic)
-
-            fade_anim = QPropertyAnimation(opacity, b"opacity", self)
-            fade_anim.setDuration(850)
-            fade_anim.setStartValue(1.0)
-            fade_anim.setEndValue(0.0)
-            fade_anim.setEasingCurve(QEasingCurve.InCubic)
-
-            group = QParallelAnimationGroup(self)
-            group.addAnimation(move_anim)
-            group.addAnimation(fade_anim)
-
-            effect_label.move(start_pos)
-            effect_label.show()
-            effect_label.raise_()
-
-            animation_ref = {"label": effect_label, "group": group}
-            self._ui_effect_animations.append(animation_ref)
-
-            def _cleanup(ref=animation_ref):
-                try:
-                    ref["label"].close()
-                    ref["label"].deleteLater()
-                except Exception:
-                    pass
-                if ref in self._ui_effect_animations:
-                    self._ui_effect_animations.remove(ref)
-
-            group.finished.connect(_cleanup)
-            group.start()
-
-    def _clear_ui_effects(self) -> None:
-        while self._ui_effect_animations:
-            ref = self._ui_effect_animations.pop()
-            try:
-                ref["group"].stop()
-            except Exception:
-                pass
-            try:
-                ref["label"].close()
-                ref["label"].deleteLater()
-            except Exception:
-                pass
-
-    def _resume_after_manual_interaction(self) -> None:
-        self._interaction_lock_until_ms = 0
-        if self.current_state not in {"listen", "dragged"}:
-            self.current_state = "stand"
-            self.current_frame_index = 0
-            self._apply_state_frame_rate()
-            self.update_frame()
-        if not self.control_mode and not self.follow_mouse_mode:
-            self._auto_actions.resume()
-
-    def _available_states(self):
-        return [state for state, frames in self.animations.items() if frames]
-
-    def expand_auto_action_pool(self, pool):
-        return self._mood_engine.expand_auto_action_pool(pool)
-
-    def get_chat_context(self) -> str:
-        return self._mood_engine.get_chat_context(self._pet_display_name())
-
-    def apply_mood_interaction(self, interaction_id: str) -> None:
-        outcome = self._mood_engine.apply_interaction(interaction_id, self._available_states())
-        self._refresh_interaction_panel()
-        self._show_floating_effects(outcome.effect_items)
-        self.update_bubble(outcome.bubble, duration=max(2400, outcome.hold_ms + 800))
-
-        if interaction_id == "chat":
-            self._close_interaction_panel()
-            QTimer.singleShot(100, self.show_custom_input_dialog)
-            return
-
-        if outcome.suggested_state:
-            self.current_state = outcome.suggested_state
-            self.current_frame_index = 0
-            self._apply_state_frame_rate()
-            self.update_frame()
-        self._pause_auto_for_interaction(outcome.hold_ms)
-
-    def apply_bubble_theme(self, name: str = "") -> None:
-        """应用气泡主题：''/'pet' 用宠物自带样式，其余用预置主题（见 core.appearance）。"""
-        try:
-            from ..core import appearance as appearance_mod
-            style_cfg = appearance_mod.get_bubble_style(name) if name else None
-        except Exception:
-            style_cfg = None
-        if style_cfg is None:
-            style_cfg = self.bubble_style_config
-        self.bubble_label.setStyleSheet(_bubble_style_from_config(style_cfg))
 
     def comfort(self, text: str = "") -> None:
         """安慰打气：驱动情绪/动作/浮字（mood.comfort 互动），再显示安慰文案。
@@ -1049,276 +656,26 @@ class DesktopPet(QWidget):
         except Exception:
             pass
 
-    def _position_bubble_window(self) -> None:
-        if not self.bubble_window.isVisible():
-            return
-        pet_global = self.mapToGlobal(self.rect().topLeft())
-        bw, bh = self.bubble_window.width(), self.bubble_window.height()
-        bx = pet_global.x() + (self.width() - bw) // 2
-        by = pet_global.y() - bh - 8
-        screen = QApplication.desktop().screenGeometry()
-        by = max(0, min(by, screen.height() - bh))
-        bx = max(0, min(bx, screen.width() - bw))
-        self.bubble_window.move(bx, by)
 
-    # ---------- 安慰对话（头顶气泡 + 侧面操作面板） ----------
-    def _set_bubble_dialog(self, on: bool) -> None:
-        """切换气泡为「安慰对话模式」：气泡放宽以容纳多行文本。"""
-        self.bubble_label.setFixedWidth(380 if on else 220)
 
-    def refresh_theme(self, theme: str = "") -> None:
-        """外观主题切换后刷新气泡与侧面操作面板配色。"""
-        try:
-            if theme:
-                self.apply_bubble_theme(theme)
-            else:
-                from ..core import appearance as appearance_mod
-                self.apply_bubble_theme(appearance_mod.get_theme())
-            self._side_panel.setStyleSheet(_side_panel_style())
-        except Exception:
-            pass
 
-    def close_comfort_dialog(self) -> None:
-        """结束安慰对话：收起侧面操作面板与气泡。"""
-        self._comfort_session = None
-        self._comfort_busy = False
-        self._stop_side_follow()
-        self._side_panel.hide()
-        self._set_bubble_dialog(False)
-        self.bubble_window.hide()
-        self.bubble_timer.stop()
-        self.typing_timer.stop()
-        self._notify_effect_bubble_hidden()
 
-    def start_comfort_dialog(self, initial_hint: str = "") -> None:
-        """用桌宠气泡开启引导式安慰对话（无 AI 也能用）。"""
-        try:
-            from ..ai.service import validate_ai_config
-            self._comfort_ai_mode = bool(validate_ai_config())
-        except Exception:
-            self._comfort_ai_mode = False
-        self.refresh_theme()
-        from ..core.comfort import ComfortSession
-        self._comfort_session = ComfortSession()
-        self._comfort_busy = False
-        turn = self._comfort_session.start()
-        hint = (initial_hint or "").strip()
-        if hint:
-            turn = self._comfort_session.respond(hint)
-        self._bubble_show_turn(turn)
 
-    def _bubble_show_turn(self, turn: dict) -> None:
-        """渲染安慰对话的一轮：气泡显示文本，侧面面板显示选项与输入。"""
-        if not self._comfort_session:
-            return
-        self._set_bubble_dialog(True)
-        self.bubble_label.setVisible(True)
-        self.bubble_label.setText(turn.get("text") or "")
-        self._side_render_options(turn.get("options") or [])
-        self.bubble_timer.stop()
-        if turn.get("finished"):
-            self._side_inp_edit.setEnabled(False)
-            self._side_panel.show()
-            self._position_side_panel()
-            self._stop_side_follow()
-            self.bubble_window.adjustSize()
-            self.bubble_window.setVisible(True)
-            self._position_bubble_window()
-            self._notify_effect_bubble_shown()
-            QTimer.singleShot(2800, self.hide_bubble)
-            return
-        self._side_inp_edit.setEnabled(True)
-        self._side_panel.show()
-        self._position_side_panel()
-        self._start_side_follow()
-        self.bubble_window.adjustSize()
-        self.bubble_window.setVisible(True)
-        self._position_bubble_window()
-        self._notify_effect_bubble_shown()
-        # 兜底：对话进行中气泡常驻（20s 无操作才隐藏，防异常卡死）
-        self.bubble_timer.start(20000)
 
-    def _side_render_options(self, options) -> None:
-        while self._side_opt_grid.count():
-            item = self._side_opt_grid.takeAt(0)
-            w = item.widget()
-            if w:
-                w.deleteLater()
-        for idx, opt in enumerate(options):
-            btn = QPushButton(opt.get("label", ""), self._side_panel)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.clicked.connect(lambda _=False, oid=opt.get("id"): self._bubble_option(oid))
-            self._side_opt_grid.addWidget(btn, idx // 2, idx % 2)
 
-    def _position_side_panel(self) -> None:
-        """将侧面操作面板定位到宠物右侧（超屏放左侧），垂直居中。"""
-        if not self._side_panel.isVisible():
-            return
-        try:
-            pet_global = self.mapToGlobal(self.rect().topLeft())
-            screen = QApplication.desktop().screenGeometry()
-            pw, ph = self.width(), self.height()
-            self._side_panel.adjustSize()
-            sw, sh = self._side_panel.width(), self._side_panel.height()
-            right_x = pet_global.x() + pw + 14
-            left_x = pet_global.x() - sw - 14
-            if right_x + sw <= screen.right():
-                x = right_x
-            elif left_x >= screen.left():
-                x = left_x
-            else:
-                x = max(screen.left(), min(right_x, screen.right() - sw))
-            y = pet_global.y() + (ph - sh) // 2
-            y = max(screen.top(), min(y, screen.bottom() - sh))
-            self._side_panel.move(x, y)
-        except Exception:
-            pass
 
-    def _start_side_follow(self) -> None:
-        try:
-            self._side_follow_timer.start()
-        except Exception:
-            pass
 
-    def _stop_side_follow(self) -> None:
-        try:
-            self._side_follow_timer.stop()
-        except Exception:
-            pass
 
-    def _bubble_option(self, option_id: str) -> None:
-        if self._comfort_busy or not self._comfort_session:
-            return
-        self._comfort_busy = True
-        turn = self._comfort_session.choose(option_id)
-        self._bubble_maybe_ai(turn, user_hint=option_id)
 
-    def _bubble_send(self) -> None:
-        if self._comfort_busy or not self._comfort_session:
-            return
-        text = self._side_inp_edit.text().strip()
-        if not text:
-            return
-        self._side_inp_edit.clear()
-        self._comfort_busy = True
-        turn = self._comfort_session.respond(text)
-        self._bubble_maybe_ai(turn, user_hint=text)
 
-    def _bubble_maybe_ai(self, turn: dict, user_hint: str = "") -> None:
-        """有 AI 且非开场/收尾完成时，后台生成文本覆盖；否则直接渲染。"""
-        if self._comfort_ai_mode and turn.get("stage") != "intro" and not turn.get("finished"):
-            self.bubble_label.setText("…")
-            self.bubble_window.adjustSize()
-            self._bubble_ai_fetch(turn, user_hint)
-            return
-        self._comfort_busy = False
-        self._bubble_show_turn(turn)
 
-    def _bubble_ai_fetch(self, turn: dict, user_hint: str) -> None:
-        """后台线程生成安慰文本，经信号回主线程渲染。"""
-        def _work():
-            try:
-                from ..ai.service import stream_chat, validate_ai_config
-                if not validate_ai_config():
-                    return
-                try:
-                    pet_name = self._pet_display_name()
-                except Exception:
-                    pet_name = "BB鼠"
-                ctx = self._comfort_session.context() if self._comfort_session else ""
-                sys_prompt = (
-                    f"你现在是{pet_name}，一只天真温暖的小仓鼠，最会安慰人。"
-                    f"{ctx}"
-                    "请用 2~4 句简短、温暖、不说教的话回应，像朋友一样站TA这边，给到实实在在的安抚。"
-                )
-                msgs = [{"role": "system", "content": sys_prompt},
-                        {"role": "user", "content": user_hint or "陪我聊聊"}]
-                text = stream_chat(msgs).strip()
-                if text:
-                    turn["text"] = text
-            except Exception:
-                pass
-            self.comfort_turn_ready.emit(turn)
-        import threading
-        threading.Thread(target=_work, daemon=True).start()
 
-    def _on_comfort_turn_ready(self, turn: dict) -> None:
-        self._comfort_busy = False
-        self._bubble_show_turn(turn)
 
-    def update_bubble(self, text: str, duration: int = 3000) -> None:
-        self._set_bubble_dialog(False)
-        self.bubble_label.setVisible(True)
-        self.bubble_label.setText(text)
-        self.bubble_label.setWordWrap(True)
-        self.bubble_label.setFixedWidth(220)
-        self.bubble_window.adjustSize()
-        self.bubble_window.setVisible(True)
-        self._position_bubble_window()
-        self.bubble_timer.stop()
-        self.bubble_timer.start(duration)
-        self._notify_effect_bubble_shown()
 
-    def show_bubble(self, text: str, duration: int = 3000, typing_speed: int = 50) -> None:
-        # 打字机时长自适应：保证长文能完整读完（打字耗时 + 停留），上限 30 秒
-        if typing_speed > 0 and text:
-            needed = typing_speed * len(text) + 1500
-            if duration < needed:
-                duration = min(needed, 30000)
-        self._set_bubble_dialog(False)
-        self.bubble_label.setText("")
-        self.bubble_label.setVisible(True)
-        self.bubble_label.setWordWrap(True)
-        self.bubble_label.setFixedWidth(220)
-        self.bubble_window.adjustSize()
-        self.bubble_window.setVisible(True)
-        self._position_bubble_window()
-        self.full_text = text
-        self.current_text = ""
-        self.typing_index = 0
-        self.typing_timer.start(typing_speed)
-        self.bubble_timer.start(duration)
-        self._notify_effect_bubble_shown()
 
-    def type_next_character(self):
-        if self.typing_index < len(self.full_text):
-            self.current_text += self.full_text[self.typing_index]
-            self.bubble_label.setText(self.current_text)
-            self.typing_index += 1
-            self.bubble_window.adjustSize()
-            self._position_bubble_window()
-        else:
-            self.typing_timer.stop()
 
-    def hide_bubble(self):
-        self._set_bubble_dialog(False)
-        self._stop_side_follow()
-        self._side_panel.hide()
-        self.bubble_window.hide()
-        self.bubble_timer.stop()
-        self._notify_effect_bubble_hidden()
 
-    def _notify_effect_bubble_shown(self):
-        """气泡显示时，通知特效层：如果是思考特效则暂停（避让对话气泡）。"""
-        if hasattr(self, "effect_overlay") and self._current_effect == "think":
-            self.effect_overlay.set_paused(True)
 
-    def _notify_effect_bubble_hidden(self):
-        """气泡隐藏时，恢复思考特效。"""
-        if hasattr(self, "effect_overlay") and self._current_effect == "think":
-            self.effect_overlay.set_paused(False)
-
-    def _stop_bubble_timers(self):
-        """停止所有与气泡相关的定时器并隐藏气泡，用于关闭窗口前清理，避免关闭后定时器再次弹出气泡。"""
-        self.bubble_timer.stop()
-        self.typing_timer.stop()
-        if hasattr(self, "_sayings_timer") and self._sayings_timer:
-            self._sayings_timer.stop()
-        self._stop_side_follow()
-        if hasattr(self, "_side_panel"):
-            self._side_panel.hide()
-        self.bubble_window.hide()
-        self._notify_effect_bubble_hidden()
 
     def _cleanup_for_destroy(self) -> None:
         """彻底清理：停止所有定时器并关闭气泡窗口，用于分身模式退出时，避免气泡残留和卡顿。"""
@@ -1394,6 +751,12 @@ class DesktopPet(QWidget):
                 self.show()
 
     def closeEvent(self, event):
+        # 退出主题总线订阅，防总线持有已关闭窗口引用
+        try:
+            from ..core.bus import bus
+            bus.unsubscribe("theme_changed", self.refresh_theme)
+        except Exception:
+            pass
         self._stop_bubble_timers()
         self._close_interaction_panel()
         self._clear_ui_effects()
@@ -1406,69 +769,10 @@ class DesktopPet(QWidget):
                 pass
         super().closeEvent(event)
 
-    def _schedule_next_saying(self, initial_delay: bool = False) -> None:
-        """安排下一次随机文案弹出（单次定时器，随机间隔）。"""
-        if not self._sayings_enabled or not self._sayings_phrases:
-            return
-        low, high = self._sayings_interval_min, self._sayings_interval_max
-        delay = random.randint(10000, 30000) if initial_delay else (random.randint(low, high) if low <= high else low)
-        self._sayings_timer.stop()
-        self._sayings_timer.setInterval(delay)
-        self._sayings_timer.start()
 
-    def _on_sayings_tick(self) -> None:
-        """定时到：若当前无气泡则随机选一句用气泡显示，然后安排下一次。
 
-        主动关心：以低概率且间隔足够时，从安慰语库取一句暖心话，温和低频、不打扰。
-        """
-        if not self._sayings_enabled or not self._sayings_phrases:
-            return
-        if self.bubble_window.isVisible():
-            self._schedule_next_saying()
-            return
-        # 温和低频的主动关心：距上次 ≥ 8 分钟且概率 12%
-        try:
-            now_ms = QDateTime.currentMSecsSinceEpoch()
-            if (now_ms - self._last_care_ts) >= 8 * 60 * 1000 and random.random() < 0.12:
-                from ..core import comfort as comfort_lib
-                self._last_care_ts = now_ms
-                care_text = comfort_lib.active_care_text()
-                if care_text:
-                    self.update_bubble(care_text, duration=self._sayings_duration)
-                    self._schedule_next_saying()
-                    return
-        except Exception:
-            pass
-        text = random.choice(self._sayings_phrases)
-        if text and isinstance(text, str):
-            self.update_bubble(text.strip(), duration=self._sayings_duration)
-        self._schedule_next_saying()
 
-    def try_show_action_bubble(self, state_name: str) -> None:
-        """若当前无气泡且该动作配置了专属气泡，则显示。用于随机/分身模式切换动作时，不与 randomSayings 冲突。"""
-        if self.bubble_window.isVisible():
-            return
-        animations = self.pet_package.get("animations") or {}
-        bubble_cfg = animations.get(state_name) or {}
-        raw = bubble_cfg.get("bubbles") if "bubbles" in bubble_cfg else bubble_cfg.get("bubble")
-        if isinstance(raw, list):
-            text = (random.choice(raw).strip() if raw else "")
-        else:
-            text = (raw or "").strip() if isinstance(raw, str) else ""
-        if not text:
-            text = self._mood_engine.get_idle_bubble(self._pet_display_name())
-        if not text:
-            return
-        self.update_bubble(text, duration=self._sayings_duration)
 
-    @pyqtSlot(str, int)
-    def _on_bubble_text_ready(self, text: str, duration: int):
-        self.update_bubble(text, duration=duration)
-
-    @pyqtSlot(str, int)
-    def _on_bubble_stream_ready(self, text: str, duration: int):
-        """假流式播报：调用打字机逐字显示，跨线程安全地更新气泡。"""
-        self.show_bubble(text, duration=duration, typing_speed=50)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.RightButton:

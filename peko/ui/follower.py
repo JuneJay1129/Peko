@@ -17,11 +17,12 @@ SCALE_OPTIONS = (("大号", 2), ("中号", 1.0), ("小号", 0.5))
 
 class FollowerPet(QWidget):
     def __init__(self, master, holder, scale: float = 0.7):
+        """holder: PetRegistry（提供 current()），主宠被替换时跟班自动退出。"""
         super().__init__(
             None, Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
         )
         self.master = master
-        self.holder = holder
+        self.registry = holder
         self.scale = float(scale)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -35,7 +36,7 @@ class FollowerPet(QWidget):
     def sync(self) -> None:
         """同步主宠当前动作帧与位置。"""
         try:
-            if self.holder and self.holder[0] is not self.master:
+            if self.registry and self.registry.current() is not self.master:
                 self._kill()
                 return
             if not self.master.isVisible():

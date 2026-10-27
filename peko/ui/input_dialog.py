@@ -8,18 +8,15 @@ import sys
 
 
 def _dialog_font():
-    """跨平台字体：Mac 无 Microsoft YaHei，用 PingFang SC。"""
-    return QFont("PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei", 14, QFont.Bold)
+    """跨平台字体（已收敛到 style_kit.app_font）。"""
+    from .style_kit import app_font
+    return app_font(14, True)
 
 
 def _dialog_styles() -> str:
     """对话框样式：按当前外观主题的 UI 色板生成（容器 + 控件）。"""
-    try:
-        from ..core import appearance as ap
-        ui = ap.get_ui_style(ap.get_theme())
-    except Exception:
-        ui = {"bg": "#faf3e0", "card": "#ffffff", "accent": "#4CAF50", "accent_hover": "#45A049",
-              "ink": "#333333", "ink_soft": "#888888", "border": "#CCCCCC"}
+    from .style_kit import palette
+    ui = palette()
     return f"""
     QFrame#dialogContainer {{
         background-color: {ui['card']};
@@ -119,8 +116,8 @@ class InputDialog(QDialog):
         title_label = QLabel("与宠物对话")
         title_label.setFont(_dialog_font())
         try:
-            from ..core import appearance as ap
-            title_label.setStyleSheet(f"color: {ap.get_ui_style(ap.get_theme())['ink']};")
+            from .style_kit import palette
+            title_label.setStyleSheet(f"color: {palette()['ink']};")
         except Exception:
             title_label.setStyleSheet("color: black;")
         header_layout.addWidget(title_label)

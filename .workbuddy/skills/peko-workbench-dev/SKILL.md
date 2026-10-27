@@ -10,7 +10,7 @@ agent_created: true
 
 Peko is a PyQt5 desktop pet (桌宠) with two feature groups: interactive chat and a 6-module personal planning workspace (工作台). The workspace is a single-file HTML page shown in two shapes — an embedded tray window (计划台) and a browser-opened web version (工作台) — that share one local data set and stay in sync. Use this skill to develop or modify any of this without re-discovering the architecture, conventions, or test setup each session.
 
-Read `references/architecture.md` for the full file/data/API map, `references/conventions.md` for coding rules, and `references/linkage-roadmap.md` for the pet-workspace linkage plan. This SKILL.md holds only the essential procedures.
+Read `docs/architecture.md` (repo root) for the current layered/module map, `references/conventions.md` for coding rules, and `references/linkage-roadmap.md` for the pet-workspace linkage plan. The superseded 2026-08 workspace map lives in `docs/archive/architecture-2026-08.md`. This SKILL.md holds only the essential procedures.
 
 ## Golden rules (do these every time)
 

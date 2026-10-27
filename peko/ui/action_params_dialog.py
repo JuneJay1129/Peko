@@ -28,12 +28,8 @@ HEADER_DRAG_HEIGHT = 56
 
 def _styles() -> str:
     """动作参数面板样式：按当前外观主题的 UI 色板生成（容器 + 卡片 + 控件）。"""
-    try:
-        from ..core import appearance as appearance_mod
-        ui = appearance_mod.get_ui_style(appearance_mod.get_theme())
-    except Exception:
-        ui = {"bg": "#faf3e0", "card": "#fffef9", "accent": "#c4a574", "accent_hover": "#b59668",
-              "ink": "#4a3f35", "ink_soft": "#9a8f7f", "border": "#e8dcc4"}
+    from .style_kit import palette
+    ui = palette()
     accent_top, accent_bot = ui["accent"], ui["accent_hover"]
     return f"""
     QFrame#dialogContainer {{

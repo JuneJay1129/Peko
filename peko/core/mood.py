@@ -23,7 +23,24 @@ MOOD_FILE_VERSION = 2
 
 
 CONFIG_DIR = os.path.join(get_writable_root(module_file=__file__), "config")
-MOOD_STATE_PATH = os.path.join(CONFIG_DIR, "mood_state.json")
+DATA_DIR = os.path.join(get_writable_root(module_file=__file__), "data")
+# 心情状态属运行状态（程序自管、可再生成），按目录语义放 data/；
+# 历史上放在 config/，首次加载时自动迁移（旧文件保留不删）。
+LEGACY_MOOD_STATE_PATH = os.path.join(CONFIG_DIR, "mood_state.json")
+MOOD_STATE_PATH = os.path.join(DATA_DIR, "mood_state.json")
+
+
+def _migrate_legacy_state() -> None:
+    """旧版 config/mood_state.json 存在而新位置为空时，搬到 data/。"""
+    try:
+        if os.path.isfile(LEGACY_MOOD_STATE_PATH) and not os.path.isfile(MOOD_STATE_PATH):
+            os.makedirs(os.path.dirname(MOOD_STATE_PATH), exist_ok=True)
+            with open(LEGACY_MOOD_STATE_PATH, "r", encoding="utf-8") as src:
+                content = src.read()
+            with open(MOOD_STATE_PATH, "w", encoding="utf-8") as dst:
+                dst.write(content)
+    except Exception as e:
+        print(f"[Mood] 状态文件迁移失败（不影响运行）: {e}")
 
 
 @dataclass
@@ -529,6 +546,8 @@ def expand_action_pool_by_mood(snapshot: MoodSnapshot, pool: Sequence[str]) -> L
 class MoodStore:
     def __init__(self, path: Optional[str] = None):
         self.path = path or MOOD_STATE_PATH
+        if path is None:
+            _migrate_legacy_state()
 
     def _load_file(self) -> Dict[str, Any]:
         if not self.path or not os.path.isfile(self.path):
