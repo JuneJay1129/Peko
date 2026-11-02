@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 280" width="420" height="280">
+
+  <!--
+    60% 键盘，绕中心旋转 180°（正对宠物，观众看到的是倒的）：
+    Q 区在右、Enter 在左、数字行在最下面、空格那排在最上面。
+
+    每个键 id 是 "k"+键名：字母数字用字符本身（ka/k1），符号用英文名
+    （ksemicolon/kslash），功能键带左右（klshift/krshift）。同名表见
+    peko/core/bongo_keys.py 的 CHAR_CAPS / NAME_CAPS，两边必须一致。
+  -->
+
+  <g id="desk">
+    <rect x="39.00" y="158.00" width="342.00" height="122.00" rx="10" fill="#3A3A3A"/>
+  <g id="kbacktick">
+    <rect x="353.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="363.25" y="265.85" transform="rotate(180 363.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">`</text>
+  </g>
+  <g id="k1">
+    <rect x="331.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="341.25" y="265.85" transform="rotate(180 341.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">1</text>
+  </g>
+  <g id="k2">
+    <rect x="309.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="319.25" y="265.85" transform="rotate(180 319.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">2</text>
+  </g>
+  <g id="k3">
+    <rect x="287.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="297.25" y="265.85" transform="rotate(180 297.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">3</text>
+  </g>
+  <g id="k4">
+    <rect x="265.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="275.25" y="265.85" transform="rotate(180 275.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">4</text>
+  </g>
+  <g id="k5">
+    <rect x="243.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="253.25" y="265.85" transform="rotate(180 253.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">5</text>
+  </g>
+  <g id="k6">
+    <rect x="221.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="231.25" y="265.85" transform="rotate(180 231.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">6</text>
+  </g>
+  <g id="k7">
+    <rect x="199.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="209.25" y="265.85" transform="rotate(180 209.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">7</text>
+  </g>
+  <g id="k8">
+    <rect x="177.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="187.25" y="265.85" transform="rotate(180 187.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">8</text>
+  </g>
+  <g id="k9">
+    <rect x="155.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="165.25" y="265.85" transform="rotate(180 165.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">9</text>
+  </g>
+  <g id="k0">
+    <rect x="133.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="143.25" y="265.85" transform="rotate(180 143.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">0</text>
+  </g>
+  <g id="kminus">
+    <rect x="111.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="121.25" y="265.85" transform="rotate(180 121.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">-</text>
+  </g>
+  <g id="kequal">
+    <rect x="89.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="99.25" y="265.85" transform="rotate(180 99.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">=</text>
+  </g>
+  <g id="kbackspace">
+    <rect x="45.00" y="252.00" width="42.50" height="20.50" rx="3" fill="#787878"/>
+    <text x="66.25" y="264.77" transform="rotate(180 66.25 262.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Backspace</text>
+  </g>
+  <g id="ktab">
+    <rect x="342.00" y="230.00" width="31.50" height="20.50" rx="3" fill="#787878"/>
+    <text x="357.75" y="242.95" transform="rotate(180 357.75 240.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Tab</text>
+  </g>
+  <g id="kq">
+    <rect x="320.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="330.25" y="243.85" transform="rotate(180 330.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Q</text>
+  </g>
+  <g id="kw">
+    <rect x="298.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="308.25" y="243.85" transform="rotate(180 308.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">W</text>
+  </g>
+  <g id="ke">
+    <rect x="276.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="286.25" y="243.85" transform="rotate(180 286.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">E</text>
+  </g>
+  <g id="kr">
+    <rect x="254.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="264.25" y="243.85" transform="rotate(180 264.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">R</text>
+  </g>
+  <g id="kt">
+    <rect x="232.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="242.25" y="243.85" transform="rotate(180 242.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">T</text>
+  </g>
+  <g id="ky">
+    <rect x="210.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="220.25" y="243.85" transform="rotate(180 220.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Y</text>
+  </g>
+  <g id="ku">
+    <rect x="188.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="198.25" y="243.85" transform="rotate(180 198.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">U</text>
+  </g>
+  <g id="ki">
+    <rect x="166.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="176.25" y="243.85" transform="rotate(180 176.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">I</text>
+  </g>
+  <g id="ko">
+    <rect x="144.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="154.25" y="243.85" transform="rotate(180 154.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">O</text>
+  </g>
+  <g id="kp">
+    <rect x="122.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="132.25" y="243.85" transform="rotate(180 132.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">P</text>
+  </g>
+  <g id="klbracket">
+    <rect x="100.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="110.25" y="243.85" transform="rotate(180 110.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">[</text>
+  </g>
+  <g id="krbracket">
+    <rect x="78.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="88.25" y="243.85" transform="rotate(180 88.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">]</text>
+  </g>
+  <g id="kbackslash">
+    <rect x="45.00" y="230.00" width="31.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="60.75" y="243.85" transform="rotate(180 60.75 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">\</text>
+  </g>
+  <g id="kcaps">
+    <rect x="336.50" y="208.00" width="37.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="355.00" y="220.95" transform="rotate(180 355.00 218.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Caps</text>
+  </g>
+  <g id="ka">
+    <rect x="314.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="324.75" y="221.85" transform="rotate(180 324.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">A</text>
+  </g>
+  <g id="ks">
+    <rect x="292.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="302.75" y="221.85" transform="rotate(180 302.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">S</text>
+  </g>
+  <g id="kd">
+    <rect x="270.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="280.75" y="221.85" transform="rotate(180 280.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">D</text>
+  </g>
+  <g id="kf">
+    <rect x="248.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="258.75" y="221.85" transform="rotate(180 258.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">F</text>
+  </g>
+  <g id="kg">
+    <rect x="226.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="236.75" y="221.85" transform="rotate(180 236.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">G</text>
+  </g>
+  <g id="kh">
+    <rect x="204.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="214.75" y="221.85" transform="rotate(180 214.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">H</text>
+  </g>
+  <g id="kj">
+    <rect x="182.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="192.75" y="221.85" transform="rotate(180 192.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">J</text>
+  </g>
+  <g id="kk">
+    <rect x="160.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="170.75" y="221.85" transform="rotate(180 170.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">K</text>
+  </g>
+  <g id="kl">
+    <rect x="138.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="148.75" y="221.85" transform="rotate(180 148.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">L</text>
+  </g>
+  <g id="ksemicolon">
+    <rect x="116.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="126.75" y="221.85" transform="rotate(180 126.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">;</text>
+  </g>
+  <g id="kquote">
+    <rect x="94.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="104.75" y="221.85" transform="rotate(180 104.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">'</text>
+  </g>
+  <g id="kenter">
+    <rect x="45.00" y="208.00" width="48.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="69.00" y="220.77" transform="rotate(180 69.00 218.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Enter</text>
+  </g>
+  <g id="klshift">
+    <rect x="325.50" y="186.00" width="48.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="349.50" y="198.77" transform="rotate(180 349.50 196.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Shift</text>
+  </g>
+  <g id="kz">
+    <rect x="303.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="313.75" y="199.85" transform="rotate(180 313.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Z</text>
+  </g>
+  <g id="kx">
+    <rect x="281.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="291.75" y="199.85" transform="rotate(180 291.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">X</text>
+  </g>
+  <g id="kc">
+    <rect x="259.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="269.75" y="199.85" transform="rotate(180 269.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">C</text>
+  </g>
+  <g id="kv">
+    <rect x="237.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="247.75" y="199.85" transform="rotate(180 247.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">V</text>
+  </g>
+  <g id="kb">
+    <rect x="215.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="225.75" y="199.85" transform="rotate(180 225.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">B</text>
+  </g>
+  <g id="kn">
+    <rect x="193.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="203.75" y="199.85" transform="rotate(180 203.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">N</text>
+  </g>
+  <g id="km">
+    <rect x="171.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="181.75" y="199.85" transform="rotate(180 181.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">M</text>
+  </g>
+  <g id="kcomma">
+    <rect x="149.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="159.75" y="199.85" transform="rotate(180 159.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">,</text>
+  </g>
+  <g id="kperiod">
+    <rect x="127.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="137.75" y="199.85" transform="rotate(180 137.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">.</text>
+  </g>
+  <g id="kslash">
+    <rect x="105.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
+    <text x="115.75" y="199.85" transform="rotate(180 115.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">/</text>
+  </g>
+  <g id="krshift">
+    <rect x="45.00" y="186.00" width="59.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="74.50" y="198.77" transform="rotate(180 74.50 196.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Shift</text>
+  </g>
+  <g id="klctrl">
+    <rect x="347.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="360.50" y="176.95" transform="rotate(180 360.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Ctrl</text>
+  </g>
+  <g id="klwin">
+    <rect x="320.00" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="333.00" y="176.95" transform="rotate(180 333.00 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Win</text>
+  </g>
+  <g id="klalt">
+    <rect x="292.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="305.50" y="176.95" transform="rotate(180 305.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Alt</text>
+  </g>
+  <g id="kspace">
+    <rect x="155.00" y="164.00" width="136.00" height="20.50" rx="3" fill="#787878"/>
+    
+  </g>
+  <g id="kralt">
+    <rect x="127.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="140.50" y="176.95" transform="rotate(180 140.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Alt</text>
+  </g>
+  <g id="krwin">
+    <rect x="100.00" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="113.00" y="176.95" transform="rotate(180 113.00 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Win</text>
+  </g>
+  <g id="kmenu">
+    <rect x="72.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="85.50" y="176.95" transform="rotate(180 85.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Menu</text>
+  </g>
+  <g id="krctrl">
+    <rect x="45.00" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
+    <text x="58.00" y="176.95" transform="rotate(180 58.00 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Ctrl</text>
+  </g>
+  </g>
+  <g id="paw_l_rest">
+    <ellipse cx="194.0" cy="219.0" rx="11.0" ry="11.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="194.0" cy="221.0" rx="5.7" ry="4.8" fill="#F2A8A8"/>
+  </g>
+  <g id="paw_l_down">
+    <ellipse cx="194.0" cy="219.0" rx="13.0" ry="8.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="194.0" cy="220.4" rx="6.8" ry="3.5" fill="#F2A8A8"/>
+  </g>
+  <g id="paw_r_rest">
+    <ellipse cx="260.0" cy="219.0" rx="11.0" ry="11.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="260.0" cy="221.0" rx="5.7" ry="4.8" fill="#F2A8A8"/>
+  </g>
+  <g id="paw_r_down">
+    <ellipse cx="260.0" cy="219.0" rx="13.0" ry="8.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="260.0" cy="220.4" rx="6.8" ry="3.5" fill="#F2A8A8"/>
+  </g>
+</svg>
