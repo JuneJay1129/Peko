@@ -1,7 +1,9 @@
 """
 聊天模块：与宠物对话（输入框 + AI 回复 + 气泡展示）。
 """
+import re
 import threading
+import time
 import traceback
 from typing import TYPE_CHECKING
 
@@ -10,6 +12,21 @@ if TYPE_CHECKING:
 
 # 宠物回复/错误提示气泡展示时长（毫秒），可在此调整
 REPLY_BUBBLE_DURATION_MS = 10000
+# 流式增量的合并窗口（毫秒）：模型吐字再快也只是每 80ms 推一次，
+# 避免每个 token 都跨线程打一发信号把主线程淹没；真正的显示节奏由气泡打字机控制
+STREAM_FLUSH_INTERVAL_MS = 80
+
+# 「忘掉之前聊的」类指令：本地清空对话记忆 + 长期记忆，不走 AI
+# 要求动词后面紧跟记忆类名词，避免「清空待办」这类工作台指令被误伤
+_FORGET_PATTERN = re.compile(
+    r"(?:忘(?:掉|了|记)|清空|清除|删除|重置)[^，。！？,.!?]{0,8}"
+    r"(?:记忆|对话|聊天|上下文|聊天记录|聊的)"
+)
+
+
+def is_forget_request(text: str) -> bool:
+    """判断是否为「清空记忆」类指令。"""
+    return bool(_FORGET_PATTERN.search(text or ""))
 
 
 class ChatHandler:
@@ -69,6 +86,10 @@ class ChatHandler:
         text = (text or "").strip()
         if not text:
             return
+        # 清空记忆：本地处理，不占用 AI 请求；放在意图识别之前，避免被当成别的指令
+        if is_forget_request(text):
+            self._forget_memory()
+            return
         # C5：先尝试把这句话识别为「工作台写入」意图；命中则本地落盘并直接回复，不走 AI。
         try:
             from ..core import nl_intent
@@ -125,12 +146,65 @@ class ChatHandler:
             return
         threading.Thread(target=self._fetch_response, args=(text,), daemon=True).start()
 
+    def _forget_memory(self) -> None:
+        """清空对话历史与长期记忆（两者都是本地文件，失败也不影响继续聊天）。"""
+        try:
+            from ..core import chat_store, user_memory
+
+            chat_store.ChatStore().clear()
+            user_memory.clear()
+        except Exception:
+            traceback.print_exc()
+        self.pet.bubble_stream_ready.emit(
+            "好，之前聊的我都忘掉啦，我们重新认识一下～", REPLY_BUBBLE_DURATION_MS
+        )
+
+    def _build_chat_messages(self, user_text: str, *, base_prompt: str, mood_context: str = ""):
+        """组装本次请求的上下文：人设 + 状态 + 长期记忆 + 工作台摘要 + 最近对话。
+
+        任何一环失败都退化为「无记忆的单轮对话」，不能让增强功能拖垮聊天。
+        """
+        from ..core import chat_store, context_builder, user_memory
+
+        history = []
+        try:
+            history = chat_store.ChatStore().load_messages()
+        except Exception:
+            history = []
+        system_prompt = context_builder.build_system_prompt(
+            base_prompt,
+            mood_context=mood_context,
+            workspace_digest=context_builder.digest_workspace(),
+            memory_text=user_memory.format_for_prompt(),
+        )
+        return context_builder.build_messages(user_text, system_prompt, history)
+
+    def _remember_turn(self, user_text: str, reply: str) -> None:
+        """把这一轮写进对话记忆，并从用户原话里抽取长期事实；失败不影响聊天。"""
+        reply = (reply or "").strip()
+        if not reply:
+            return
+        try:
+            from ..core import chat_store, user_memory
+        except Exception:
+            return
+        try:
+            chat_store.ChatStore().append_turn(user_text, reply)
+        except Exception:
+            traceback.print_exc()
+        try:
+            learned = user_memory.remember_from(user_text)
+            if learned:
+                print("[Peko 记忆]", learned)
+        except Exception:
+            traceback.print_exc()
+
     def _handle_comfort(self, text: str) -> None:
         """安慰打气（对话式）：用桌宠气泡多轮引导倾诉；无 AI 也能用。"""
         self.pet.start_comfort_dialog(initial_hint=text)
 
     def _handle_workspace_intent(self, intent) -> None:
-        """C5：执行自然语言 → 工作台写入；专注类用 QTimer 做结束提醒（不落盘）。"""
+        """C5：执行自然语言 → 工作台写入；专注类额外用 QTimer 做结束提醒（记录已由 apply 落盘）。"""
         from ..core import nl_intent
         msg = nl_intent.apply(intent)
         if msg:
@@ -148,22 +222,16 @@ class ChatHandler:
             pass
 
     def _fetch_response(self, user_input: str) -> None:
-        """子线程中调用 AI，结果通过 pet.bubble_text_ready 在主线程更新气泡。"""
+        """子线程中调用 AI，结果通过气泡打字机展示；成功才把这一轮写进记忆。"""
         try:
             from ..ai.service import stream_chat, validate_ai_config
             character = self.pet.character
-            system_prompt = character.get("systemPrompt") or (
+            base_prompt = character.get("systemPrompt") or (
                 "你是一个可爱的桌面宠物，用简短、友好的话回复用户。"
             )
             mood_context = ""
             if hasattr(self.pet, "get_chat_context"):
                 mood_context = self.pet.get_chat_context()
-            if mood_context:
-                system_prompt = f"{system_prompt}\n\n{mood_context}"
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input},
-            ]
             if not validate_ai_config():
                 self.pet.bubble_text_ready.emit(
                     "AI 闲聊还没开放哦～可以点输入框上方的「记支出 / 记收入 / 待办 / 专注」快捷按钮，"
@@ -171,14 +239,36 @@ class ChatHandler:
                     REPLY_BUBBLE_DURATION_MS,
                 )
                 return
-            current = [""]
+            messages = self._build_chat_messages(
+                user_input, base_prompt=base_prompt, mood_context=mood_context
+            )
+            # 流式增量交给气泡的打字机队列：reset=True 表示这是新一轮回复的开头。
+            # 这里只按时间窗口合并增量，显示快慢由 bubbles.CHAT_STREAM_TYPING_MS 决定。
+            state = {"first": True, "last_flush": 0.0}
+            pending = []
+            received = []
+
+            def flush():
+                if not pending:
+                    return
+                delta = "".join(pending)
+                pending.clear()
+                self.pet.bubble_chat_stream.emit(
+                    delta, state["first"], REPLY_BUBBLE_DURATION_MS
+                )
+                state["first"] = False
 
             def on_token(token: str):
-                current[0] += token
-                self.pet.bubble_text_ready.emit(current[0], REPLY_BUBBLE_DURATION_MS)
+                received.append(token)
+                pending.append(token)
+                now = time.monotonic()
+                if (now - state["last_flush"]) * 1000 >= STREAM_FLUSH_INTERVAL_MS:
+                    state["last_flush"] = now
+                    flush()
 
             stream_chat(messages, on_token=on_token)
-            self.pet.bubble_text_ready.emit(current[0], REPLY_BUBBLE_DURATION_MS)
+            flush()  # 收尾：把最后不足一个窗口的尾巴也推出去
+            self._remember_turn(user_input, "".join(received))
         except Exception as e:
             err_msg = str(e)
             self.pet.bubble_text_ready.emit(f"错误: {err_msg}", REPLY_BUBBLE_DURATION_MS)

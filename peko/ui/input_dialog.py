@@ -97,6 +97,7 @@ class InputDialog(QDialog):
         与宠物对话对话框：四周圆角、右上角 × 关闭。
         """
         super().__init__(parent)
+        self._on_submit = on_submit
         self.setWindowTitle("与宠物对话")
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -125,6 +126,9 @@ class InputDialog(QDialog):
         close_btn = QPushButton("×", self)
         close_btn.setObjectName("closeBtn")
         close_btn.setCursor(Qt.PointingHandCursor)
+        # 关掉 autoDefault：否则对话框内按 Enter 会被 QDialog 转成「点击默认按钮」，
+        # 可能直接关掉窗口而不是发送消息（本文件只让发送按钮当默认按钮）
+        close_btn.setAutoDefault(False)
         close_btn.clicked.connect(self.reject)
         header_layout.addWidget(close_btn)
         main_layout.addLayout(header_layout)
@@ -136,6 +140,7 @@ class InputDialog(QDialog):
             btn = QPushButton(label, self)
             btn.setObjectName("quickBtn")
             btn.setCursor(Qt.PointingHandCursor)
+            btn.setAutoDefault(False)
             btn.clicked.connect(
                 lambda checked=False, t=template, s=sel_start, n=sel_len: self.fill_template(t, s, n)
             )
@@ -147,6 +152,9 @@ class InputDialog(QDialog):
         self.input_field = QLineEdit(self)
         self.input_field.setPlaceholderText("想说的话，或点上方按钮快速记录...")
         self.input_field.setFocusPolicy(Qt.ClickFocus)
+        # Enter 直接发送（QLineEdit 只在连了 returnPressed 时才会把回车当提交，
+        # 否则回车被输入框吞掉，表现为「只有点发送按钮才有反应」）
+        self.input_field.returnPressed.connect(self._submit_by_hotkey)
         main_layout.addWidget(self.input_field)
 
         # 用法提示（非 AI 引导）
@@ -161,6 +169,8 @@ class InputDialog(QDialog):
         send_btn = QPushButton("发送", self)
         send_btn.setObjectName("sendBtn")
         send_btn.setCursor(Qt.PointingHandCursor)
+        send_btn.setAutoDefault(True)
+        send_btn.setDefault(True)
         send_btn.clicked.connect(lambda: self.submit_text(on_submit))
         btn_layout.addWidget(send_btn)
         main_layout.addLayout(btn_layout)
@@ -179,11 +189,21 @@ class InputDialog(QDialog):
         self.input_field.setFocus()
         self.input_field.setSelection(sel_start, sel_len)
 
-    def submit_text(self, on_submit):
+    def showEvent(self, event) -> None:
+        """打开即聚焦输入框，Enter 才能直接落在这条路径上。"""
+        super().showEvent(event)
+        self.input_field.setFocus(Qt.ActiveWindowFocusReason)
+
+    def _submit_by_hotkey(self) -> None:
+        """回车提交：与点击「发送」按钮完全同一条路径。"""
+        self.submit_text(self._on_submit)
+
+    def submit_text(self, on_submit=None):
         """
         处理用户输入并调用回调函数。
         """
         text = self.input_field.text().strip()
-        if text:
-            on_submit(self, text)  # 调用回调函数
+        callback = on_submit or self._on_submit
+        if text and callback:
+            callback(self, text)  # 调用回调函数
         self.close()

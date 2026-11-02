@@ -53,6 +53,8 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
     """
     bubble_text_ready = pyqtSignal(str, int)  # text, duration；供 chat 模块 emit 后主线程更新气泡
     bubble_stream_ready = pyqtSignal(str, int)  # text, duration；假流式（打字机）播报，供天气等模块跨线程使用
+    # delta, reset, duration；AI 流式对话增量（reset=True 表示新一轮回复，先把气泡清空再排队）
+    bubble_chat_stream = pyqtSignal(str, bool, int)
     comfort_turn_ready = pyqtSignal(object)  # 安慰对话轮次（dict），后台 AI 生成后主线程展示
 
     def __init__(self, pet_package: Dict[str, Any], frame_rate: int = 10):
@@ -126,6 +128,7 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
         self.bubble_timer.timeout.connect(self.hide_bubble)
         self.bubble_text_ready.connect(self._on_bubble_text_ready)
         self.bubble_stream_ready.connect(self._on_bubble_stream_ready)
+        self.bubble_chat_stream.connect(self._on_bubble_chat_stream)
         self.typing_timer = QTimer(self)
         self.typing_timer.timeout.connect(self.type_next_character)
         self.comfort_turn_ready.connect(self._on_comfort_turn_ready)

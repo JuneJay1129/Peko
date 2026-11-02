@@ -84,6 +84,12 @@ def _normalize(plan: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     except (TypeError, ValueError):
         progress = 0
     progress = max(0, min(100, progress))
+    # 完成前的进度：取消勾选时还原，避免出现「未完成但进度 100%」的矛盾状态
+    try:
+        prev_progress = int(plan.get("prev_progress") or 0)
+    except (TypeError, ValueError):
+        prev_progress = 0
+    prev_progress = max(0, min(99, prev_progress))
     if status == "done":
         progress = 100
     period = (plan.get("period") or "").strip()
@@ -98,6 +104,7 @@ def _normalize(plan: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "pri": pri,
         "status": status,
         "progress": progress,
+        "prev_progress": prev_progress,
         "note": (plan.get("note") or "").strip(),
         "created_at": plan.get("created_at") or _now(),
         "updated_at": plan.get("updated_at") or _now(),
@@ -263,9 +270,23 @@ class PlansStore:
             for i, p in enumerate(plans):
                 if p["id"] == pid:
                     if p["status"] == "done":
-                        p = dict(p, status="pending", progress=p["progress"], done_at="", updated_at=_now())
+                        p = dict(
+                            p,
+                            status="pending",
+                            progress=p.get("prev_progress") or 0,
+                            prev_progress=0,
+                            done_at="",
+                            updated_at=_now(),
+                        )
                     else:
-                        p = dict(p, status="done", progress=100, done_at=_now(), updated_at=_now())
+                        p = dict(
+                            p,
+                            status="done",
+                            progress=100,
+                            prev_progress=p.get("progress") or 0,
+                            done_at=_now(),
+                            updated_at=_now(),
+                        )
                     plans[i] = p
                     self._persist(plans)
                     return p

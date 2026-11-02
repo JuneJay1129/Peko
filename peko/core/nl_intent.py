@@ -6,12 +6,13 @@ C5 自然语言入口：把桌宠聊天框里的一句话识别为「工作台�
 - 只在「明确的命令句式」下触发（记一笔 / 记账 / 提醒我 / 待办 / 开始专注 / 番茄钟），
   普通闲聊一律返回 None，交由聊天走 AI，避免劫持对话。
 - 解析与落盘均为纯 Python（不依赖 Qt），便于单元测试。
-- 记账 / 待办 直接写入 data/*.json（经 PlansStore，原子写）；
-  「开始专注」不落盘，由调用方（聊天侧）用 QTimer 做提醒，避免虚增专注统计。
+- 记账 / 待办 / 专注 均经 PlansStore 原子写入 data/*.json；
+  「开始专注」由调用方（聊天侧）用 QTimer 做结束提醒，记录本身落在 focus.json。
 """
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from .plans_store import PlansStore, today_str
@@ -116,11 +117,41 @@ def _parse_ledger(t: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def _todo_due(text: str, now: Optional[datetime] = None) -> str:
+    """按句中时刻推算截止日：今天该时刻已过就顺延到明天。
+
+    「提醒我 17:00 交周报」在 20:00 说出口，用户指的是明天下午，
+    否则这条待办一落库就是逾期红色，第二天起永远红着。
+    待办只有日期没有时刻，时间原文仍写进 note 保留可读性。
+    """
+    matches = list(_TIME_RE.finditer(text))
+    if not matches:
+        return today_str()
+    m = matches[-1]  # 取最后一个时刻，避免「早上……17:00」这类句子里前面的是噪音
+    now = now or datetime.now()
+    prefix = m.group(1) or ""
+    try:
+        hour = int(m.group(2))
+        minute = int(m.group(3) or 0)
+    except (TypeError, ValueError):
+        return today_str()
+    if prefix in ("下午", "晚上", "今晚", "中午") and hour < 12:
+        hour += 12
+    hour = max(0, min(23, hour))
+    minute = max(0, min(59, minute))
+    day = now.date()
+    if prefix == "明早":
+        day += timedelta(days=1)
+    elif (hour, minute) <= (now.hour, now.minute):
+        day += timedelta(days=1)
+    return day.strftime("%Y-%m-%d")
+
+
 def _parse_todo(t: str) -> Optional[Dict[str, Any]]:
     verb = next((w for w in _TODO_VERBS if w in t), None)
     if verb is None:
         return None
-    # 提取可选时间（如 17:00 / 下午3点），写进 note，due 仍为今天。
+    # 提取可选时间（如 17:00 / 下午3点）：写进 note，同时决定 due 顺延与否。
     # 先把时间整段从原文去掉，再清理，避免金额正则把「17:00」的数字抹掉后残留「:」。
     note = ""
     body = t
@@ -134,7 +165,7 @@ def _parse_todo(t: str) -> Optional[Dict[str, Any]]:
     return {
         "action": "add_todo",
         "title": title,
-        "due": today_str(),
+        "due": _todo_due(t),
         "note": note,
         "cat": _guess_cat(title),
     }
@@ -264,7 +295,7 @@ def suggest_usage(text: str) -> Optional[str]:
 
 
 def apply(intent: Dict[str, Any], store: Optional[PlansStore] = None) -> str:
-    """执行意图并返回给用户的确认文案。记账 / 待办落盘；开始专注不落盘（由调用方提醒）。"""
+    """执行意图并返回给用户的确认文案。记账 / 待办 / 专注均落盘，专注结束提醒由调用方负责。"""
     action = intent.get("action")
     store = store or PlansStore(__file__)
 
@@ -297,6 +328,10 @@ def apply(intent: Dict[str, Any], store: Optional[PlansStore] = None) -> str:
 
     if action == "start_focus":
         minutes = int(intent.get("minutes") or 25)
+        label = intent.get("label") or "专注"
+        arr = store.focus_log()
+        arr.insert(0, {"minutes": minutes, "label": label, "date": today_str()})
+        store.replace_focus(arr)
         return f"好的，专注 {minutes} 分钟开始，结束我会提醒你。"
 
     if action == "ask_weather":

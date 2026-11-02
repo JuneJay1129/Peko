@@ -26,13 +26,17 @@ from typing import Any, Optional
 from .runtime_paths import get_writable_root
 
 
-def _abs_path(rel_path: str) -> str:
-    return os.path.join(get_writable_root(module_file=__file__), *rel_path.split("/"))
+def _abs_path(rel_path: str, base_dir: Optional[str] = None) -> str:
+    root = base_dir or get_writable_root(module_file=__file__)
+    return os.path.join(root, *rel_path.split("/"))
 
 
-def read_json(rel_path: str, default: Any = None) -> Any:
-    """读取可写根目录下的 JSON；文件缺失/损坏/类型异常时返回 default。"""
-    path = _abs_path(rel_path)
+def read_json(rel_path: str, default: Any = None, base_dir: Optional[str] = None) -> Any:
+    """读取可写根目录下的 JSON；文件缺失/损坏/类型异常时返回 default。
+
+    base_dir 仅供单元测试注入临时目录，业务代码不要传。
+    """
+    path = _abs_path(rel_path, base_dir)
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -40,9 +44,12 @@ def read_json(rel_path: str, default: Any = None) -> Any:
         return default
 
 
-def write_json(rel_path: str, data: Any) -> bool:
-    """写入 JSON：先写临时文件再原子替换，避免写一半损坏配置。"""
-    path = _abs_path(rel_path)
+def write_json(rel_path: str, data: Any, base_dir: Optional[str] = None) -> bool:
+    """写入 JSON：先写临时文件再原子替换，避免写一半损坏配置。
+
+    base_dir 仅供单元测试注入临时目录，业务代码不要传。
+    """
+    path = _abs_path(rel_path, base_dir)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
@@ -56,6 +63,18 @@ def write_json(rel_path: str, data: Any) -> bool:
             except Exception:
                 pass
             raise
+        return True
+    except Exception:
+        return False
+
+
+def delete_file(rel_path: str, base_dir: Optional[str] = None) -> bool:
+    """删除可写根目录下的文件；文件本来不存在也算成功。"""
+    path = _abs_path(rel_path, base_dir)
+    try:
+        os.remove(path)
+        return True
+    except FileNotFoundError:
         return True
     except Exception:
         return False

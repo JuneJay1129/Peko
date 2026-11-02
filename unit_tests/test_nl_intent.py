@@ -1,9 +1,10 @@
 import os
 import tempfile
 import unittest
+from datetime import datetime
 
 from peko.core import nl_intent
-from peko.core.plans_store import PlansStore
+from peko.core.plans_store import PlansStore, today_str
 
 
 def _temp_store(tmp: str) -> PlansStore:
@@ -50,6 +51,32 @@ class ParseTests(unittest.TestCase):
         self.assertIsNotNone(intent)
         self.assertEqual(intent["action"], "add_todo")
         self.assertEqual(intent["title"], "买牛奶")
+
+
+class TodoDueTests(unittest.TestCase):
+    """待办截止日：时刻还没到算今天，已过则顺延明天（否则一落库就是逾期）。"""
+
+    def test_time_not_reached_keeps_today(self):
+        now = datetime(2026, 11, 2, 15, 0)
+        self.assertEqual(nl_intent._todo_due("提醒我 17:00 交周报", now=now), "2026-11-02")
+
+    def test_time_passed_rolls_to_tomorrow(self):
+        now = datetime(2026, 11, 2, 20, 0)
+        self.assertEqual(nl_intent._todo_due("提醒我 17:00 交周报", now=now), "2026-11-03")
+
+    def test_afternoon_prefix(self):
+        now = datetime(2026, 11, 2, 9, 0)
+        self.assertEqual(nl_intent._todo_due("提醒我 下午3点 开会", now=now), "2026-11-02")
+        now = datetime(2026, 11, 2, 16, 0)
+        self.assertEqual(nl_intent._todo_due("提醒我 下午3点 开会", now=now), "2026-11-03")
+
+    def test_tomorrow_morning_prefix(self):
+        now = datetime(2026, 11, 2, 23, 0)
+        self.assertEqual(nl_intent._todo_due("提醒我 明早 9:00 赶车", now=now), "2026-11-03")
+
+    def test_no_time_keeps_today(self):
+        now = datetime(2026, 11, 2, 23, 0)
+        self.assertEqual(nl_intent._todo_due("加个待办 买牛奶", now=now), today_str())
 
     def test_focus_minutes(self):
         intent = nl_intent.parse("开始专注 25 分钟")
@@ -124,13 +151,16 @@ class ApplyTests(unittest.TestCase):
             self.assertEqual(len(todos), 1)
             self.assertEqual(todos[0]["title"], "写月度复盘")
 
-    def test_apply_focus_does_not_write(self):
+    def test_apply_focus_writes(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = _temp_store(tmp)
             intent = nl_intent.parse("开始专注 25 分钟")
             msg = nl_intent.apply(intent, store=store)
             self.assertIn("专注", msg)
-            self.assertEqual(store.focus_log(), [])  # 不落盘，避免虚增统计
+            log = store.focus_log()
+            self.assertEqual(len(log), 1)
+            self.assertEqual(log[0]["minutes"], 25)
+            self.assertEqual(log[0]["label"], "专注")
 
 
 class WeatherIntentTests(unittest.TestCase):
