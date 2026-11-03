@@ -6,7 +6,7 @@ macOS：菜单栏托盘上左右键常会统一为 Trigger，需监听 activated
 """
 import os
 import sys
-from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction, QInputDialog
+from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction, QActionGroup, QInputDialog
 from PyQt5.QtGui import QIcon, QCursor
 
 from ..core.pet_manager import RESOURCE_DIR, get_app_exe_icon_path
@@ -67,9 +67,16 @@ def _build_menu_from_spec(owner, menu, dock: bool) -> None:
             setattr(owner, dock_attr if dock else tray_attr, sub)
             if filler_name:
                 getattr(owner, filler_name)(sub)
-            else:  # 模式菜单：固定项 + 分隔 + 停止移动
+            else:  # 模式菜单：固定项 + 分隔 + 敲键盘 + 停止移动
                 for act_name in _MODE_MENU_ITEMS:
                     sub.addAction(getattr(owner, act_name))
+                sub.addSeparator()
+                sub.addAction(owner._bongo_mode_action)
+                # 造型子菜单每次现建：QMenu 只能挂一个父菜单，
+                # 托盘和 Dock 两套菜单共用同一个对象会只有一边显出来。
+                style = sub.addMenu("键盘造型")
+                style.setStyleSheet(_menu_style())
+                owner._fill_bongo_style_menu(style)
                 sub.addSeparator()
                 sub.addAction(owner._stop_movement_action)
 
@@ -111,6 +118,7 @@ class TrayIcon:
         self.clone_pets = clone_pets if clone_pets is not None else []
         self.set_clone_mode = set_clone_mode
         self._follower = None  # 召唤跟班（FollowerPet）
+        self._bongo_host = None  # 敲键盘模式（BongoKeyboardMode），首次开启时才建
         icon_path = _tray_icon_path(registry)
         self.tray_icon = QSystemTrayIcon(QIcon(icon_path) if icon_path else QIcon(), self.app)
         self.create_tray_menu()
@@ -174,6 +182,10 @@ class TrayIcon:
         self._follow_mouse_action.triggered.connect(self._on_follow_mouse_mode)
         self._clone_mode_action.triggered.connect(self._on_clone_mode)
         self._auto_mode_action.setChecked(True)
+
+        # 敲键盘：独立开关，不和上面几个移动模式互斥（猫在敲键盘时也可以跟随鼠标）
+        self._bongo_mode_action = QAction("敲键盘模式", self.app, checkable=True)
+        self._bongo_mode_action.triggered.connect(self._on_bongo_mode)
 
         # 按注册表构建托盘菜单（Dock 菜单同源，见 _install_macos_dock_menu）
         _build_menu_from_spec(self, menu, dock=False)
@@ -247,6 +259,9 @@ class TrayIcon:
         return self.registry.all_pets()
 
     def _on_show_pets(self):
+        # 敲键盘模式下本体是藏着的（身体由叠加层画），直接 show 会出现两个身子。
+        # 语义上「显示桌宠」= 退出那个模式，比默默无视这次点击清楚。
+        self._leave_bongo_mode()
         for p in self._all_pets():
             p.show()
 
@@ -261,6 +276,8 @@ class TrayIcon:
             bus.unsubscribe("theme_changed", self._on_theme_changed)
         except Exception:
             pass
+        # 先摘键盘钩子：pynput 的监听线程不摘会吊住进程，托盘退了爪子还在按
+        self.reset_bongo()
         self._dismiss_follower()
         pets = self._all_pets()
         if not pets:
@@ -288,6 +305,7 @@ class TrayIcon:
         self.app.quit()
 
     def toggle_movement(self, checked):
+        self._leave_bongo_mode()
         for p in self._all_pets():
             p.set_allow_movement(not checked)
 
@@ -459,6 +477,7 @@ class TrayIcon:
         dialog.exec_()
 
     def _on_auto_mode(self):
+        self._leave_bongo_mode()
         if self.registry:
             if getattr(self, "set_clone_mode", None) and len(getattr(self, "clone_pets", [])) > 0:
                 self.set_clone_mode(False)
@@ -470,6 +489,7 @@ class TrayIcon:
             self._clone_mode_action.setChecked(False)
 
     def _on_control_mode(self):
+        self._leave_bongo_mode()
         if self.registry:
             if getattr(self, "set_clone_mode", None) and len(getattr(self, "clone_pets", [])) > 0:
                 self.set_clone_mode(False)
@@ -480,6 +500,7 @@ class TrayIcon:
             self._clone_mode_action.setChecked(False)
 
     def _on_follow_mouse_mode(self):
+        self._leave_bongo_mode()
         if self.registry:
             if getattr(self, "set_clone_mode", None) and len(getattr(self, "clone_pets", [])) > 0:
                 self.set_clone_mode(False)
@@ -492,6 +513,7 @@ class TrayIcon:
     def _on_clone_mode(self):
         if not self.registry or not self.set_clone_mode:
             return
+        self._leave_bongo_mode()
         in_clone = len(getattr(self, "clone_pets", [])) > 0
         self.set_clone_mode(not in_clone)
         if not in_clone:
@@ -505,6 +527,98 @@ class TrayIcon:
             self._follow_mouse_action.setChecked(False)
             self._clone_mode_action.setChecked(False)
 
+    # ---- 敲键盘模式 ----
+
+    def _ensure_bongo_host(self):
+        """懒建敲键盘宿主。绑在**当前宠物**身上，切换宠物后要 reset_bongo。"""
+        if self._bongo_host is None:
+            pet = self.registry.current() if self.registry else None
+            if pet is None:
+                return None
+            from .bongo import BongoKeyboardMode
+
+            self._bongo_host = BongoKeyboardMode(pet)
+        return self._bongo_host
+
+    def _fill_bongo_style_menu(self, menu):
+        """造型子菜单：注册表里有几款就列几款，新加模式不用改这里。"""
+        from ..core import bongo_modes
+
+        group = QActionGroup(menu)
+        group.setExclusive(True)
+        current = bongo_modes.current_key()
+        for mode in bongo_modes.list_modes():
+            act = QAction(mode.label, menu, checkable=True)
+            act.setChecked(mode.key == current)
+            if mode.desc:
+                act.setToolTip(mode.desc)
+            act.triggered.connect(lambda _checked=False, key=mode.key: self._on_bongo_style(key))
+            group.addAction(act)
+            menu.addAction(act)
+        self._bongo_style_group = group
+
+    def _on_bongo_style(self, key):
+        """换造型：先落盘再让宿主重建，下次启动还是这一款。"""
+        from ..core import bongo_modes
+
+        if not bongo_modes.set_mode(key):
+            return
+        if self._bongo_host is not None:
+            self._bongo_host.apply_mode(bongo_modes.get_mode(key))
+
+    def _on_bongo_mode(self, checked: bool):
+        host = self._ensure_bongo_host()
+        if host is None:
+            self._bongo_mode_action.setChecked(False)
+            return
+        if not checked:
+            host.stop()
+            return
+        backend = host.start()
+        if not backend:
+            # 拿不到全局键盘就退回关闭：光有画面、爪子不动，比直接不开更迷惑
+            host.stop()
+            self._bongo_mode_action.setChecked(False)
+            self._warn("这机器拿不到全局键盘监听（缺 pynput / 辅助功能权限），敲键盘模式开不了。")
+
+    def _leave_bongo_mode(self):
+        """切到别的模式前先关掉敲键盘模式。
+
+        不关的话宠物本体还藏着、位置还被钉着，用户点「自动模式」看不到任何
+        变化，只会觉得模式切不回去。
+        """
+        if not hasattr(self, "_bongo_mode_action"):
+            return
+        if not self._bongo_mode_action.isChecked():
+            return
+        self._bongo_mode_action.setChecked(False)
+        if self._bongo_host is not None:
+            self._bongo_host.stop()
+
+    def _warn(self, message: str, duration: int = 9000) -> None:
+        pet = self.registry.current() if self.registry else None
+        if pet is None:
+            return
+        try:
+            pet.update_bubble(message, duration=duration)
+        except Exception:
+            print(f"[Peko] {message}")
+
+    def reset_bongo(self):
+        """切换宠物后调用：叠加层绑在旧宠物身上，必须关掉重建。"""
+        if self._bongo_host is not None:
+            try:
+                # shutdown 而不是 stop：键鼠造型还挂着 pynput 鼠标监听线程，
+                # 只 stop 的话对象删了线程还在，进程退不掉
+                self._bongo_host.shutdown()
+                self._bongo_host.overlay.deleteLater()
+                self._bongo_host.deleteLater()
+            except Exception:
+                pass
+            self._bongo_host = None
+        if hasattr(self, "_bongo_mode_action"):
+            self._bongo_mode_action.setChecked(False)
+
     def _update_mode_actions_checked(self):
         """打开托盘菜单时，根据当前模式同步勾选状态。"""
         if self.registry and hasattr(self, "_auto_mode_action"):
@@ -512,7 +626,11 @@ class TrayIcon:
             cm = getattr(pet, "control_mode", False)
             fm = getattr(pet, "follow_mouse_mode", False)
             in_clone = len(getattr(self, "clone_pets", [])) > 0
-            self._auto_mode_action.setChecked(not cm and not fm and not in_clone)
+            # 敲键盘模式开着时，上面四个移动模式都不该显示成勾选：
+            # 宠物的动作是停着的，勾着「自动模式」等于告诉用户它还在自己走
+            bongo_on = getattr(self, "_bongo_mode_action", None) is not None and \
+                self._bongo_mode_action.isChecked()
+            self._auto_mode_action.setChecked(not cm and not fm and not in_clone and not bongo_on)
             self._control_mode_action.setChecked(cm)
             self._follow_mouse_action.setChecked(fm)
             self._clone_mode_action.setChecked(in_clone)

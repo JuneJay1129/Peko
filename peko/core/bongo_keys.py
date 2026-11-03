@@ -36,7 +36,6 @@ LEFT_NAMES = frozenset(
         "alt_gr",
         "cmd",
         "cmd_l",
-        "backspace",
         "`",
     }
 )
@@ -45,6 +44,10 @@ RIGHT_NAMES = frozenset(
     {
         "enter",
         "return",
+        # Backspace 在键盘左上角，归画面左边那只手（= 宠物右手）。它离屏幕
+        # 左肩点只有几十像素，伸手就到；早先分给宠物左手，那只手得横跨整块
+        # 键盘去够最左端的键，胳膊拉成一条夸张的横线。
+        "backspace",
         "shift_r",
         "ctrl_r",
         "alt_r",
@@ -100,8 +103,12 @@ def side_for(char: Optional[str] = None, name: Optional[str] = None) -> Optional
             return "right"
         # 中文输入法下 char 可能是汉字 / 全角符号，取不到物理键位。
         # 与其让爪子完全不动，不如交替拍一下，至少反馈是「你在打字」。
+        # 先卡一道 isprintable：Backspace / Tab / Enter 这类功能键在 Qt 的
+        # QKeyEvent.text() 里是 '\x08' '\t' '\r'，strip() 之后仍非空，
+        # 会被当成「输入法字符」走交替——按一下 Backspace 就轮到另一只手，
+        # 看着像两只手都过来了。控制字符一律不归任何手。
         # 空白里只认空格，\t \n 之类不响应。
-        if char.strip() or char == " ":
+        if char.isprintable() and (char.strip() or char == " "):
             return "alt"
 
     return None

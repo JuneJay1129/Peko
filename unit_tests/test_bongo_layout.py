@@ -14,6 +14,7 @@ import unittest
 from PyQt5.QtWidgets import QApplication
 
 from peko.core.bongo_keys import KEY_CAPS
+from peko.core.bongo_modes import get_mode
 from peko.ui.bongo import BongoRenderer, PawMotion
 
 _app = QApplication.instance() or QApplication([])
@@ -23,13 +24,18 @@ _SVG = os.path.join(
     "pets", "BB", "resource", "bongo", "bongo.svg",
 )
 
+# 造型必须写死。BongoRenderer 不传 mode 会去读 config/bongo.json——用户上次在
+# 托盘里挑了哪个造型，这里的几何断言就按哪个跑：挑「键鼠同摆」时一只手被冻在
+# 鼠标上、键盘也没有 persp，这几条会集体红。
+_MODE = get_mode("paws")
+
 
 class KeyboardViewTests(unittest.TestCase):
     """键盘正对宠物，画面镜像：Q 区在右、Enter 在左。"""
 
     @classmethod
     def setUpClass(cls):
-        cls.r = BongoRenderer(_SVG)
+        cls.r = BongoRenderer(_SVG, mode=_MODE)
 
     def test_svg_loads(self):
         self.assertTrue(self.r.valid)
@@ -68,6 +74,31 @@ class KeyboardViewTests(unittest.TestCase):
         self.assertLess(self.r.cap_center("z").y(), self.r.cap_center("a").y())
         self.assertLess(self.r.cap_center("a").y(), self.r.cap_center("q").y())
 
+    def test_keyboard_is_tilted_right_end_down(self):
+        """整块键盘**顺时针**倾斜：同一排里画面越靠右的键越靠下。
+
+        倾斜是在渲染层做的（BongoRenderer.TILT_DEG，正值），cap_center 返回的
+        必须是倾斜**之后**的坐标——不然爪子会落在没斜的位置，和键帽差开一截。
+        """
+        left = self.r.cap_center("enter")
+        right = self.r.cap_center("tab")
+        self.assertIsNotNone(left)
+        self.assertIsNotNone(right)
+        self.assertGreater(right.y(), left.y())
+
+    def test_keyboard_has_perspective(self):
+        """键盘上边（远）比下边（近）窄：最上一排两端的键距要小于最下一排。
+
+        转了 180°，所以「最上一排」是空格那一排（rctrl/lctrl），「最下一排」
+        是数字行（backspace/backtick）。透视只作用在键盘上，cap_center 必须
+        跟着走；漏掉的话越靠上的键爪子偏得越多，最上面一排能差出小半个键帽。
+        """
+        top = abs(self.r.cap_center("lctrl").x() - self.r.cap_center("rctrl").x())
+        bottom = abs(
+            self.r.cap_center("backtick").x() - self.r.cap_center("backspace").x()
+        )
+        self.assertLess(top, bottom)
+
     def test_every_drawn_cap_has_a_center(self):
         for cap in sorted(KEY_CAPS):
             self.assertIsNotNone(self.r.cap_center(cap), cap)
@@ -82,17 +113,36 @@ class PawFollowTests(unittest.TestCase):
     """爪子要挪到该手最近按下的那个键上，而不是固定两点。"""
 
     def setUp(self):
-        self.r = BongoRenderer(_SVG)
+        self.r = BongoRenderer(_SVG, mode=_MODE)
         self.m = PawMotion(self.r)
 
     def _settle(self):
         for _ in range(80):
             self.m._tick()
 
-    def test_starts_at_rest(self):
+    def test_starts_lifted(self):
+        """一开始就是闲置态：双手抬在身侧，不落在键盘上。"""
         centers = self.m.centers()
-        self.assertEqual(self.r.rest_center("l"), centers["l"])
-        self.assertEqual(self.r.rest_center("r"), centers["r"])
+        for side in ("l", "r"):
+            rest = self.r.rest_center(side)
+            self.assertAlmostEqual(rest.x(), centers[side].x(), delta=0.5, msg=side)
+            self.assertAlmostEqual(
+                rest.y() - PawMotion.LIFT, centers[side].y(), delta=0.5, msg=side
+            )
+
+    def test_release_lifts_but_keeps_the_place(self):
+        """松手往上抬，但横坐标留在刚按的键上，不弹回休息位。
+
+        弹回去的话连打同一个键，爪子会在键和休息位之间来回飞。
+        """
+        self.m.set_targets(left_cap="a")
+        self._settle()
+        pressed = self.m.centers()["r"]
+        self.m.set_targets(left_cap=None)
+        self._settle()
+        lifted = self.m.centers()["r"]
+        self.assertAlmostEqual(pressed.x(), lifted.x(), delta=0.5)
+        self.assertAlmostEqual(lifted.y(), pressed.y() - PawMotion.LIFT, delta=0.5)
 
     def test_left_hand_lands_on_right_paw(self):
         """键盘正对宠物、画面镜像，所以宠物左手（Q/A/Z 区）在画面右侧。"""
@@ -144,6 +194,23 @@ class PawFollowTests(unittest.TestCase):
             centers["r"].x(), centers["l"].x() + PawMotion.MIN_GAP - 0.5
         )
 
+    def test_far_key_does_not_drag_the_idle_paw(self):
+        """按 Backspace 时另一只手不能被拽走。
+
+        Backspace 是最左边的键，由画面上右边那只手去够，一路跑到闲着那只
+        手的左边，两只手在横坐标上「交叉」。早先拿有符号的间距判断，负值
+        被当成「挨得太近」，于是把闲着的手推到按键手旁边 38——按一下
+        Backspace，两条胳膊一起动。
+        """
+        idle_before = self.m.centers()["l"]
+        self.m.set_targets(left_cap="backspace")
+        self._settle()
+        centers = self.m.centers()
+        self.assertAlmostEqual(idle_before.x(), centers["l"].x(), delta=0.5)
+        self.assertAlmostEqual(
+            self.r.cap_center("backspace").x(), centers["r"].x(), delta=0.5
+        )
+
     def test_release_keeps_paw_where_it_was(self):
         self.m.set_targets(left_cap="a")
         self._settle()
@@ -167,6 +234,45 @@ class PawFollowTests(unittest.TestCase):
         self._settle()
         self.assertGreater(len(frames), 3)
         self.assertFalse(self.m._timer.isActive())
+
+
+class MouseModeTests(unittest.TestCase):
+    """键鼠造型：不带手臂、和身体共用同一个倾斜、键位转 180°。
+
+    这套素材的透视是烘在坐标里的（gen_bongo_mouse.py 的 homography），
+    所以 persp_inset 必须是 0；tilt 则和其它造型一样 8°。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.mode = get_mode("mouse")
+        cls.r = BongoRenderer(mode=cls.mode)
+
+    def test_has_no_arms(self):
+        self.assertFalse(self.r.draw_arms)
+        self.assertFalse(self.mode.draw_arms)
+
+    def test_shares_the_common_tilt(self):
+        self.assertEqual(self.r.tilt_deg, get_mode("paws").tilt_deg)
+        self.assertFalse(self.r._desk_matrix().isIdentity())
+
+    def test_perspective_is_baked_into_the_asset(self):
+        self.assertEqual(self.r.persp_inset, 0.0)
+
+    def test_key_rows_are_rotated_180(self):
+        """Tab 行（原来是远排）落到近边：y 更大；空格在远边。"""
+        self.assertGreater(self.r.cap_center("q").y(), self.r.cap_center("space").y())
+        self.assertGreater(self.r.cap_center("tab").y(), self.r.cap_center("enter").y())
+
+    def test_mouse_hand_is_frozen_on_the_mouse(self):
+        self.assertEqual(self.r.mouse_hand, "l")
+        center = self.r.mouse_center()
+        self.assertIsNotNone(center)
+        self.assertGreater(center.x(), 0.0)
+        self.assertLess(center.x(), self.r.canvas_w)
+
+    def test_keyboard_has_a_shadow_layer(self):
+        self.assertIn("kb_shadow", self.r._bounds)
 
 
 if __name__ == "__main__":

@@ -199,6 +199,9 @@ def main():
         pkg = get_pet(pet_id)
         new_pet = DesktopPet(pkg, frame_rate=frame_rate)
         was_visible = old.isVisible()
+        # 敲键盘叠加层绑在旧宠物身上，切宠物前先拆掉
+        if tray is not None:
+            tray.reset_bongo()
         old.close()
         registry.set_master(new_pet)
         if tray is not None:

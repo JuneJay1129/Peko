@@ -25,23 +25,50 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from peko.core.bongo_keys import CHAR_CAPS, NAME_CAPS  # noqa: E402
 
-U = 22.0                      # 1u 的像素宽（420 画布下 15u 占 330）
+U = 16.0                      # 1u 的像素宽（420 画布下 15u 占 240）
 COLS = 15                     # 60% 键盘宽 15u
 ROWS = 5.0                    # 五排主键区，不含 F 区
 PAD = 6.0                     # 外壳内边距
 CANVAS_W, CANVAS_H = 420, 280
+# 键盘整体上抬 22。渲染时整块绕 (210, 228) 顺时针转 8°，贴着画布底放的
+# 外壳右下角会被甩到 y≈297，超出 280 被窗口切平，看着像多出一个角。
+# 抬 22 之后那个角落到 275，四角全在画布内。
+# 注意 TILT_CY 保持 228 不动：只要旋转中心跟着一起抬，相对位置就不变，
+# 抬多少都白抬。上抬的是键盘，不是旋转中心。
+KB_LIFT = 22
 # 外壳底边贴着画布底：留一条空隙的话猫屁股会从键盘下面漏出来
-KB_TOP = CANVAS_H - int(ROWS * U) - int(PAD)
-GAP = 1.5                     # 键帽之间留的缝
+KB_TOP = CANVAS_H - int(ROWS * U) - int(PAD) - KB_LIFT
+GAP = 2.0                     # 键帽之间留的缝
+# 外壳四周一律只留 PAD 这一圈边，不再往底边多拖一截「下巴」。
+# 早先这里是 26：担心转 8° 后左下角甩出画布、露出透明三角，就在底边加厚
+# 垫住。结果是键盘底下糊着一大片塑料，转完右下角照样被切，反而更像多长出
+# 一个角。外壳只要包住键帽区就够，去掉之后是一个规整的圆角矩形。
+SHELL_DROP = 0.0
 
 ROW_Y = {"num": 0.0, "qwe": 1.0, "asd": 2.0, "zxc": 3.0, "bottom": 4.0}
 
-# 键帽分类 -> 颜色，字母数字区亮一点，功能键压暗
+# 键帽分类 -> 颜色。奶油糖果风：近白奶油键帽压在奶咖底板上，
+# 只留 Enter（草莓粉）和空格（天空蓝）两个大键跳色，像玩具键盘。
+#
+# 底板一定要比键帽**明显深一档**（#EBD8C2 vs #FFFCF4）。两者都做浅色的话，
+# 键帽和底板糊成一片，缩小到桌宠尺寸根本看不出键位。
 COLORS = {
-    "alpha": "#8C8C8C",
-    "func": "#787878",
-    "shell": "#3A3A3A",
-    "text": "#232323",
+    "alpha": "#FFFCF4",     # 字母数字：近白奶油
+    "func": "#D5EBDD",      # 功能键：薄荷
+    "enter": "#FFC2D1",     # 回车：草莓粉
+    "space": "#BFE3F5",     # 空格：天空蓝
+    "shell": "#D8C3AB",     # 外壳：深奶咖（露出 2.5px 当描边）
+    "shell_in": "#EFE2D2",  # 底板：浅奶咖
+    "text": "#8A7460",      # 键帽字：暖灰棕，别用纯黑，太硬
+}
+
+# 键帽侧壁：同色系压深一档。键面内缩 1.6px 盖在上面，露出的一圈就是
+# 「键帽的厚度」，一颗颗看起来像积木，比纯色块可爱得多。
+SIDE = {
+    "alpha": "#E5D0B7",
+    "func": "#B3D6C2",
+    "enter": "#F2A6BC",
+    "space": "#9DCDE8",
 }
 
 # (label, cap, x, y, w, h, kind)  —— 宠物视角，x/w 单位 u
@@ -73,7 +100,7 @@ add("\\", 13.5, "qwe", w=1.5)
 add("Caps", 0, "asd", w=1.75, kind="func", cap="caps")
 for i, k in enumerate("ASDFGHJKL;'"):
     add(k, 1.75 + i, "asd")
-add("Enter", 12.75, "asd", w=2.25, kind="func")
+add("Enter", 12.75, "asd", w=2.25, kind="enter")
 
 # ZXCV：Shift 2.25 + 10 键 + Shift 2.75
 add("Shift", 0, "zxc", w=2.25, kind="func", cap="lshift")
@@ -85,7 +112,7 @@ add("Shift", 12.25, "zxc", w=2.75, kind="func", cap="rshift")
 add("Ctrl", 0, "bottom", w=1.25, kind="func", cap="lctrl")
 add("Win", 1.25, "bottom", w=1.25, kind="func", cap="lwin")
 add("Alt", 2.5, "bottom", w=1.25, kind="func", cap="lalt")
-add("", 3.75, "bottom", w=6.25, kind="func", cap="space")
+add("", 3.75, "bottom", w=6.25, kind="space", cap="space")
 add("Alt", 10, "bottom", w=1.25, kind="func", cap="ralt")
 add("Win", 11.25, "bottom", w=1.25, kind="func", cap="rwin")
 add("Menu", 12.5, "bottom", w=1.25, kind="func", cap="menu")
@@ -125,10 +152,23 @@ def key_svg(label: str, cap: str, x: float, y: float, w: float, h: float, kind: 
             f'font-size="{size}" font-family="Segoe UI" fill="{COLORS["text"]}" '
             f'text-anchor="middle">{esc(label)}</text>'
         )
+    # 圆角按短边取：宽键（空格 6.25u）跟着用 5 会像一根长条，圆角比例得一致
+    rx = min(5.5, ph * 0.28)
+    side = SIDE[kind]
+    inset = 1.6
+    # 三层的顺序：侧壁 → 键面 → 顶部高光。
+    # **全部必须落在键帽矩形内**：超出去 boundsOnElement 的 bbox 就变大，
+    # 按下时的高亮矩形跟着放大、盖到隔壁键上，爪子定位也会偏。
     return (
         f'  <g id="k{cap}">\n'
         f'    <rect x="{px:.2f}" y="{py:.2f}" width="{pw:.2f}" height="{ph:.2f}" '
-        f'rx="3" fill="{color}"/>\n'
+        f'rx="{rx:.2f}" fill="{side}"/>\n'
+        f'    <rect x="{px + inset:.2f}" y="{py + inset:.2f}" '
+        f'width="{pw - inset * 2:.2f}" height="{ph - inset * 2:.2f}" '
+        f'rx="{max(rx - 1.2, 1.1):.2f}" fill="{color}"/>\n'
+        f'    <rect x="{px + 2.9:.2f}" y="{py + 2.7:.2f}" width="{pw - 5.8:.2f}" '
+        f'height="{ph * 0.24:.2f}" rx="{max(rx - 2.0, 1.0):.2f}" '
+        f'fill="#FFFFFF" opacity="0.72"/>\n'
         f'    {txt}\n'
         f'  </g>'
     )
@@ -143,7 +183,9 @@ def build() -> str:
     shell_x = ox - PAD
     shell_y = KB_TOP - PAD
     shell_w = kb_w + PAD * 2
-    shell_h = kb_h + PAD * 2
+    # SHELL_DROP 是旋转后盖住键帽下缘的「下巴」，现在整块键盘上移了，
+    # 它完整落在画布里，不再靠窗口裁边藏起来
+    shell_h = kb_h + PAD * 2 + SHELL_DROP
 
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" '
@@ -159,8 +201,14 @@ def build() -> str:
         "  -->",
         "",
         '  <g id="desk">',
+        # 双层做「描边」：外层深奶咖 + 内层奶咖，中间露出一圈 2.5px 的边。
+        # 不用 stroke——描边会把 boundsOnElement 撑大，_persp() 的梯形边界
+        # 直接按这个 bbox 算，外壳一变宽透视跟着变形。
         f'    <rect x="{shell_x:.2f}" y="{shell_y:.2f}" width="{shell_w:.2f}" '
-        f'height="{shell_h:.2f}" rx="10" fill="{COLORS["shell"]}"/>',
+        f'height="{shell_h:.2f}" rx="19" fill="{COLORS["shell"]}"/>',
+        f'    <rect x="{shell_x + 2.5:.2f}" y="{shell_y + 2.5:.2f}" '
+        f'width="{shell_w - 5:.2f}" height="{shell_h - 5:.2f}" '
+        f'rx="16.5" fill="{COLORS["shell_in"]}"/>',
     ]
     for label, cap, x, y, w, h, kind in KEYS:
         parts.append(key_svg(label, cap, x, y, w, h, kind, ox, oy))
@@ -172,16 +220,33 @@ def build() -> str:
 
 # 爪子：SVG 里只是休息位，运行时 BongoRenderer 按 bbox 整体平移，
 # 所以改这里等于改「不按键时手放哪」，不影响跟随。
-# 直径 22，比键帽（20.5）略大一圈：太大了会同时盖住两个键，
-# 太小又看不出来是爪子。
-PAW_R = 11.0
+# 直径 30：纯按原图比例算出来是 19（手 77px / 角色 671px × 宠物高 165），
+# 但宠物缩到 2/3 后键盘还是 240 宽，19 的爪子落在上面只剩一个小点。
+# 30 对键帽 14 是 2.1 倍，会压住一颗半键——这是刻意的：手臂加粗到 13
+# （含描边 17）之后，拳头再跟手臂差不多粗，看着就成了「胳膊上套了两个环」，
+# 而不是「手」。拳必须明显比臂粗，比例才立得住。
+PAW_R = 15.0
 # 休息位是**画面坐标**，l/r 永远指画面左边/右边那只爪，不跟键盘一起换。
 # 键帽转了 180°，休息位跟着转（原来 160/226，转完是 260/194），
 # 再按「l=画面左」把标签换回来就是下面这两个。
 # 别直接写 260/194 而不换标签：那样左手会在画面右休息、却去按画面左的键，
 # 两条手臂横穿整个键盘交叉成 X。
-# y=219 正好是键帽区中线，转了不变。
-PAW_REST = {"l": (194.0, 219.0), "r": (260.0, 219.0)}
+# y 取 254，比键帽区中线（234）低 20。爪子在 234 时整只手正好贴在键盘
+# 上沿上，直径一盖，肩到爪只剩十几像素，手臂完全看不见，像身体上
+# 粘了两个圆片。往下沉到第二排，闲置时手臂才露出一截。
+# x 以画布中线 210 左右对称各 35：旧值 194/260 的中心落在 227、整体偏右
+# 17px，左臂看着贴在身子中间、右臂却快甩到轮廓外。
+PAW_REST = {"l": (168.0, 254.0 - KB_LIFT), "r": (252.0, 254.0 - KB_LIFT)}
+
+# 拳头本色取原图那双抱胸圆手的主色 #EEB8B7（扫 560~780 行统计出来的最高频
+# 颜色），不是从身体灰里调的——鼠的手本来就是粉的，之前用 #C9C9C9 让人以为
+# 是两根粗管子插了两个灰球。
+# 肉垫用比本色深一档的 #DD8F8E：本色浅，垫子再浅就糊成一片，看不出哪只按下去。
+# 这里只管拳头。手臂（BongoRenderer.ARM_FILL）是身体灰 #C9C9C9——胳膊归身体、
+# 手归原图那双粉手，两者刻意不同色，别为了「接缝」把手臂也刷成粉。
+PAW_FILL = "#EEB8B7"
+PAW_PAD = "#DD8F8E"
+PAW_EDGE = "#1A1A1A"
 
 
 def paw_svg() -> list[str]:
@@ -193,9 +258,9 @@ def paw_svg() -> list[str]:
             out += [
                 f'  <g id="{rid}">',
                 f'    <ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" '
-                f'fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>',
+                f'fill="{PAW_FILL}" stroke="{PAW_EDGE}" stroke-width="2.4"/>',
                 f'    <ellipse cx="{cx}" cy="{cy + ry * 0.18:.1f}" rx="{rx * 0.52:.1f}" '
-                f'ry="{ry * 0.44:.1f}" fill="#F2A8A8"/>',
+                f'ry="{ry * 0.44:.1f}" fill="{PAW_PAD}"/>',
                 "  </g>",
             ]
     return out

@@ -10,266 +10,389 @@
   -->
 
   <g id="desk">
-    <rect x="39.00" y="158.00" width="342.00" height="122.00" rx="10" fill="#3A3A3A"/>
+    <rect x="84.00" y="166.00" width="252.00" height="92.00" rx="19" fill="#D8C3AB"/>
+    <rect x="86.50" y="168.50" width="247.00" height="87.00" rx="16.5" fill="#EFE2D2"/>
   <g id="kbacktick">
-    <rect x="353.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="363.25" y="265.85" transform="rotate(180 363.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">`</text>
+    <rect x="314.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="315.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="316.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="321.00" y="246.60" transform="rotate(180 321.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">`</text>
   </g>
   <g id="k1">
-    <rect x="331.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="341.25" y="265.85" transform="rotate(180 341.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">1</text>
+    <rect x="298.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="299.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="300.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="305.00" y="246.60" transform="rotate(180 305.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">1</text>
   </g>
   <g id="k2">
-    <rect x="309.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="319.25" y="265.85" transform="rotate(180 319.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">2</text>
+    <rect x="282.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="283.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="284.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="289.00" y="246.60" transform="rotate(180 289.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">2</text>
   </g>
   <g id="k3">
-    <rect x="287.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="297.25" y="265.85" transform="rotate(180 297.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">3</text>
+    <rect x="266.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="267.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="268.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="273.00" y="246.60" transform="rotate(180 273.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">3</text>
   </g>
   <g id="k4">
-    <rect x="265.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="275.25" y="265.85" transform="rotate(180 275.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">4</text>
+    <rect x="250.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="251.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="252.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="257.00" y="246.60" transform="rotate(180 257.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">4</text>
   </g>
   <g id="k5">
-    <rect x="243.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="253.25" y="265.85" transform="rotate(180 253.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">5</text>
+    <rect x="234.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="235.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="236.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="241.00" y="246.60" transform="rotate(180 241.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">5</text>
   </g>
   <g id="k6">
-    <rect x="221.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="231.25" y="265.85" transform="rotate(180 231.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">6</text>
+    <rect x="218.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="219.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="220.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="225.00" y="246.60" transform="rotate(180 225.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">6</text>
   </g>
   <g id="k7">
-    <rect x="199.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="209.25" y="265.85" transform="rotate(180 209.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">7</text>
+    <rect x="202.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="203.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="204.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="209.00" y="246.60" transform="rotate(180 209.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">7</text>
   </g>
   <g id="k8">
-    <rect x="177.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="187.25" y="265.85" transform="rotate(180 187.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">8</text>
+    <rect x="186.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="187.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="188.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="193.00" y="246.60" transform="rotate(180 193.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">8</text>
   </g>
   <g id="k9">
-    <rect x="155.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="165.25" y="265.85" transform="rotate(180 165.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">9</text>
+    <rect x="170.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="171.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="172.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="177.00" y="246.60" transform="rotate(180 177.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">9</text>
   </g>
   <g id="k0">
-    <rect x="133.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="143.25" y="265.85" transform="rotate(180 143.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">0</text>
+    <rect x="154.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="155.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="156.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="161.00" y="246.60" transform="rotate(180 161.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">0</text>
   </g>
   <g id="kminus">
-    <rect x="111.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="121.25" y="265.85" transform="rotate(180 121.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">-</text>
+    <rect x="138.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="139.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="140.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="145.00" y="246.60" transform="rotate(180 145.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">-</text>
   </g>
   <g id="kequal">
-    <rect x="89.00" y="252.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="99.25" y="265.85" transform="rotate(180 99.25 262.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">=</text>
+    <rect x="122.00" y="236.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="123.60" y="237.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="124.90" y="238.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="129.00" y="246.60" transform="rotate(180 129.00 243.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">=</text>
   </g>
   <g id="kbackspace">
-    <rect x="45.00" y="252.00" width="42.50" height="20.50" rx="3" fill="#787878"/>
-    <text x="66.25" y="264.77" transform="rotate(180 66.25 262.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Backspace</text>
+    <rect x="90.00" y="236.00" width="30.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="91.60" y="237.60" width="26.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="92.90" y="238.70" width="24.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="105.00" y="245.52" transform="rotate(180 105.00 243.00)" font-size="7.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Backspace</text>
   </g>
   <g id="ktab">
-    <rect x="342.00" y="230.00" width="31.50" height="20.50" rx="3" fill="#787878"/>
-    <text x="357.75" y="242.95" transform="rotate(180 357.75 240.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Tab</text>
+    <rect x="306.00" y="220.00" width="22.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="307.60" y="221.60" width="18.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="308.90" y="222.70" width="16.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="317.00" y="229.70" transform="rotate(180 317.00 227.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Tab</text>
   </g>
   <g id="kq">
-    <rect x="320.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="330.25" y="243.85" transform="rotate(180 330.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Q</text>
+    <rect x="290.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="291.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="292.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="297.00" y="230.60" transform="rotate(180 297.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Q</text>
   </g>
   <g id="kw">
-    <rect x="298.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="308.25" y="243.85" transform="rotate(180 308.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">W</text>
+    <rect x="274.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="275.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="276.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="281.00" y="230.60" transform="rotate(180 281.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">W</text>
   </g>
   <g id="ke">
-    <rect x="276.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="286.25" y="243.85" transform="rotate(180 286.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">E</text>
+    <rect x="258.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="259.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="260.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="265.00" y="230.60" transform="rotate(180 265.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">E</text>
   </g>
   <g id="kr">
-    <rect x="254.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="264.25" y="243.85" transform="rotate(180 264.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">R</text>
+    <rect x="242.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="243.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="244.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="249.00" y="230.60" transform="rotate(180 249.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">R</text>
   </g>
   <g id="kt">
-    <rect x="232.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="242.25" y="243.85" transform="rotate(180 242.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">T</text>
+    <rect x="226.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="227.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="228.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="233.00" y="230.60" transform="rotate(180 233.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">T</text>
   </g>
   <g id="ky">
-    <rect x="210.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="220.25" y="243.85" transform="rotate(180 220.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Y</text>
+    <rect x="210.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="211.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="212.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="217.00" y="230.60" transform="rotate(180 217.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Y</text>
   </g>
   <g id="ku">
-    <rect x="188.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="198.25" y="243.85" transform="rotate(180 198.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">U</text>
+    <rect x="194.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="195.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="196.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="201.00" y="230.60" transform="rotate(180 201.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">U</text>
   </g>
   <g id="ki">
-    <rect x="166.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="176.25" y="243.85" transform="rotate(180 176.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">I</text>
+    <rect x="178.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="179.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="180.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="185.00" y="230.60" transform="rotate(180 185.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">I</text>
   </g>
   <g id="ko">
-    <rect x="144.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="154.25" y="243.85" transform="rotate(180 154.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">O</text>
+    <rect x="162.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="163.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="164.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="169.00" y="230.60" transform="rotate(180 169.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">O</text>
   </g>
   <g id="kp">
-    <rect x="122.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="132.25" y="243.85" transform="rotate(180 132.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">P</text>
+    <rect x="146.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="147.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="148.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="153.00" y="230.60" transform="rotate(180 153.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">P</text>
   </g>
   <g id="klbracket">
-    <rect x="100.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="110.25" y="243.85" transform="rotate(180 110.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">[</text>
+    <rect x="130.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="131.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="132.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="137.00" y="230.60" transform="rotate(180 137.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">[</text>
   </g>
   <g id="krbracket">
-    <rect x="78.00" y="230.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="88.25" y="243.85" transform="rotate(180 88.25 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">]</text>
+    <rect x="114.00" y="220.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="115.60" y="221.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="116.90" y="222.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="121.00" y="230.60" transform="rotate(180 121.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">]</text>
   </g>
   <g id="kbackslash">
-    <rect x="45.00" y="230.00" width="31.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="60.75" y="243.85" transform="rotate(180 60.75 240.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">\</text>
+    <rect x="90.00" y="220.00" width="22.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="91.60" y="221.60" width="18.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="92.90" y="222.70" width="16.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="101.00" y="230.60" transform="rotate(180 101.00 227.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">\</text>
   </g>
   <g id="kcaps">
-    <rect x="336.50" y="208.00" width="37.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="355.00" y="220.95" transform="rotate(180 355.00 218.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Caps</text>
+    <rect x="302.00" y="204.00" width="26.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="303.60" y="205.60" width="22.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="304.90" y="206.70" width="20.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="315.00" y="213.70" transform="rotate(180 315.00 211.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Caps</text>
   </g>
   <g id="ka">
-    <rect x="314.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="324.75" y="221.85" transform="rotate(180 324.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">A</text>
+    <rect x="286.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="287.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="288.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="293.00" y="214.60" transform="rotate(180 293.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">A</text>
   </g>
   <g id="ks">
-    <rect x="292.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="302.75" y="221.85" transform="rotate(180 302.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">S</text>
+    <rect x="270.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="271.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="272.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="277.00" y="214.60" transform="rotate(180 277.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">S</text>
   </g>
   <g id="kd">
-    <rect x="270.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="280.75" y="221.85" transform="rotate(180 280.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">D</text>
+    <rect x="254.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="255.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="256.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="261.00" y="214.60" transform="rotate(180 261.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">D</text>
   </g>
   <g id="kf">
-    <rect x="248.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="258.75" y="221.85" transform="rotate(180 258.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">F</text>
+    <rect x="238.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="239.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="240.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="245.00" y="214.60" transform="rotate(180 245.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">F</text>
   </g>
   <g id="kg">
-    <rect x="226.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="236.75" y="221.85" transform="rotate(180 236.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">G</text>
+    <rect x="222.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="223.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="224.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="229.00" y="214.60" transform="rotate(180 229.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">G</text>
   </g>
   <g id="kh">
-    <rect x="204.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="214.75" y="221.85" transform="rotate(180 214.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">H</text>
+    <rect x="206.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="207.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="208.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="213.00" y="214.60" transform="rotate(180 213.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">H</text>
   </g>
   <g id="kj">
-    <rect x="182.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="192.75" y="221.85" transform="rotate(180 192.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">J</text>
+    <rect x="190.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="191.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="192.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="197.00" y="214.60" transform="rotate(180 197.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">J</text>
   </g>
   <g id="kk">
-    <rect x="160.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="170.75" y="221.85" transform="rotate(180 170.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">K</text>
+    <rect x="174.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="175.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="176.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="181.00" y="214.60" transform="rotate(180 181.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">K</text>
   </g>
   <g id="kl">
-    <rect x="138.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="148.75" y="221.85" transform="rotate(180 148.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">L</text>
+    <rect x="158.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="159.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="160.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="165.00" y="214.60" transform="rotate(180 165.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">L</text>
   </g>
   <g id="ksemicolon">
-    <rect x="116.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="126.75" y="221.85" transform="rotate(180 126.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">;</text>
+    <rect x="142.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="143.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="144.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="149.00" y="214.60" transform="rotate(180 149.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">;</text>
   </g>
   <g id="kquote">
-    <rect x="94.50" y="208.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="104.75" y="221.85" transform="rotate(180 104.75 218.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">'</text>
+    <rect x="126.00" y="204.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="127.60" y="205.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="128.90" y="206.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="133.00" y="214.60" transform="rotate(180 133.00 211.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">'</text>
   </g>
   <g id="kenter">
-    <rect x="45.00" y="208.00" width="48.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="69.00" y="220.77" transform="rotate(180 69.00 218.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Enter</text>
+    <rect x="90.00" y="204.00" width="34.00" height="14.00" rx="3.92" fill="#F2A6BC"/>
+    <rect x="91.60" y="205.60" width="30.80" height="10.80" rx="2.72" fill="#FFC2D1"/>
+    <rect x="92.90" y="206.70" width="28.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="107.00" y="213.52" transform="rotate(180 107.00 211.00)" font-size="7.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Enter</text>
   </g>
   <g id="klshift">
-    <rect x="325.50" y="186.00" width="48.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="349.50" y="198.77" transform="rotate(180 349.50 196.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Shift</text>
+    <rect x="294.00" y="188.00" width="34.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="295.60" y="189.60" width="30.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="296.90" y="190.70" width="28.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="311.00" y="197.52" transform="rotate(180 311.00 195.00)" font-size="7.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Shift</text>
   </g>
   <g id="kz">
-    <rect x="303.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="313.75" y="199.85" transform="rotate(180 313.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Z</text>
+    <rect x="278.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="279.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="280.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="285.00" y="198.60" transform="rotate(180 285.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Z</text>
   </g>
   <g id="kx">
-    <rect x="281.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="291.75" y="199.85" transform="rotate(180 291.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">X</text>
+    <rect x="262.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="263.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="264.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="269.00" y="198.60" transform="rotate(180 269.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">X</text>
   </g>
   <g id="kc">
-    <rect x="259.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="269.75" y="199.85" transform="rotate(180 269.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">C</text>
+    <rect x="246.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="247.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="248.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="253.00" y="198.60" transform="rotate(180 253.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">C</text>
   </g>
   <g id="kv">
-    <rect x="237.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="247.75" y="199.85" transform="rotate(180 247.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">V</text>
+    <rect x="230.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="231.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="232.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="237.00" y="198.60" transform="rotate(180 237.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">V</text>
   </g>
   <g id="kb">
-    <rect x="215.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="225.75" y="199.85" transform="rotate(180 225.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">B</text>
+    <rect x="214.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="215.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="216.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="221.00" y="198.60" transform="rotate(180 221.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">B</text>
   </g>
   <g id="kn">
-    <rect x="193.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="203.75" y="199.85" transform="rotate(180 203.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">N</text>
+    <rect x="198.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="199.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="200.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="205.00" y="198.60" transform="rotate(180 205.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">N</text>
   </g>
   <g id="km">
-    <rect x="171.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="181.75" y="199.85" transform="rotate(180 181.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">M</text>
+    <rect x="182.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="183.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="184.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="189.00" y="198.60" transform="rotate(180 189.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">M</text>
   </g>
   <g id="kcomma">
-    <rect x="149.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="159.75" y="199.85" transform="rotate(180 159.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">,</text>
+    <rect x="166.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="167.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="168.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="173.00" y="198.60" transform="rotate(180 173.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">,</text>
   </g>
   <g id="kperiod">
-    <rect x="127.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="137.75" y="199.85" transform="rotate(180 137.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">.</text>
+    <rect x="150.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="151.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="152.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="157.00" y="198.60" transform="rotate(180 157.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">.</text>
   </g>
   <g id="kslash">
-    <rect x="105.50" y="186.00" width="20.50" height="20.50" rx="3" fill="#8C8C8C"/>
-    <text x="115.75" y="199.85" transform="rotate(180 115.75 196.25)" font-size="10.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">/</text>
+    <rect x="134.00" y="188.00" width="14.00" height="14.00" rx="3.92" fill="#E5D0B7"/>
+    <rect x="135.60" y="189.60" width="10.80" height="10.80" rx="2.72" fill="#FFFCF4"/>
+    <rect x="136.90" y="190.70" width="8.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="141.00" y="198.60" transform="rotate(180 141.00 195.00)" font-size="10.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">/</text>
   </g>
   <g id="krshift">
-    <rect x="45.00" y="186.00" width="59.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="74.50" y="198.77" transform="rotate(180 74.50 196.25)" font-size="7.0" font-family="Segoe UI" fill="#232323" text-anchor="middle">Shift</text>
+    <rect x="90.00" y="188.00" width="42.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="91.60" y="189.60" width="38.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="92.90" y="190.70" width="36.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="111.00" y="197.52" transform="rotate(180 111.00 195.00)" font-size="7.0" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Shift</text>
   </g>
   <g id="klctrl">
-    <rect x="347.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="360.50" y="176.95" transform="rotate(180 360.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Ctrl</text>
+    <rect x="310.00" y="172.00" width="18.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="311.60" y="173.60" width="14.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="312.90" y="174.70" width="12.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="319.00" y="181.70" transform="rotate(180 319.00 179.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Ctrl</text>
   </g>
   <g id="klwin">
-    <rect x="320.00" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="333.00" y="176.95" transform="rotate(180 333.00 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Win</text>
+    <rect x="290.00" y="172.00" width="18.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="291.60" y="173.60" width="14.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="292.90" y="174.70" width="12.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="299.00" y="181.70" transform="rotate(180 299.00 179.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Win</text>
   </g>
   <g id="klalt">
-    <rect x="292.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="305.50" y="176.95" transform="rotate(180 305.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Alt</text>
+    <rect x="270.00" y="172.00" width="18.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="271.60" y="173.60" width="14.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="272.90" y="174.70" width="12.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="279.00" y="181.70" transform="rotate(180 279.00 179.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Alt</text>
   </g>
   <g id="kspace">
-    <rect x="155.00" y="164.00" width="136.00" height="20.50" rx="3" fill="#787878"/>
+    <rect x="170.00" y="172.00" width="98.00" height="14.00" rx="3.92" fill="#9DCDE8"/>
+    <rect x="171.60" y="173.60" width="94.80" height="10.80" rx="2.72" fill="#BFE3F5"/>
+    <rect x="172.90" y="174.70" width="92.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
     
   </g>
   <g id="kralt">
-    <rect x="127.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="140.50" y="176.95" transform="rotate(180 140.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Alt</text>
+    <rect x="150.00" y="172.00" width="18.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="151.60" y="173.60" width="14.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="152.90" y="174.70" width="12.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="159.00" y="181.70" transform="rotate(180 159.00 179.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Alt</text>
   </g>
   <g id="krwin">
-    <rect x="100.00" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="113.00" y="176.95" transform="rotate(180 113.00 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Win</text>
+    <rect x="130.00" y="172.00" width="18.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="131.60" y="173.60" width="14.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="132.90" y="174.70" width="12.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="139.00" y="181.70" transform="rotate(180 139.00 179.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Win</text>
   </g>
   <g id="kmenu">
-    <rect x="72.50" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="85.50" y="176.95" transform="rotate(180 85.50 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Menu</text>
+    <rect x="110.00" y="172.00" width="18.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="111.60" y="173.60" width="14.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="112.90" y="174.70" width="12.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="119.00" y="181.70" transform="rotate(180 119.00 179.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Menu</text>
   </g>
   <g id="krctrl">
-    <rect x="45.00" y="164.00" width="26.00" height="20.50" rx="3" fill="#787878"/>
-    <text x="58.00" y="176.95" transform="rotate(180 58.00 174.25)" font-size="7.5" font-family="Segoe UI" fill="#232323" text-anchor="middle">Ctrl</text>
+    <rect x="90.00" y="172.00" width="18.00" height="14.00" rx="3.92" fill="#B3D6C2"/>
+    <rect x="91.60" y="173.60" width="14.80" height="10.80" rx="2.72" fill="#D5EBDD"/>
+    <rect x="92.90" y="174.70" width="12.20" height="3.36" rx="1.92" fill="#FFFFFF" opacity="0.72"/>
+    <text x="99.00" y="181.70" transform="rotate(180 99.00 179.00)" font-size="7.5" font-family="Segoe UI" fill="#8A7460" text-anchor="middle">Ctrl</text>
   </g>
   </g>
   <g id="paw_l_rest">
-    <ellipse cx="194.0" cy="219.0" rx="11.0" ry="11.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
-    <ellipse cx="194.0" cy="221.0" rx="5.7" ry="4.8" fill="#F2A8A8"/>
+    <ellipse cx="168.0" cy="232.0" rx="15.0" ry="15.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="168.0" cy="234.7" rx="7.8" ry="6.6" fill="#DD8F8E"/>
   </g>
   <g id="paw_l_down">
-    <ellipse cx="194.0" cy="219.0" rx="13.0" ry="8.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
-    <ellipse cx="194.0" cy="220.4" rx="6.8" ry="3.5" fill="#F2A8A8"/>
+    <ellipse cx="168.0" cy="232.0" rx="17.0" ry="12.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="168.0" cy="234.2" rx="8.8" ry="5.3" fill="#DD8F8E"/>
   </g>
   <g id="paw_r_rest">
-    <ellipse cx="260.0" cy="219.0" rx="11.0" ry="11.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
-    <ellipse cx="260.0" cy="221.0" rx="5.7" ry="4.8" fill="#F2A8A8"/>
+    <ellipse cx="252.0" cy="232.0" rx="15.0" ry="15.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="252.0" cy="234.7" rx="7.8" ry="6.6" fill="#DD8F8E"/>
   </g>
   <g id="paw_r_down">
-    <ellipse cx="260.0" cy="219.0" rx="13.0" ry="8.0" fill="#C9C9C9" stroke="#1A1A1A" stroke-width="2.4"/>
-    <ellipse cx="260.0" cy="220.4" rx="6.8" ry="3.5" fill="#F2A8A8"/>
+    <ellipse cx="252.0" cy="232.0" rx="17.0" ry="12.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="252.0" cy="234.2" rx="8.8" ry="5.3" fill="#DD8F8E"/>
   </g>
 </svg>

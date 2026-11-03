@@ -9,6 +9,9 @@ config/mood_state.json
 config/weather.json
 # 运行状态 / 缓存 / 当前选择：程序自管、删了可再生，且含个人互动记录，不提交
 config/effects.json
+config/bongo.json
+# 外部 IDE（WorkBuddy）的工作目录：记忆、设计稿、技能草稿，本地私有
+.workbuddy/
 # 工作台与运行数据：台账 / 待办 / 聊天记录 / 缓存，全部是本地用户内容，不提交
 data/*
 !data/README.md

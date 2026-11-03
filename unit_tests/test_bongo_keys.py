@@ -36,6 +36,15 @@ class CharSideTests(unittest.TestCase):
         self.assertIsNone(side_for())
         self.assertIsNone(side_for(name="media_play_pause"))
 
+    def test_control_chars_never_alternate(self):
+        """Qt 的 QKeyEvent.text() 对 Backspace 是 '\\x08'。
+
+        这些控制字符 strip() 之后仍非空，早先会被当成「输入法字符」走交替，
+        按一下 Backspace 就轮到另一只手——表现就是两只手一起过来。
+        """
+        for ch in ("\x08", "\t", "\r", "\x7f", "\x1b"):
+            self.assertIsNone(side_for(char=ch), repr(ch))
+
 
 class SpecialKeyTests(unittest.TestCase):
     def test_modifiers(self):
@@ -43,7 +52,8 @@ class SpecialKeyTests(unittest.TestCase):
         self.assertEqual(side_for(name="shift_r"), "right")
         self.assertEqual(side_for(name="ctrl_l"), "left")
         self.assertEqual(side_for(name="enter"), "right")
-        self.assertEqual(side_for(name="backspace"), "left")
+        # Backspace 在左上角，归画面左边那只手，别再让它横跨整块键盘
+        self.assertEqual(side_for(name="backspace"), "right")
 
     def test_function_keys(self):
         self.assertEqual(side_for(name="f1"), "right")

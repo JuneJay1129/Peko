@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 280" width="420" height="280">
+
+  <!-- 键鼠同摆：鼠标垫（左下）+ 强透视键盘（右下）+ 斜切桌面。
+       投影直接烘在坐标里，不使用祖先 transform。 -->
+
+  <path id="table" d="M -70.00 128.00 L 490.00 170.00 L 490.00 380.00 L -70.00 380.00 Z" fill="#F3E8D8" stroke="#DFCBB2" stroke-width="3"/>
+
+  <path id="pad" d="M 56.48 143.91 Q 58.09 138.14 65.52 138.70 L 156.77 145.54 Q 164.19 146.10 164.93 152.05 L 173.93 225.17 Q 174.66 231.12 164.89 230.38 L 44.83 221.38 Q 35.05 220.65 36.67 214.87 Z" fill="#D6C5AE" stroke="#BCA386" stroke-width="2.5"/>
+
+  <!-- 鼠标：头朝观众（近端窄）、尾朝宠物，手掌从远端压住后半截。
+       中缝 + 滚轮是「这是个鼠标」的唯一线索，没有它们一块白板挂两个黄块
+       只会被当成耗材。滚轮在中缝靠身体那一头，按键才朝向观众。 -->
+  <g id="mouse">
+    <path d="M 98.38 160.05 L 125.66 162.10 L 125.93 216.27 L 90.03 213.58 Z" fill="#000000" opacity="0.07"/>
+    <path d="M 94.04 171.04 Q 96.38 156.05 104.02 156.63 L 116.02 157.53 Q 123.66 158.10 123.74 173.27 L 123.85 197.10 Q 123.93 212.27 113.88 211.52 L 98.08 210.33 Q 88.03 209.58 90.37 194.59 Z" fill="#FFFCF4" stroke="#8A7460" stroke-width="2"/>
+    <!-- 左右键的「键面」常驻：不然不按的时候就是一块白板，
+         看不出这是个鼠标。按下时再由 mouse_l / mouse_r 盖成黄色 -->
+    <path d="M 94.54 182.11 Q 95.24 177.25 97.45 177.41 L 105.30 178.00 Q 107.51 178.17 107.12 183.06 L 105.73 200.43 Q 105.34 205.32 102.82 205.13 L 93.86 204.46 Q 91.34 204.27 92.04 199.40 Z" fill="#F7F0E3" stroke="#8A7460" stroke-width="0.9"/>
+    <path d="M 109.01 183.20 Q 109.35 178.31 111.56 178.47 L 119.41 179.06 Q 121.62 179.23 121.59 184.14 L 121.48 201.61 Q 121.45 206.52 118.93 206.34 L 109.97 205.66 Q 107.45 205.47 107.79 200.58 Z" fill="#F7F0E3" stroke="#8A7460" stroke-width="0.9"/>
+    <ellipse cx="108.39" cy="178.76" rx="2.2" ry="3.0" fill="#D5EBDD" stroke="#8A7460" stroke-width="1.1"/>
+  </g>
+
+  <!-- 左右键：只画在露出来的那段（近端 40%），按下才 render -->
+  <path id="mouse_l" d="M 94.45 182.72 Q 95.09 178.28 97.32 178.45 L 105.21 179.04 Q 107.43 179.21 107.07 183.67 L 105.81 199.52 Q 105.45 203.98 102.95 203.79 L 94.04 203.12 Q 91.53 202.93 92.17 198.50 Z" fill="#FFD166"/>
+  <path id="mouse_r" d="M 108.97 183.81 Q 109.28 179.35 111.50 179.51 L 119.39 180.11 Q 121.61 180.27 121.59 184.75 L 121.49 200.70 Q 121.46 205.18 118.95 204.99 L 110.05 204.32 Q 107.54 204.13 107.85 199.67 Z" fill="#FFD166"/>
+
+  <!-- 键盘阴影独立成元素：塞进 #desk 里会把 desk 的 bbox 撑大，
+       而 paint_desk 用 bbox 当目标矩形，整块键盘会跟着变位置 -->
+  <path id="kb_shadow" d="M 239.37 149.10 L 371.02 158.97 L 389.28 235.11 L 209.97 221.66 Z" fill="#000000" opacity="0.07"/>
+
+  <g id="desk">
+    <path d="M 233.93 151.36 Q 236.87 144.10 250.04 145.09 L 355.36 152.99 Q 368.52 153.97 370.35 161.59 L 384.95 222.49 Q 386.78 230.11 368.84 228.76 L 225.40 218.00 Q 207.47 216.66 210.41 209.40 Z" fill="#E7D5BE"/>
+  <g id="ktab">
+    <path d="M 358.00 204.27 L 375.18 205.74 L 379.61 224.88 L 361.04 223.31 Z" fill="#B3D6C2"/>
+    <path d="M 358.00 202.87 L 375.18 204.34 L 379.61 223.48 L 361.04 221.91 Z" fill="#D5EBDD"/>
+    <text x="368.46" y="216.57" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 368.46 213.15)">Tab</text>
+  </g>
+  <g id="kq">
+    <path d="M 345.60 203.46 L 356.92 204.45 L 359.88 223.27 L 347.64 222.21 Z" fill="#E5D0B7"/>
+    <path d="M 345.60 202.06 L 356.92 203.05 L 359.88 221.87 L 347.64 220.81 Z" fill="#FFFCF4"/>
+    <text x="352.51" y="215.37" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 352.51 211.95)">Q</text>
+  </g>
+  <g id="kw">
+    <path d="M 333.30 202.55 L 344.61 203.51 L 346.66 222.27 L 334.43 221.24 Z" fill="#E5D0B7"/>
+    <path d="M 333.30 201.15 L 344.61 202.11 L 346.66 220.87 L 334.43 219.84 Z" fill="#FFFCF4"/>
+    <text x="339.75" y="214.41" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 339.75 210.99)">W</text>
+  </g>
+  <g id="ke">
+    <path d="M 321.00 201.65 L 332.31 202.57 L 333.44 221.26 L 321.22 220.26 Z" fill="#E5D0B7"/>
+    <path d="M 321.00 200.25 L 332.31 201.17 L 333.44 219.86 L 321.22 218.86 Z" fill="#FFFCF4"/>
+    <text x="326.99" y="213.46" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 326.99 210.04)">E</text>
+  </g>
+  <g id="kr">
+    <path d="M 308.70 200.74 L 320.00 201.64 L 320.22 220.25 L 308.00 219.29 Z" fill="#E5D0B7"/>
+    <path d="M 308.70 199.34 L 320.00 200.24 L 320.22 218.85 L 308.00 217.89 Z" fill="#FFFCF4"/>
+    <text x="314.23" y="212.50" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 314.23 209.08)">R</text>
+  </g>
+  <g id="kt">
+    <path d="M 296.40 199.84 L 307.70 200.70 L 307.00 219.24 L 294.79 218.32 Z" fill="#E5D0B7"/>
+    <path d="M 296.40 198.44 L 307.70 199.30 L 307.00 217.84 L 294.79 216.92 Z" fill="#FFFCF4"/>
+    <text x="301.47" y="211.54" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 301.47 208.12)">T</text>
+  </g>
+  <g id="ky">
+    <path d="M 284.10 198.93 L 295.40 199.76 L 293.79 218.23 L 281.57 217.34 Z" fill="#E5D0B7"/>
+    <path d="M 284.10 197.53 L 295.40 198.36 L 293.79 216.83 L 281.57 215.94 Z" fill="#FFFCF4"/>
+    <text x="288.71" y="210.59" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 288.71 207.17)">Y</text>
+  </g>
+  <g id="ku">
+    <path d="M 271.79 198.03 L 283.10 198.82 L 280.57 217.22 L 268.35 216.37 Z" fill="#E5D0B7"/>
+    <path d="M 271.79 196.63 L 283.10 197.42 L 280.57 215.82 L 268.35 214.97 Z" fill="#FFFCF4"/>
+    <text x="275.96" y="209.63" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 275.96 206.21)">U</text>
+  </g>
+  <g id="ki">
+    <path d="M 259.49 197.12 L 270.81 197.88 L 267.36 216.22 L 255.13 215.39 Z" fill="#E5D0B7"/>
+    <path d="M 259.49 195.72 L 270.81 196.48 L 267.36 214.82 L 255.13 213.99 Z" fill="#FFFCF4"/>
+    <text x="263.20" y="208.67" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 263.20 205.25)">I</text>
+  </g>
+  <g id="ko">
+    <path d="M 247.18 196.21 L 258.51 196.94 L 254.15 215.21 L 241.90 214.42 Z" fill="#E5D0B7"/>
+    <path d="M 247.18 194.81 L 258.51 195.54 L 254.15 213.81 L 241.90 213.02 Z" fill="#FFFCF4"/>
+    <text x="250.44" y="207.71" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 250.44 204.29)">O</text>
+  </g>
+  <g id="kp">
+    <path d="M 234.87 195.30 L 246.22 196.00 L 240.95 214.20 L 228.68 213.44 Z" fill="#E5D0B7"/>
+    <path d="M 234.87 193.90 L 246.22 194.60 L 240.95 212.80 L 228.68 212.04 Z" fill="#FFFCF4"/>
+    <text x="237.68" y="206.76" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 237.68 203.34)">P</text>
+  </g>
+  <g id="kbackslash">
+    <path d="M 222.55 194.39 L 233.93 195.06 L 227.74 213.20 L 215.45 212.47 Z" fill="#E5D0B7"/>
+    <path d="M 222.55 192.99 L 233.93 193.66 L 227.74 211.80 L 215.45 211.07 Z" fill="#FFFCF4"/>
+    <text x="224.92" y="205.80" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 224.92 202.38)">\</text>
+  </g>
+  <g id="kcaps">
+    <path d="M 352.46 186.32 L 371.20 187.86 L 375.08 204.47 L 354.91 202.82 Z" fill="#B3D6C2"/>
+    <path d="M 352.46 184.92 L 371.20 186.46 L 375.08 203.07 L 354.91 201.42 Z" fill="#D5EBDD"/>
+    <text x="363.41" y="197.35" font-family="Arial, Helvetica, sans-serif" font-size="9.40" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 363.41 193.97)">Caps</text>
+  </g>
+  <g id="ka">
+    <path d="M 340.87 185.60 L 351.39 186.52 L 353.75 202.71 L 342.44 201.74 Z" fill="#E5D0B7"/>
+    <path d="M 340.87 184.20 L 351.39 185.12 L 353.75 201.31 L 342.44 200.34 Z" fill="#FFFCF4"/>
+    <text x="347.11" y="196.16" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 347.11 192.74)">A</text>
+  </g>
+  <g id="ks">
+    <path d="M 329.41 184.76 L 339.92 185.64 L 341.49 201.78 L 330.19 200.83 Z" fill="#E5D0B7"/>
+    <path d="M 329.41 183.36 L 339.92 184.24 L 341.49 200.38 L 330.19 199.43 Z" fill="#FFFCF4"/>
+    <text x="335.25" y="195.27" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 335.25 191.85)">S</text>
+  </g>
+  <g id="kd">
+    <path d="M 317.95 183.92 L 328.46 184.77 L 329.24 200.84 L 317.95 199.93 Z" fill="#E5D0B7"/>
+    <path d="M 317.95 182.52 L 328.46 183.37 L 329.24 199.44 L 317.95 198.53 Z" fill="#FFFCF4"/>
+    <text x="323.40" y="194.38" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 323.40 190.96)">D</text>
+  </g>
+  <g id="kf">
+    <path d="M 306.49 183.07 L 316.99 183.89 L 316.99 199.91 L 305.70 199.03 Z" fill="#E5D0B7"/>
+    <path d="M 306.49 181.67 L 316.99 182.49 L 316.99 198.51 L 305.70 197.63 Z" fill="#FFFCF4"/>
+    <text x="311.54" y="193.49" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 311.54 190.07)">F</text>
+  </g>
+  <g id="kg">
+    <path d="M 295.03 182.23 L 305.53 183.02 L 304.73 198.97 L 293.44 198.12 Z" fill="#E5D0B7"/>
+    <path d="M 295.03 180.83 L 305.53 181.62 L 304.73 197.57 L 293.44 196.72 Z" fill="#FFFCF4"/>
+    <text x="299.69" y="192.61" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 299.69 189.19)">G</text>
+  </g>
+  <g id="kh">
+    <path d="M 283.57 181.38 L 294.07 182.14 L 292.48 198.04 L 281.19 197.22 Z" fill="#E5D0B7"/>
+    <path d="M 283.57 179.98 L 294.07 180.74 L 292.48 196.64 L 281.19 195.82 Z" fill="#FFFCF4"/>
+    <text x="287.83" y="191.72" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 287.83 188.30)">H</text>
+  </g>
+  <g id="kj">
+    <path d="M 272.11 180.54 L 282.62 181.27 L 280.24 197.10 L 268.94 196.32 Z" fill="#E5D0B7"/>
+    <path d="M 272.11 179.14 L 282.62 179.87 L 280.24 195.70 L 268.94 194.92 Z" fill="#FFFCF4"/>
+    <text x="275.97" y="190.83" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 275.97 187.41)">J</text>
+  </g>
+  <g id="kk">
+    <path d="M 260.64 179.70 L 271.16 180.39 L 267.99 196.17 L 256.68 195.41 Z" fill="#E5D0B7"/>
+    <path d="M 260.64 178.30 L 271.16 178.99 L 267.99 194.77 L 256.68 194.01 Z" fill="#FFFCF4"/>
+    <text x="264.12" y="189.94" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 264.12 186.52)">K</text>
+  </g>
+  <g id="kl">
+    <path d="M 249.17 178.85 L 259.71 179.52 L 255.75 195.23 L 244.42 194.51 Z" fill="#E5D0B7"/>
+    <path d="M 249.17 177.45 L 259.71 178.12 L 255.75 193.83 L 244.42 193.11 Z" fill="#FFFCF4"/>
+    <text x="252.26" y="189.05" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 252.26 185.63)">L</text>
+  </g>
+  <g id="kenter">
+    <path d="M 229.38 177.23 L 248.14 178.49 L 243.25 194.45 L 223.07 193.07 Z" fill="#F2A6BC"/>
+    <path d="M 229.38 175.83 L 248.14 177.09 L 243.25 193.05 L 223.07 191.67 Z" fill="#F0B7C4"/>
+    <text x="235.96" y="187.12" font-family="Arial, Helvetica, sans-serif" font-size="7.52" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 235.96 184.41)">Enter</text>
+  </g>
+  <g id="klshift">
+    <path d="M 342.28 170.20 L 367.71 172.19 L 371.15 186.89 L 343.91 184.78 Z" fill="#B3D6C2"/>
+    <path d="M 342.28 168.80 L 367.71 170.79 L 371.15 185.49 L 343.91 183.38 Z" fill="#D5EBDD"/>
+    <text x="356.26" y="180.54" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 356.26 177.12)">Shift</text>
+  </g>
+  <g id="kz">
+    <path d="M 331.37 169.62 L 341.20 170.45 L 342.75 184.52 L 332.23 183.64 Z" fill="#E5D0B7"/>
+    <path d="M 331.37 168.22 L 341.20 169.05 L 342.75 183.12 L 332.23 182.24 Z" fill="#FFFCF4"/>
+    <text x="336.89" y="179.01" font-family="Arial, Helvetica, sans-serif" font-size="9.30" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 336.89 175.66)">Z</text>
+  </g>
+  <g id="kx">
+    <path d="M 320.65 168.83 L 330.47 169.63 L 331.33 183.65 L 320.82 182.80 Z" fill="#E5D0B7"/>
+    <path d="M 320.65 167.43 L 330.47 168.23 L 331.33 182.25 L 320.82 181.40 Z" fill="#FFFCF4"/>
+    <text x="325.82" y="178.16" font-family="Arial, Helvetica, sans-serif" font-size="9.24" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 325.82 174.83)">X</text>
+  </g>
+  <g id="kc">
+    <path d="M 309.92 168.04 L 319.74 168.82 L 319.91 182.78 L 309.40 181.96 Z" fill="#E5D0B7"/>
+    <path d="M 309.92 166.64 L 319.74 167.42 L 319.91 181.38 L 309.40 180.56 Z" fill="#FFFCF4"/>
+    <text x="314.74" y="177.31" font-family="Arial, Helvetica, sans-serif" font-size="9.20" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 314.74 174.00)">C</text>
+  </g>
+  <g id="kv">
+    <path d="M 299.20 167.25 L 309.01 168.00 L 308.49 181.91 L 297.98 181.12 Z" fill="#E5D0B7"/>
+    <path d="M 299.20 165.85 L 309.01 166.60 L 308.49 180.51 L 297.98 179.72 Z" fill="#FFFCF4"/>
+    <text x="303.67" y="176.48" font-family="Arial, Helvetica, sans-serif" font-size="9.18" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 303.67 173.17)">V</text>
+  </g>
+  <g id="kb">
+    <path d="M 288.47 166.46 L 298.29 167.18 L 297.07 181.04 L 286.56 180.27 Z" fill="#E5D0B7"/>
+    <path d="M 288.47 165.06 L 298.29 165.78 L 297.07 179.64 L 286.56 178.87 Z" fill="#FFFCF4"/>
+    <text x="292.60" y="175.65" font-family="Arial, Helvetica, sans-serif" font-size="9.19" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 292.60 172.34)">B</text>
+  </g>
+  <g id="kn">
+    <path d="M 277.74 165.67 L 287.56 166.36 L 285.66 180.17 L 275.14 179.43 Z" fill="#E5D0B7"/>
+    <path d="M 277.74 164.27 L 287.56 164.96 L 285.66 178.77 L 275.14 178.03 Z" fill="#FFFCF4"/>
+    <text x="281.53" y="174.83" font-family="Arial, Helvetica, sans-serif" font-size="9.22" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 281.53 171.51)">N</text>
+  </g>
+  <g id="km">
+    <path d="M 267.01 164.88 L 276.84 165.54 L 274.24 179.30 L 263.72 178.59 Z" fill="#E5D0B7"/>
+    <path d="M 267.01 163.48 L 276.84 164.14 L 274.24 177.90 L 263.72 177.19 Z" fill="#FFFCF4"/>
+    <text x="270.45" y="174.01" font-family="Arial, Helvetica, sans-serif" font-size="9.27" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 270.45 170.68)">M</text>
+  </g>
+  <g id="kcomma">
+    <path d="M 256.27 164.09 L 266.12 164.72 L 262.83 178.43 L 252.30 177.75 Z" fill="#E5D0B7"/>
+    <path d="M 256.27 162.69 L 266.12 163.32 L 262.83 177.03 L 252.30 176.35 Z" fill="#FFFCF4"/>
+    <text x="259.38" y="173.21" font-family="Arial, Helvetica, sans-serif" font-size="9.34" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 259.38 169.85)">,</text>
+  </g>
+  <g id="kperiod">
+    <path d="M 245.54 163.30 L 255.40 163.90 L 251.42 177.56 L 240.87 176.90 Z" fill="#E5D0B7"/>
+    <path d="M 245.54 161.90 L 255.40 162.50 L 251.42 176.16 L 240.87 175.50 Z" fill="#FFFCF4"/>
+    <text x="248.31" y="172.41" font-family="Arial, Helvetica, sans-serif" font-size="9.44" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 248.31 169.02)">.</text>
+  </g>
+  <g id="kslash">
+    <path d="M 234.80 162.51 L 244.68 163.09 L 240.01 176.69 L 229.45 176.06 Z" fill="#E5D0B7"/>
+    <path d="M 234.80 161.11 L 244.68 161.69 L 240.01 175.29 L 229.45 174.66 Z" fill="#FFFCF4"/>
+    <text x="237.24" y="171.61" font-family="Arial, Helvetica, sans-serif" font-size="9.50" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 237.24 168.19)">/</text>
+  </g>
+  <g id="klctrl">
+    <path d="M 350.81 157.52 L 364.88 158.70 L 367.85 171.38 L 352.84 170.14 Z" fill="#B3D6C2"/>
+    <path d="M 350.81 156.12 L 364.88 157.30 L 367.85 169.98 L 352.84 168.74 Z" fill="#D5EBDD"/>
+    <text x="359.09" y="165.58" font-family="Arial, Helvetica, sans-serif" font-size="7.06" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 359.09 163.04)">Ctrl</text>
+  </g>
+  <g id="klwin">
+    <path d="M 338.18 156.63 L 349.82 157.60 L 351.83 170.13 L 339.42 169.10 Z" fill="#B3D6C2"/>
+    <path d="M 338.18 155.23 L 349.82 156.20 L 351.83 168.73 L 339.42 167.70 Z" fill="#D5EBDD"/>
+    <text x="344.81" y="164.77" font-family="Arial, Helvetica, sans-serif" font-size="7.79" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 344.81 161.96)">Win</text>
+  </g>
+  <g id="klalt">
+    <path d="M 325.58 155.70 L 337.22 156.64 L 338.46 169.11 L 326.05 168.12 Z" fill="#B3D6C2"/>
+    <path d="M 325.58 154.30 L 337.22 155.24 L 338.46 167.71 L 326.05 166.72 Z" fill="#D5EBDD"/>
+    <text x="331.83" y="163.79" font-family="Arial, Helvetica, sans-serif" font-size="7.78" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 331.83 160.99)">Alt</text>
+  </g>
+  <g id="kspace">
+    <path d="M 275.44 151.64 L 324.43 155.32 L 324.91 168.39 L 272.71 164.47 Z" fill="#9DCDE8"/>
+    <path d="M 275.44 150.24 L 324.43 153.92 L 324.91 166.99 L 272.71 163.07 Z" fill="#BFE3F5"/>
+  </g>
+  <g id="kralt">
+    <path d="M 262.59 151.05 L 274.24 151.84 L 271.62 164.03 L 259.20 163.17 Z" fill="#B3D6C2"/>
+    <path d="M 262.59 149.65 L 274.24 150.44 L 271.62 162.63 L 259.20 161.77 Z" fill="#D5EBDD"/>
+    <text x="266.91" y="158.92" font-family="Arial, Helvetica, sans-serif" font-size="7.79" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 266.91 156.12)">Alt</text>
+  </g>
+  <g id="krctrl">
+    <path d="M 240.10 149.21 L 261.57 150.74 L 258.09 163.17 L 235.19 161.52 Z" fill="#B3D6C2"/>
+    <path d="M 240.10 147.81 L 261.57 149.34 L 258.09 161.77 L 235.19 160.12 Z" fill="#D5EBDD"/>
+    <text x="248.74" y="157.86" font-family="Arial, Helvetica, sans-serif" font-size="8.62" font-weight="bold" fill="#8A7460" text-anchor="middle" transform="rotate(184.29 248.74 154.76)">Ctrl</text>
+  </g>
+  </g>
+
+  <!-- 键帽高亮：平时不画，按下才 render -->
+  <path id="htab" d="M 358.00 202.87 L 375.18 204.34 L 379.61 223.48 L 361.04 221.91 Z" fill="#FFD166"/>
+  <path id="hq" d="M 345.60 202.06 L 356.92 203.05 L 359.88 221.87 L 347.64 220.81 Z" fill="#FFD166"/>
+  <path id="hw" d="M 333.30 201.15 L 344.61 202.11 L 346.66 220.87 L 334.43 219.84 Z" fill="#FFD166"/>
+  <path id="he" d="M 321.00 200.25 L 332.31 201.17 L 333.44 219.86 L 321.22 218.86 Z" fill="#FFD166"/>
+  <path id="hr" d="M 308.70 199.34 L 320.00 200.24 L 320.22 218.85 L 308.00 217.89 Z" fill="#FFD166"/>
+  <path id="ht" d="M 296.40 198.44 L 307.70 199.30 L 307.00 217.84 L 294.79 216.92 Z" fill="#FFD166"/>
+  <path id="hy" d="M 284.10 197.53 L 295.40 198.36 L 293.79 216.83 L 281.57 215.94 Z" fill="#FFD166"/>
+  <path id="hu" d="M 271.79 196.63 L 283.10 197.42 L 280.57 215.82 L 268.35 214.97 Z" fill="#FFD166"/>
+  <path id="hi" d="M 259.49 195.72 L 270.81 196.48 L 267.36 214.82 L 255.13 213.99 Z" fill="#FFD166"/>
+  <path id="ho" d="M 247.18 194.81 L 258.51 195.54 L 254.15 213.81 L 241.90 213.02 Z" fill="#FFD166"/>
+  <path id="hp" d="M 234.87 193.90 L 246.22 194.60 L 240.95 212.80 L 228.68 212.04 Z" fill="#FFD166"/>
+  <path id="hbackslash" d="M 222.55 192.99 L 233.93 193.66 L 227.74 211.80 L 215.45 211.07 Z" fill="#FFD166"/>
+  <path id="hcaps" d="M 352.46 184.92 L 371.20 186.46 L 375.08 203.07 L 354.91 201.42 Z" fill="#FFD166"/>
+  <path id="ha" d="M 340.87 184.20 L 351.39 185.12 L 353.75 201.31 L 342.44 200.34 Z" fill="#FFD166"/>
+  <path id="hs" d="M 329.41 183.36 L 339.92 184.24 L 341.49 200.38 L 330.19 199.43 Z" fill="#FFD166"/>
+  <path id="hd" d="M 317.95 182.52 L 328.46 183.37 L 329.24 199.44 L 317.95 198.53 Z" fill="#FFD166"/>
+  <path id="hf" d="M 306.49 181.67 L 316.99 182.49 L 316.99 198.51 L 305.70 197.63 Z" fill="#FFD166"/>
+  <path id="hg" d="M 295.03 180.83 L 305.53 181.62 L 304.73 197.57 L 293.44 196.72 Z" fill="#FFD166"/>
+  <path id="hh" d="M 283.57 179.98 L 294.07 180.74 L 292.48 196.64 L 281.19 195.82 Z" fill="#FFD166"/>
+  <path id="hj" d="M 272.11 179.14 L 282.62 179.87 L 280.24 195.70 L 268.94 194.92 Z" fill="#FFD166"/>
+  <path id="hk" d="M 260.64 178.30 L 271.16 178.99 L 267.99 194.77 L 256.68 194.01 Z" fill="#FFD166"/>
+  <path id="hl" d="M 249.17 177.45 L 259.71 178.12 L 255.75 193.83 L 244.42 193.11 Z" fill="#FFD166"/>
+  <path id="henter" d="M 229.38 175.83 L 248.14 177.09 L 243.25 193.05 L 223.07 191.67 Z" fill="#FFD166"/>
+  <path id="hlshift" d="M 342.28 168.80 L 367.71 170.79 L 371.15 185.49 L 343.91 183.38 Z" fill="#FFD166"/>
+  <path id="hz" d="M 331.37 168.22 L 341.20 169.05 L 342.75 183.12 L 332.23 182.24 Z" fill="#FFD166"/>
+  <path id="hx" d="M 320.65 167.43 L 330.47 168.23 L 331.33 182.25 L 320.82 181.40 Z" fill="#FFD166"/>
+  <path id="hc" d="M 309.92 166.64 L 319.74 167.42 L 319.91 181.38 L 309.40 180.56 Z" fill="#FFD166"/>
+  <path id="hv" d="M 299.20 165.85 L 309.01 166.60 L 308.49 180.51 L 297.98 179.72 Z" fill="#FFD166"/>
+  <path id="hb" d="M 288.47 165.06 L 298.29 165.78 L 297.07 179.64 L 286.56 178.87 Z" fill="#FFD166"/>
+  <path id="hn" d="M 277.74 164.27 L 287.56 164.96 L 285.66 178.77 L 275.14 178.03 Z" fill="#FFD166"/>
+  <path id="hm" d="M 267.01 163.48 L 276.84 164.14 L 274.24 177.90 L 263.72 177.19 Z" fill="#FFD166"/>
+  <path id="hcomma" d="M 256.27 162.69 L 266.12 163.32 L 262.83 177.03 L 252.30 176.35 Z" fill="#FFD166"/>
+  <path id="hperiod" d="M 245.54 161.90 L 255.40 162.50 L 251.42 176.16 L 240.87 175.50 Z" fill="#FFD166"/>
+  <path id="hslash" d="M 234.80 161.11 L 244.68 161.69 L 240.01 175.29 L 229.45 174.66 Z" fill="#FFD166"/>
+  <path id="hlctrl" d="M 350.81 156.12 L 364.88 157.30 L 367.85 169.98 L 352.84 168.74 Z" fill="#FFD166"/>
+  <path id="hlwin" d="M 338.18 155.23 L 349.82 156.20 L 351.83 168.73 L 339.42 167.70 Z" fill="#FFD166"/>
+  <path id="hlalt" d="M 325.58 154.30 L 337.22 155.24 L 338.46 167.71 L 326.05 166.72 Z" fill="#FFD166"/>
+  <path id="hspace" d="M 275.44 150.24 L 324.43 153.92 L 324.91 166.99 L 272.71 163.07 Z" fill="#FFD166"/>
+  <path id="hralt" d="M 262.59 149.65 L 274.24 150.44 L 271.62 162.63 L 259.20 161.77 Z" fill="#FFD166"/>
+  <path id="hrctrl" d="M 240.10 147.81 L 261.57 149.34 L 258.09 161.77 L 235.19 160.12 Z" fill="#FFD166"/>
+  <g id="paw_l_rest">
+    <ellipse cx="110.1" cy="167.9" rx="16.3" ry="12.6" fill="#000000" opacity="0.07"/>
+    <ellipse cx="109.3" cy="166.1" rx="17.0" ry="14.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="109.3" cy="168.6" rx="8.8" ry="6.2" fill="#DD8F8E"/>
+  </g>
+  <g id="paw_l_down">
+    <ellipse cx="110.1" cy="167.9" rx="16.3" ry="10.8" fill="#000000" opacity="0.07"/>
+    <ellipse cx="109.3" cy="166.1" rx="17.0" ry="12.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="109.3" cy="168.2" rx="8.8" ry="5.3" fill="#DD8F8E"/>
+  </g>
+  <g id="paw_r_rest">
+    <ellipse cx="299.8" cy="160.8" rx="16.3" ry="12.6" fill="#000000" opacity="0.07"/>
+    <ellipse cx="299.0" cy="159.0" rx="17.0" ry="14.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="299.0" cy="161.5" rx="8.8" ry="6.2" fill="#DD8F8E"/>
+  </g>
+  <g id="paw_r_down">
+    <ellipse cx="299.8" cy="160.8" rx="16.3" ry="10.8" fill="#000000" opacity="0.07"/>
+    <ellipse cx="299.0" cy="159.0" rx="17.0" ry="12.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="299.0" cy="161.2" rx="8.8" ry="5.3" fill="#DD8F8E"/>
+  </g>
+  <g id="paw_mouse">
+    <ellipse cx="110.1" cy="167.9" rx="16.3" ry="12.6" fill="#000000" opacity="0.07"/>
+    <ellipse cx="109.3" cy="166.1" rx="17.0" ry="14.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="109.3" cy="168.6" rx="8.8" ry="6.2" fill="#DD8F8E"/>
+  </g>
+</svg>
