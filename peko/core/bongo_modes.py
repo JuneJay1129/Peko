@@ -1,5 +1,5 @@
 """
-Bongo 造型模式注册表：决定叠加层画哪块键盘、有没有手臂。
+Bongo 造型模式注册表：决定叠加层画哪块键盘、爪子落在哪。
 
 为什么单独抽一层：造型不能是渲染代码里的一堆 if。它得能被配置、能持久化，
 以后还要长出别的玩法（键鼠同摆、小键盘、只手不按键……）。每个模式是一份
@@ -17,18 +17,10 @@ Bongo 造型模式注册表：决定叠加层画哪块键盘、有没有手臂�
 - canvas_w / canvas_h  画布尺寸；小键盘比例和 60% 完全不同
 - tilt_deg / tilt_cy   键盘和身体的公共倾斜角与旋转中心
 - persp_inset          键盘上边收窄量（透视）
-- shoulders            两只手臂的肩点 (x, y)，画面左 / 右
-
-行为
-- draw_arms            是否从肩膀拉一条手臂到爪子
 
 几何参数留在模式里而不是 renderer 的类常量，是为了让「小键盘模式」只写一条
 数据 + 一份素材就能落地：那种键盘只有 4 列，画布窄、重心也不在 210，所有能转
 的东西都得跟着变。
-
-已知取舍：`draw_arms=False`（纯手）时身体和手的关系是断的——肩膀下面空一块，
-手更像贴在键帽上的贴纸。换来的是 60% 键盘只有 252 宽，爪子却要够到最左的
-Backspace 和最右的 Enter，手臂一拉满就是两条斜穿整块键盘的粗灰杆。
 
 持久化到 config/bongo.json，只存选中的 key。读到不认识的 key 一律回退默认，
 不因为用户手改坏文件就让叠加层起不来。
@@ -72,14 +64,7 @@ class BongoMode:
     tilt_deg: float = 8.0
     tilt_cy: float = 228.0
     persp_inset: float = 34.0
-    # (画面左肩, 画面右肩)，**没旋转前**的坐标
-    shoulders: Tuple[Tuple[float, float], Tuple[float, float]] = (
-        (158.0, 172.0),
-        (262.0, 172.0),
-    )
 
-    # 行为
-    draw_arms: bool = False
     # 宠物整体上下挪多少（画布像素，负数上移）。键鼠造型要把它抬到桌沿后面，
     # 桌子才盖得住下半身、只露上半身。
     body_dy: float = 0.0
@@ -106,6 +91,10 @@ class BongoMode:
     # 「按下再松手」是同一个落点，手不会在这一步跳一下。优先于 paw_rest_*。
     rest_cap_l: Optional[str] = None
     rest_cap_r: Optional[str] = None
+    # 停手 5 秒要不要把打字手收回休息位。默认开：没配 paw_rest_* / rest_cap_*
+    # 的造型（60% 那套）会回退到键盘模板里 paw_*_rest 的位置，不用每款都填坐标。
+    # 关掉就是老行为——手一直赖在最后按下的键上，等下一个键。
+    idle_rest: bool = True
     # 本造型素材里实际画出来的键帽集合（不带 "k" 前缀）。空 = 60% 那套
     # KEY_CAPS。渲染层只按这张表收集 bounds：钢琴的琴键叫 w0/b3，
     # 和 QWERTY 键名完全对不上，共用一张表会让爪子拿不到任何落点。
@@ -141,14 +130,7 @@ def register(mode: BongoMode) -> BongoMode:
 register(BongoMode(
     key="paws",
     label="纯手",
-    desc="只有爪子浮在键帽上，没有手臂",
-    draw_arms=False,
-))
-register(BongoMode(
-    key="arms",
-    label="带手臂",
-    desc="从肩膀伸到爪子的灰色手臂，手跟着身体",
-    draw_arms=True,
+    desc="只有爪子浮在键帽上",
 ))
 
 register(BongoMode(
@@ -165,9 +147,6 @@ register(BongoMode(
     # 画布四角不会露透明（见 gen_bongo_mouse.py 的 TABLE_EDGE）。
     tilt_deg=8.0,
     tilt_cy=228.0,
-    # 不要手臂：40% 键盘只有 172 宽，手臂一次压掉 3~4 个键。
-    # 手直接搭在键帽 / 鼠标上，靠素材里的接触阴影贴住。
-    draw_arms=False,
     # 整只鼠抬到桌沿后面（body.svg y78~242 → 54~218），
     # 桌面那层盖住 150 以下：头 + 上胸露出来，body.svg 自带的两个粉色
     # 前爪（y178~196 → 154~172）刚好压在桌沿底下，不会多出「第三只手」。
@@ -205,9 +184,6 @@ register(BongoMode(
     # 琴宽 384，收窄量按键盘同样的透视角换算（34 × 384/252 ≈ 52），
     # 不然两块道具是两套视角，切造型时倾斜感会跳一下。
     persp_inset=52.0,
-    # 琴有 372 宽，手伸到两端会拉成两条横穿画布的长杆，和「纯手」一样
-    # 只留爪子浮在琴键上。
-    draw_arms=False,
     # 白键 74 高，爪子只有 30，落在正中就够了，不用像 60% 那样往上提
     # 让出键帽下半截。
     paw_y_offset=0.0,

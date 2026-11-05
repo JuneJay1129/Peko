@@ -172,6 +172,8 @@ Mixin 之间通过 `self` 共享状态，不反向 import `pet.py`，避免循�
 - `peko/core` 不得 import PyQt5，否则单测无法在无 GUI 环境运行。
 - `peko/ui/pet_parts/` 位于 `peko/ui/` 下一层，引用 `peko.core` / `peko.ai` 必须用绝对导入（`from peko.core import ...`）。从 `pet.py` 搬过来的 `from ..core` 会解析成 `peko.ui.core` 而不存在——被 `try/except` 吞掉时只表现为主题跟随失效，没被吞的那处会让整个进程 abort（`unit_tests/test_relative_imports.py` 已固化该约束）。
 - 宠物包资源路径相对 `pets/<id>/` 解析，不存在公共 `resources/`。
+- 天气动作素材在 `pets/<id>/resource/weather/<action>/1.png…`，六类 `clear / cloudy / rain / heavy_rain / snow / thunder`（见 `peko/core/weather_anim.py`）。没有这个目录 = 不支持天气动作，播报时静默跳过，不影响其它宠物。素材必须是**透明底**：桌宠窗口是透明置顶的，带不透明底色的帧会显示成一整块方片（`雷` 的原始素材就带黑底，导入时已抠掉、并删了两张纯色空帧）。
+- 天气动作借 `__weather__` 这个临时状态播放，它必须留在 `actions/constants.py` 的 `RESERVED_STATES` 里，否则自动模式会把它当普通动作随机抽到。
 - 全局热键与托盘回调里取宠物必须先 `registry.current()` 判空。
 
 ## 8. 文档索引

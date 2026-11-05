@@ -120,15 +120,17 @@ class PawFollowTests(unittest.TestCase):
         for _ in range(80):
             self.m._tick()
 
-    def test_starts_lifted(self):
-        """一开始就是闲置态：双手抬在身侧，不落在键盘上。"""
+    def test_starts_at_rest(self):
+        """一开始就是闲置态：有休息位的造型，双手直接搁在身侧桌面上。
+
+        不再「先抬起来再落下去」——开场动画省掉，配合待机收手，
+        打字手的默认位置就是休息位本身。
+        """
         centers = self.m.centers()
         for side in ("l", "r"):
             rest = self.r.rest_center(side)
             self.assertAlmostEqual(rest.x(), centers[side].x(), delta=0.5, msg=side)
-            self.assertAlmostEqual(
-                rest.y() - PawMotion.LIFT, centers[side].y(), delta=0.5, msg=side
-            )
+            self.assertAlmostEqual(rest.y(), centers[side].y(), delta=0.5, msg=side)
 
     def test_release_lifts_but_keeps_the_place(self):
         """松手往上抬，但横坐标留在刚按的键上，不弹回休息位。
@@ -237,7 +239,7 @@ class PawFollowTests(unittest.TestCase):
 
 
 class MouseModeTests(unittest.TestCase):
-    """键鼠造型：不带手臂、和身体共用同一个倾斜、键位转 180°。
+    """键鼠造型：和身体共用同一个倾斜、键位转 180°。
 
     这套素材的透视是烘在坐标里的（gen_bongo_mouse.py 的 homography），
     所以 persp_inset 必须是 0；tilt 则和其它造型一样 8°。
@@ -247,10 +249,6 @@ class MouseModeTests(unittest.TestCase):
     def setUpClass(cls):
         cls.mode = get_mode("mouse")
         cls.r = BongoRenderer(mode=cls.mode)
-
-    def test_has_no_arms(self):
-        self.assertFalse(self.r.draw_arms)
-        self.assertFalse(self.mode.draw_arms)
 
     def test_shares_the_common_tilt(self):
         self.assertEqual(self.r.tilt_deg, get_mode("paws").tilt_deg)

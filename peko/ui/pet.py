@@ -15,7 +15,9 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QGridLayout, QLineEdit, QPushButton,
 )
 
+from ..core import weather_anim
 from ..core.mood import MoodEngine
+from ..core.weather_anim import WEATHER_STATE
 from .pet_parts.bubble_style import (
     _bubble_action_qss, _side_panel_style,
     _default_bubble_style, _bubble_style_from_config,
@@ -56,6 +58,8 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
     # delta, reset, duration；AI 流式对话增量（reset=True 表示新一轮回复，先把气泡清空再排队）
     bubble_chat_stream = pyqtSignal(str, bool, int)
     comfort_turn_ready = pyqtSignal(object)  # 安慰对话轮次（dict），后台 AI 生成后主线程展示
+    # 天气动作（动作名, 持续毫秒）；天气查询在子线程跑，跨线程切动作必须走信号
+    weather_action_ready = pyqtSignal(str, int)
 
     def __init__(self, pet_package: Dict[str, Any], frame_rate: int = 10):
         super().__init__()
@@ -132,6 +136,14 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
         self.typing_timer = QTimer(self)
         self.typing_timer.timeout.connect(self.type_next_character)
         self.comfort_turn_ready.connect(self._on_comfort_turn_ready)
+
+        # 天气动作：播报时临时切换，duration 到了恢复成播报前的动作
+        self._weather_active = False
+        self._weather_prev_state = "stand"
+        self._weather_timer = QTimer(self)
+        self._weather_timer.setSingleShot(True)
+        self._weather_timer.timeout.connect(self._end_weather_action)
+        self.weather_action_ready.connect(self.play_weather_action)
 
         from .chat import ChatHandler
         self._chat = ChatHandler(self)
@@ -248,6 +260,8 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
         self.label = QLabel(self)
         self.label.setFixedSize(self.size())
         self.label.setScaledContents(False)
+        # 帧比窗口小的时候（天气动图等比缩放后）居中，不要贴左上角
+        self.label.setAlignment(Qt.AlignCenter)
 
         # macOS 可见性守卫：切换桌面/Space 或系统隐藏后自动恢复显示
         # 防止切桌面后宠物"消失"的问题
@@ -478,6 +492,64 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
             text = f"靠谱值 +1（当前 {total}）\n{kind_label}完成，太靠谱了！"
         self.update_bubble(text, duration=3600)
 
+    # ---------- 天气动作 ----------
+    def play_weather_action(self, action: str, duration_ms: int = 9000) -> None:
+        """播报天气时切到对应的天气动作（雨 / 雪 / 雷 / 晴 …），到时自动恢复。
+
+        素材按宠物各自一份（`resource/weather/<action>/`），没有就静默跳过——
+        天气功能不能因为某个宠物没配动图就报错。连续播报（连查两个城市）时
+        后一次直接接管，恢复点仍是最初那个动作。
+        """
+        try:
+            # 操控（bongo 键盘）/ 跟随鼠标 / 正在被拖着时不抢动作：那几种模式
+            # 有自己的状态管理，硬切会把正在播的动作顶掉
+            if self.control_mode or self.follow_mouse_mode or self.current_state == "dragged":
+                return
+            frames = weather_anim.frames_for(self.pet_package.get("_pet_dir"), action)
+            if not frames:
+                return
+            if not self._weather_active:
+                self._weather_prev_state = self.current_state
+            self._weather_active = True
+            self.animations[WEATHER_STATE] = frames
+            self._state_config[WEATHER_STATE] = {
+                "frameRate": weather_anim.FRAME_RATE,
+                "stateSwitchInterval": max(1000, int(duration_ms)),
+                "moveSpeed": 0,
+            }
+            # 暂停自动切换：默认 5s 抽一次动作，不拦的话天气动作会被中途抽走
+            self.state_timer.stop()
+            self.current_state = WEATHER_STATE
+            self.current_frame_index = 0
+            self._apply_state_frame_rate()
+            self.update_frame()
+            self._weather_timer.start(max(1000, int(duration_ms)))
+        except Exception:
+            pass
+
+    def _end_weather_action(self) -> None:
+        """天气动作播完：恢复播报前的动作，并把临时素材从动作表里摘掉。
+
+        期间被拖拽、对话等打断过就不抢回状态，只清素材——抢回来会把用户
+        刚触发的动作顶掉。
+        """
+        if not self._weather_active:
+            return
+        self._weather_active = False
+        interrupted = self.current_state != WEATHER_STATE
+        self.animations.pop(WEATHER_STATE, None)
+        self._state_config.pop(WEATHER_STATE, None)
+        if interrupted:
+            return
+        prev = self._weather_prev_state or "stand"
+        self.current_state = prev if self.animations.get(prev) else "stand"
+        self.current_frame_index = 0
+        self._apply_state_frame_rate()
+        self.update_frame()
+        # 播报时 state_timer 是被停掉的，这里无条件重排：schedule_next 自己会处理
+        # 操控 / 跟随鼠标 / 交互锁定（它会按剩余锁定时长再排）
+        self._auto_actions.schedule_next()
+
     def next_frame(self):
         if self.follow_mouse_mode:
             self._follow_mouse_actions.update_direction_to_cursor()
@@ -517,7 +589,12 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
                 if not fallback_pixmap.isNull():
                     self.label.setPixmap(fallback_pixmap.scaled(self.width(), self.height()))
             return
-        scaled_pixmap = pixmap.scaled(self.width(), self.height())
+        if self.current_state == WEATHER_STATE:
+            # 天气动图是正方形素材，窗口不是正方形时按短边等比缩 + 居中，
+            # 别跟着窗口一起拉扁
+            scaled_pixmap = pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        else:
+            scaled_pixmap = pixmap.scaled(self.width(), self.height())
         self.label.setPixmap(scaled_pixmap)
 
     def update_position(self):

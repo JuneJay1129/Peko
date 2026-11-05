@@ -23,6 +23,7 @@ from typing import Dict, Iterable, Optional, Tuple
 from PyQt5.QtCore import QObject, QPointF, QRectF, QTimer, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import (
     QColor,
+    QFont,
     QImage,
     QPainter,
     QPainterPath,
@@ -56,6 +57,18 @@ from peko.core.bongo_modes import (
     list_modes,
     next_mode,
     set_mode,
+)
+from peko.ui.pet_anim import (
+    BUBBLE_BANG,
+    BUBBLE_SLEEP,
+    EYE_BLINK,
+    EYE_CLOSED,
+    EYE_HALF,
+    EYE_OPEN,
+    EYE_WIDE,
+    NEUTRAL,
+    PetAnim,
+    Pose,
 )
 
 # 画布尺寸已经搬进 BongoMode（canvas_w / canvas_h，默认 420x280）：
@@ -108,27 +121,35 @@ class BongoRenderer:
     # 别用白色（和键帽同形同调，看着像掉了个键），也别用肉垫那个 #F0A0A0。
     HIGHLIGHT = "#FFD166"
 
-    # 倾斜角 / 旋转中心 / 透视收窄量 / 肩点全部搬到 BongoMode 里了
-    # （tilt_deg、tilt_cy、persp_inset、shoulders），这里只留样式常量。
+    # 倾斜角 / 旋转中心 / 透视收窄量全部搬到 BongoMode 里了
+    # （tilt_deg、tilt_cy、persp_inset），这里只留样式常量。
     #
     # 那几个几何值不是随手抽走的：小键盘只有 4 列，画布窄、重心不在 210，
-    # 转多少度、绕哪里转、肩点落在哪，全和 60% 不一样。留在类常量上的话
+    # 转多少度、绕哪里转，全和 60% 不一样。留在类常量上的话
     # 「加一个模式」就得回来改绘制代码，模式层就白做了。
     #
-    # 手臂画不画由 BongoMode.draw_arms 决定：「纯手」模式在 60% 键盘上更耐看，
-    # 只有 252 宽却要够到最左的 Backspace 和最右的 Enter，手臂一拉满就是
-    # 两条斜穿整块键盘的粗灰杆。代价是肩膀下面空一块、手更像贴纸。
-    # 手臂取 13：爪子直径 30 的 0.43。宠物缩到 2/3 之后手臂要横跨大半块
-    # 键盘，10.5 拉长了还是像蜘蛛腿，得再粗一档才撑得住长度。
-    # 颜色是**身体灰**，不是爪子的粉：胳膊是身体的一部分，只有末端那只手
-    # 是原图那双圆手的粉（PAW_FILL）。两处用同一个灰会让爪子糊在胳膊上，
-    # 用同一个粉就是「粉色香肠」，都不对。
-    # 灰值对齐 body.svg 的主色 #CAC8C8，偏一点在接缝处能看出来。
-    ARM_W = 13.0
-    ARM_FILL = "#C9C9C9"
-    ARM_EDGE = "#1A1A1A"
-    # 手臂沿自身方向多伸进拳头这么多，接缝全靠它。
-    PUNCH_THROUGH = 3.0
+    # 手臂整体砍掉了：60% 键盘只有 252 宽却要够到最左的 Backspace 和最右
+    # 的 Enter，两条灰杆斜穿整块键盘；40% / 钢琴更窄，问题一样。爪子直接
+    # 浮在键帽 / 垫子上，靠接触阴影贴住，比拉两条长杆耐看。
+
+    # ---- 表情 ----
+    # 眼睛是**按 body.svg 的 bbox 比例**给的，不是死像素：body 元素在
+    # viewBox 里被 translate+scale 包了一层，渲染出来的实际范围只有
+    # 141,78~278,243（137x165），跟 420x280 的画布差着三倍。写绝对坐标
+    # 的后果是换一份素材就全歪。这四组数是渲染成位图后扫黑色连通块量出来的。
+    # 注意：这四组数必须量在**未倾斜**的身体位图上。身体整体有 8° 的公共倾斜，
+    # 拿倾斜之后的位置反算比例，画出来的眼会整体偏 13px（实测踩过）。
+    EYE_BOXES = (
+        (0.3396, 0.2607, 0.1022, 0.1333),   # 左眼 x/y/w/h，相对 body bbox
+        (0.5950, 0.2607, 0.1022, 0.1272),   # 右眼
+    )
+    FACE_GRAY = "#cac8c8"   # 抹掉原眼珠用的脸灰（实测 px 取样）
+    INK = "#0d0d0d"
+    PAPER = "#f1f1f1"
+    PAW_PINK = "#F0A0A0"    # 爪子那颗粉（body.svg 肉垫同色）
+    # 气泡钉在头的右上外侧，同样按画布比例给
+    BUBBLE_POS = (0.685, 0.275)
+    BUBBLE_R = (30.0, 22.0)
 
     def frame_transform(self, painter: QPainter) -> None:
         """每帧绘制的统一入口：抗锯齿 + viewBox + 整体缩放。
@@ -152,24 +173,22 @@ class BongoRenderer:
         """素材路径不给就按模式解析；mode 不给取用户当前选中的那一种。
 
         显式传 svg_path / body_path 仍可用（老调用点和单测都靠它指定素材），
-        这时只有 draw_arms 这类行为字段来自模式。
+        这时其余行为字段（mouse_hand 之类）来自模式。
         """
         from PyQt5.QtSvg import QSvgRenderer
 
         self.mode = mode or get_mode()
-        self.draw_arms = self.mode.draw_arms
         # 有鼠标手的造型：这只手不走按键逻辑，跟着真光标在垫子上滑。
         # 变量先按模式赋值，素材里没有 paw_mouse 时会关掉（见 bounds 收集之后）。
         self.mouse_hand = self.mode.mouse_hand
         # 几何全部从模式取，renderer 不自带任何布局假设。
-        # 60% 键盘和小键盘的画布比例、旋转中心、肩点都不一样，
+        # 60% 键盘和小键盘的画布比例、旋转中心都不一样，
         # 写死在这里的话「加一个模式」就得改绘制代码。
         self.canvas_w = float(self.mode.canvas_w)
         self.canvas_h = float(self.mode.canvas_h)
         self.tilt_deg = float(self.mode.tilt_deg)
         self.tilt_cy = float(self.mode.tilt_cy)
         self.persp_inset = float(self.mode.persp_inset)
-        self.shoulders = self.mode.shoulders
         # 整个宠物上下挪多少：键鼠造型要把它抬到桌沿上，只露上半身。
         self.body_dy = float(getattr(self.mode, "body_dy", 0.0))
         self.body_scale = float(getattr(self.mode, "body_scale", 1.0))
@@ -177,11 +196,13 @@ class BongoRenderer:
         body_path = body_path or os.path.join(_RES_DIR, self.mode.body_svg)
 
         self._renderer = QSvgRenderer(svg_path)
-        # 身体单独一个文件：绘制顺序是 身体 → 键盘 → 手臂 → 爪子，
+        # 身体单独一个文件：绘制顺序是 身体 → 键盘 → 爪子，
         # 塞进同一个 SVG 就没法把键盘插在中间了。
         self._body = QSvgRenderer(body_path)
         self.valid = self._renderer.isValid()
         self._highlight = QColor(self.HIGHLIGHT)
+        # 表情姿态：宿主每帧 set_pose 进来，默认中立（不歪、不呼吸）
+        self._pose: Pose = NEUTRAL
         self._bounds = {}
         if not self.valid:
             return
@@ -467,6 +488,169 @@ class BongoRenderer:
             return None
         return self._desk_matrix().map(QPointF(rect.center()))
 
+    def set_pose(self, pose: Pose) -> None:
+        """宿主每帧喂一次表情姿态。只存字段，不做任何绘制工作。"""
+        self._pose = pose or NEUTRAL
+
+    def pose_matrix(self, pose: Pose) -> QTransform:
+        """整只鼠的姿态：绕脖子转 → 绕身体底部缩放 → 上下挪。
+
+        旋转支点取在脖子上而不是画布中心：绕中心转的话脚会跟着扫，
+        看起来像整只在地上翻滚；绕脖子转，被键盘和桌沿盖住的下半身
+        几乎不动，只有头在偏。
+        """
+        t = QTransform()
+        cx = self.canvas_w / 2.0
+        pivot_y = self.canvas_h * 0.60      # 脖子
+        foot_y = self.canvas_h * 0.77       # 缩放支点压在身体底部
+        if pose.rot:
+            t.translate(cx, pivot_y)
+            t.rotate(pose.rot)
+            t.translate(-cx, -pivot_y)
+        if pose.scale != 1.0:
+            t.translate(cx, foot_y)
+            t.scale(pose.scale, pose.scale)
+            t.translate(-cx, -foot_y)
+        if pose.dy:
+            t.translate(0.0, pose.dy)
+        return t
+
+    def _eye_boxes(self):
+        """眼睛在**画布坐标**下的矩形（body bbox 按比例展开）。"""
+        rect = self._body.boundsOnElement("body")
+        if rect.isNull():
+            return ()
+        return tuple(
+            (
+                rect.x() + fx * rect.width(),
+                rect.y() + fy * rect.height(),
+                fw * rect.width(),
+                fh * rect.height(),
+            )
+            for fx, fy, fw, fh in self.EYE_BOXES
+        )
+
+    def _paint_eyes(self, painter: QPainter) -> None:
+        """先抹掉原眼珠，再按当前状态重画。
+
+        原素材里眼睛是「黑眼珠 + 一点白高光」，闭眼/眨眼没有对应素材，
+        叠贴纸会在眼睛周围留一圈原图的抗锯齿边。所以宁可盖一层脸灰
+        再把整只眼重画——多出的 0.5 就是拿来吃掉那圈边的。
+        """
+        ink = QColor(self.INK)
+        paper = QColor(self.PAPER)
+        gray = QColor(self.FACE_GRAY)
+        eye = self._pose.eye
+
+        for x, y, w, h in self._eye_boxes():
+            # 睁眼直接用原素材：原图的眼珠自带高光，重画一遍只会显得
+            # 全黑（高光怎么摆都还原不了原味）。只有换表情才动它。
+            if eye == EYE_OPEN:
+                continue
+
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(gray)
+            painter.drawRect(QRectF(x - 0.6, y - 0.6, w + 1.2, h + 1.2))
+
+            cx, cy = x + w / 2.0, y + h / 2.0
+            line = max(2.0, h * 0.17)
+
+            if eye == EYE_CLOSED:
+                # 闭眼：一道下弯的弧（笑眼），两端收在里面
+                path = QPainterPath(QPointF(x + 1.0, cy - h * 0.06))
+                path.quadTo(
+                    QPointF(cx, cy + h * 0.36), QPointF(x + w - 1.0, cy - h * 0.06)
+                )
+                painter.setPen(QPen(ink, line, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawPath(path)
+                continue
+
+            if eye == EYE_BLINK:
+                # 眨眼：压成一条略鼓的粗杠
+                path = QPainterPath(QPointF(x + 1.2, cy + h * 0.04))
+                path.quadTo(
+                    QPointF(cx, cy - h * 0.14), QPointF(x + w - 1.2, cy + h * 0.04)
+                )
+                painter.setPen(QPen(ink, line * 1.15, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawPath(path)
+                continue
+
+            if eye == EYE_HALF:
+                # 半睁：比闭眼浅、比眨眼细的一道弧（困倦眯眼）。
+                # 别画黑块——半截黑豆看着像整只眼被涂黑了。
+                path = QPainterPath(QPointF(x + 1.4, cy - h * 0.02))
+                path.quadTo(
+                    QPointF(cx, cy + h * 0.16), QPointF(x + w - 1.4, cy - h * 0.02)
+                )
+                painter.setPen(QPen(ink, max(1.8, h * 0.11), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawPath(path)
+                continue
+
+            # 瞪大（惊醒）：照受惊表情包改的「全眼白」——黑豆放大会只显
+            # 黑，表情包里受惊是眼白整个撑大、没有瞳孔。白底描黑边就够，
+            # 嘴不用另画：body.svg 原素材常态就是张嘴吐舌。
+            rx, ry = w * 0.5 * 1.06, h * 0.5 * 1.04
+            painter.setPen(QPen(ink, 1.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            painter.setBrush(paper)
+            painter.drawEllipse(QPointF(cx, cy), rx, ry)
+
+    def _body_bitmap(self, painter: QPainter) -> Optional[QImage]:
+        """身体 + 眼睛合成一张位图，姿态变换只作用在这张图上。
+
+        不能每帧直接 render 到已经带姿态的 painter 上：QSvgRenderer.render
+        会自己设置 viewBox / viewport，外部那套 translate+rotate 会被打回
+        原形（表现是身体跑到画布左上角、眼睛留在原地）。先离屏合一张，
+        再整张 drawImage，位置和表情就不可能对不上。
+
+        缓存分两层：身体按设备像素比烘一次，眼睛按表情状态各留一张。
+        姿态每帧都在变，只能留在 drawImage 的变换里，不烘进位图。
+        """
+        ratio = self._device_ratio(painter)
+        base_key = (int(self.canvas_w), int(self.canvas_h), ratio)
+        base = getattr(self, "_body_base_cache", None)
+        if base is None or base[0] != base_key:
+            rect = self._body.boundsOnElement("body")
+            if rect.isNull():
+                return None
+            img = QImage(
+                int(self.canvas_w * ratio),
+                int(self.canvas_h * ratio),
+                QImage.Format_ARGB32_Premultiplied,
+            )
+            if img.isNull():
+                return None
+            img.fill(Qt.transparent)
+            q = QPainter(img)
+            if not q.isActive():
+                return None
+            q.setRenderHint(QPainter.Antialiasing, True)
+            q.setRenderHint(QPainter.SmoothPixmapTransform, True)
+            q.setWindow(0, 0, int(self.canvas_w), int(self.canvas_h))
+            self._body.render(q, "body", rect)
+            q.end()
+            base = (base_key, img)
+            self._body_base_cache = base
+
+        key = (base_key, self._pose.eye)
+        cached = getattr(self, "_body_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        # 睁眼就用原素材那张底图，连拷贝都省了 —— 眼珠是原图的，
+        # 重画只会失真（高光还原不了原味）。
+        if self._pose.eye == EYE_OPEN:
+            return base[1]
+        out = base[1].copy()
+        q = QPainter(out)
+        q.setRenderHint(QPainter.Antialiasing, True)
+        q.setWindow(0, 0, int(self.canvas_w), int(self.canvas_h))
+        self._paint_eyes(q)
+        q.end()
+        self._body_cache = (key, out)
+        return out
+
     def _paint_body_layer(self, painter: QPainter, eid: str) -> None:
         """按元素画 body.svg 的一层，外面套身体那份倾斜（不含键盘透视）。"""
         if not self._body.isValid():
@@ -497,8 +681,102 @@ class BongoRenderer:
         painter.translate(-cx, -self.tilt_cy)
 
     def paint_body(self, painter: QPainter) -> None:
-        """躯干 + 尾巴，画在键盘**后面**。"""
-        self._paint_body_layer(painter, "body")
+        """躯干 + 尾巴 + 五官，画在键盘**后面**。
+
+        走位图而不是直接 render：只有整张位图能做姿态变换（歪头 / 呼吸），
+        眼睛也必须和身体用同一个变换画，否则一歪头眼睛就漂在原来的位置。
+        """
+        if not self._body.isValid():
+            return
+        img = self._body_bitmap(painter)
+        if img is None:
+            self._paint_body_layer(painter, "body")
+            return
+        painter.save()
+        self._tilted(painter)
+        self._body_scaled(painter)
+        matrix = self.pose_matrix(self._pose)
+        if not matrix.isIdentity():
+            # 第二个参数必须 True：setTransform 默认替换，会把上面的倾斜冲掉
+            painter.setTransform(matrix, True)
+        if self.body_dy:
+            painter.translate(0.0, self.body_dy)
+        painter.drawImage(QRectF(0.0, 0.0, self.canvas_w, self.canvas_h), img)
+        painter.restore()
+
+    def paint_bubble(self, painter: QPainter, pose: Optional[Pose] = None) -> None:
+        """气泡最后画：不吃倾斜、不吃身体缩放，所以位置要自己跟一遍。
+
+        造型里的 body_scale / body_dy 是「把宠物抬到桌沿后面」用的，
+        气泡要是按画布绝对坐标钉死，键鼠造型下就飘到头外面去了。
+        """
+        pose = pose or self._pose
+        if not pose.bubble or pose.bub <= 0.1:
+            return
+        k = max(0.0, min(1.2, pose.bub))
+        cx = self.canvas_w * self.BUBBLE_POS[0]
+        cy = self.canvas_h * self.BUBBLE_POS[1]
+        if self.body_scale != 1.0:
+            cx = self.canvas_w / 2.0 + (cx - self.canvas_w / 2.0) * self.body_scale
+            cy = self.tilt_cy + (cy - self.tilt_cy) * self.body_scale
+        cy += self.body_dy
+
+        rx, ry = self.BUBBLE_R[0] * k, self.BUBBLE_R[1] * k
+        if rx < 2.0:
+            return
+
+        if pose.bubble == BUBBLE_BANG:
+            # 惊吓的「!」直接立在头边，不装气泡壳 —— 表情包里就是一颗
+            # 裸的红色感叹号，包进白圈反而像对话框、弱了受惊的意思。
+            # bub 控制弹出：从锚点缩放，弹出来有个小 pop。
+            hgt, wdt = 46.0 * k, 12.0 * k
+            bar = QPainterPath()
+            bar.addRoundedRect(
+                QRectF(cx - wdt / 2.0, cy - hgt / 2.0, wdt, hgt * 0.60),
+                wdt / 2.0, wdt / 2.0,
+            )
+            dot = QPainterPath()
+            dot.addEllipse(QPointF(cx, cy + hgt * 0.32), wdt * 0.62, wdt * 0.62)
+            painter.save()
+            # 不描边：深红一圈套在红底上看着像又包了个框
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor("#e25b5b"))
+            painter.drawPath(bar.united(dot))
+            painter.restore()
+            return
+
+        path = QPainterPath()
+        path.addEllipse(QPointF(cx, cy), rx, ry)
+        tail = QPainterPath()
+        tail.moveTo(cx - rx * 0.52, cy + ry * 0.82)
+        tail.lineTo(cx - rx * 1.02, cy + ry * 1.40)
+        tail.lineTo(cx + rx * 0.14, cy + ry * 0.94)
+        tail.closeSubpath()
+        path = path.united(tail).simplified()
+
+        painter.save()
+        painter.setPen(QPen(QColor("#3a3a3a"), 1.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        painter.setBrush(QColor(self.PAPER))
+        painter.drawPath(path)
+
+        text = "z z" if pose.bubble == BUBBLE_SLEEP else "!"
+        # 「!」照表情包用红色，受惊的语义靠它
+        painter.setPen(
+            QColor("#e25b5b") if pose.bubble == BUBBLE_BANG else QColor("#2a2a2a")
+        )
+        font = QFont("Microsoft YaHei")
+        font.setPixelSize(max(6, int((15 if pose.bubble == BUBBLE_SLEEP else 22) * k)))
+        font.setBold(True)
+        painter.setFont(font)
+        metrics = painter.fontMetrics()
+        painter.drawText(
+            QPointF(
+                cx - metrics.width(text) / 2.0,
+                cy + (metrics.ascent() - metrics.descent()) / 2.0,
+            ),
+            text,
+        )
+        painter.restore()
 
     def paint_head(self, painter: QPainter) -> None:
         """头 + 耳朵 + 五官，画在键盘**前面**。
@@ -511,70 +789,6 @@ class BongoRenderer:
     def body_rect(self) -> QRectF:
         """body.svg 铺满整块画布，留着给外部算命中区域用。"""
         return QRectF(0.0, 0.0, self.canvas_w, self.canvas_h)
-
-    def paint_arms(self, painter: QPainter, centers: Dict[str, QPointF]) -> None:
-        """从肩膀拉一条手臂到爪子，爪子在哪手臂就伸到哪。
-
-        画在 body 之后、键盘之前：手臂压在键盘上，爪子再盖在手臂末端。
-        先统一描一遍粗黑边、再统一填灰色，别一手黑边一手灰——
-        两只手臂交叉时后画的黑边会啃掉前一只的肉。
-        """
-        # 开关放在函数入口而不是两个 paintEvent 里：新增绘制路径时不会漏改，
-        # 调用方也不用关心造型怎么配。
-        if not self.draw_arms:
-            return
-        if not centers:
-            return
-        paths = []
-        for side in ("l", "r"):
-            end = centers.get(side)
-            if end is None:
-                continue
-            # 肩点来自模式的 shoulders（元组，不是可变对象），每帧现建 QPointF。
-            # 肩点在身体上，身体跟着键盘一起倾斜，所以肩点也要过同一个变换；
-            # 终点 centers 已经是倾斜后的画面坐标，别再转第二次。
-            sx, sy = self.shoulders[0 if side == "l" else 1]
-            start = self._tilt().map(QPointF(sx, sy))
-            # 控制点往外鼓一点、按横向距离下压：去够数字行那种同高的键时，
-            # 手臂本来是根笔直的水平棍，往下鼓出一道弧才像「伸手」。
-            # 下压封顶 30，否则按最边上的键会弯成一张弓。
-            dx = end.x() - start.x()
-            # 往外鼓看肩在画布哪半边，别按 side 名字判断：
-            # 键盘转 180° 后 l/r 在画面上是反的，写死会让手臂朝里拐。
-            out = -1.0 if start.x() < self.canvas_w / 2.0 else 1.0
-            # 手臂越短，外鼓越狠。抬手时肩到爪只剩十来个像素，笔直的短棍
-            # 整个埋在爪子底下；甩成一道月牙，弧长翻两三倍，才看得出是胳膊。
-            span = ((dx * dx) + ((end.y() - start.y()) ** 2)) ** 0.5
-            bow = 5.0 + max(0.0, 26.0 - span) * 0.62
-            mid = QPointF(
-                (start.x() + end.x()) / 2.0 + out * bow,
-                (start.y() + end.y()) / 2.0 + min(abs(dx) * 0.16 + 6.0, 30.0),
-            )
-            # 终点沿臂方向再顶进拳头 PUNCH_THROUGH，让臂轴穿过拳心而不是
-            # 停在拳心——停住的话拳有一半裸露在臂的背面，像「胳膊末端挂了
-            # 个球」。这个值不能贪：臂端圆头半径 8.5 + 拳半径 15，
-            # 顶到 6 就只剩 0.5 余量，抗锯齿一开灰色就从拳的边缘漏出来，
-            # 取 3 留足 1.5。
-            tip = QPointF(end)
-            if span > 1e-6:
-                tip = QPointF(
-                    end.x() + dx / span * self.PUNCH_THROUGH,
-                    end.y() + (end.y() - start.y()) / span * self.PUNCH_THROUGH,
-                )
-            path = QPainterPath(start)
-            path.quadTo(mid, tip)
-            paths.append(path)
-
-        painter.save()
-        painter.setBrush(Qt.NoBrush)
-        for width, color in ((self.ARM_W + 4.0, self.ARM_EDGE), (self.ARM_W, self.ARM_FILL)):
-            pen = QPen(QColor(color), width)
-            pen.setCapStyle(Qt.RoundCap)
-            pen.setJoinStyle(Qt.RoundJoin)
-            painter.setPen(pen)
-            for path in paths:
-                painter.drawPath(path)
-        painter.restore()
 
     def paint_paws(
         self,
@@ -642,13 +856,14 @@ class PawMotion(QObject):
     # 整只手顶进身体轮廓里，手臂反而被吃掉。
     LIFT = 28.0
     # 抬手**只动 y**，不往两侧张。
-    # 张开是能让短手臂露出来，但每次松手 x 就横移一段、再按又弹回键上，
-    # 连续打同一个键时爪子会左右来回摆，比手臂看不见更难受。
-    # 短手臂靠 paint_arms 里加大外鼓来解决（弧长比直线长得多）。
+    # 张开的话每次松手 x 就横移一段、再按又弹回键上，
+    # 连续打同一个键时爪子会左右来回摆，看着眼晕。
     # 停手多久把打字手收回休息位。按键会不停重置这个计时器，所以连打时
     # 根本触发不到——只有真的停下来，手才离开键盘回到身体边上。
-    # 700ms 大约是一句话里两次词间的停顿，再短就会在打字中途来回甩。
-    IDLE_MS = 700
+    # 5000 是「发呆」不是「换气」：700ms 那档在一句话的词间就把爪子甩回
+    # 键盘下沿，打字全程手在飞；拉长之后只在真的停手时动一次，这个动作
+    # 同时充当待机提示（配合 IdleGlow 的键帽心跳）。
+    IDLE_MS = 5000
 
     def __init__(self, renderer: BongoRenderer, parent: Optional[QObject] = None):
         super().__init__(parent)
@@ -787,13 +1002,17 @@ class PawMotion(QObject):
             self._timer.start()
 
     def _has_rest(self) -> bool:
+        """闲置要不要把打字手收回去。由造型的 idle_rest 决定，默认开。
+
+        早先的判据是「配了休息位才收」：60% 那套键盘没配 paw_rest_*，手就一直
+        赖在最后按下的键上，永远不会离开键盘。现在统一收回——rest_center 对
+        没配的造型会回退到键盘模板里 paw_*_rest 的位置，不需要每款都填坐标。
+
+        注意 60% 这套的 paw_*_rest 和 paw_*_down 是同一个中心点，收回去只是
+        手形从按扁变回圆，没有位移。真正看得见的待机反馈是 IdleGlow 的扫光。
+        """
         mode = getattr(self._renderer, "mode", None)
-        return bool(
-            getattr(mode, "paw_rest_l", None)
-            or getattr(mode, "paw_rest_r", None)
-            or getattr(mode, "rest_cap_l", None)
-            or getattr(mode, "rest_cap_r", None)
-        )
+        return bool(getattr(mode, "idle_rest", True))
 
     def _go_rest(self) -> None:
         """停手够久：打字手离开键盘，落回身体边上的休息位。
@@ -865,6 +1084,111 @@ class PawMotion(QObject):
             self.changed.emit()
         else:
             self._timer.stop()
+
+
+class IdleGlow(QObject):
+    """停手 5 秒后的待机提示：整盘键帽一起亮三下，然后收工。
+
+    为什么是键盘灯而不是让宠物做动作：body.svg 的头身是一整块（见
+    scripts/trace_body.py 的说明），头单独转会在脖子留断口；爪子收回的
+    位移只有 20px，肉眼几乎看不出来。键帽高亮是现成的绘制路径
+    （paint_desk 的 caps 参数），不新增素材、不碰宠物姿态，是眼下唯一
+    能「动起来」又不违和的层。
+
+    计时器归宿主所有：key 状态一变就 poke() 重置 5 秒倒计时；到点后
+    _beat 定时器亮/灭交替 BEATS 次，宿主每次重绘时把 caps() 并进高亮集合。
+    """
+
+    changed = pyqtSignal()
+
+    IDLE_MS = 5000     # 停手多久开始
+    BEAT_MS = 70       # 每帧时长
+    BEATS = 26         # 26 帧 ≈ 1.8s，正好从键盘左边扫到右边
+    SPAN_DIV = 6       # 同时亮几颗 = 全盘 / 6，全亮太刺眼，只留一道光
+
+    def __init__(self, renderer: "BongoRenderer", parent: Optional[QObject] = None):
+        super().__init__(parent)
+        self._renderer = renderer
+        self._pool: Tuple[str, ...] = ()
+        self._seq: Tuple[str, ...] = ()
+        self._lit: frozenset = frozenset()
+        self._beats = 0
+        self._idle = QTimer(self)
+        self._idle.setSingleShot(True)
+        self._idle.setInterval(self.IDLE_MS)
+        self._idle.timeout.connect(self._start)
+        self._beat = QTimer(self)
+        self._beat.setInterval(self.BEAT_MS)
+        self._beat.timeout.connect(self._tick)
+
+    def set_renderer(self, renderer: "BongoRenderer") -> None:
+        """换造型后键帽集合跟着换，不然会去点亮一堆不存在的 id。"""
+        self._renderer = renderer
+        self._pool = ()
+        self._seq = ()
+        self.stop()
+
+    def pool(self) -> Tuple[str, ...]:
+        """这一款造型画出来的全部键帽（钢琴是 w0/b3 那套）。"""
+        if not self._pool:
+            caps = tuple(getattr(getattr(self._renderer, "mode", None), "caps", ()) or ())
+            self._pool = caps or tuple(KEY_CAPS)
+        return self._pool
+
+    def poke(self) -> None:
+        """有按键发生：掐掉正在跳的灯，重新数 5 秒。"""
+        self._idle.stop()
+        if self._beat.isActive() or self._lit:
+            self.stop()
+        self._idle.start()
+
+    def stop(self) -> None:
+        self._idle.stop()
+        self._beat.stop()
+        self._beats = 0
+        if self._lit:
+            self._lit = frozenset()
+            self.changed.emit()
+
+    def caps(self) -> frozenset:
+        return self._lit
+
+    def _sequence(self) -> Tuple[str, ...]:
+        """按键帽中心的 x 排一遍，扫光才有方向。
+
+        不按素材里 id 的顺序：那是描图输出的顺序，换一份键盘就对不上了。
+        """
+        if self._seq:
+            return self._seq
+        pairs = []
+        for cap in self.pool():
+            pt = self._renderer.cap_center(cap)
+            if pt is not None:
+                pairs.append((pt.x(), cap))
+        pairs.sort()
+        self._seq = tuple(cap for _, cap in pairs)
+        return self._seq
+
+    def _start(self) -> None:
+        if not self._sequence():
+            return
+        self._beats = 0
+        self._beat.start()
+        self._tick()
+
+    def _tick(self) -> None:
+        seq = self._sequence()
+        self._beats += 1
+        if self._beats > self.BEATS or not seq:
+            self.stop()
+            return
+        span = max(2, len(seq) // self.SPAN_DIV)
+        # 从左侧外面扫进来再扫出去：位置换算成 float 再取窗口，边界不会跳
+        pos = (self._beats - 1) / float(self.BEATS) * (len(seq) + span) - span
+        lo = max(0, int(pos))
+        hi = min(len(seq), int(pos) + span)
+        self._lit = frozenset(seq[lo:hi])
+        self.changed.emit()
 
 
 class MouseTracker(QObject):
@@ -1133,6 +1457,12 @@ class BongoOverlay(QWidget):
         self._mouse_l = False
         self._mouse_r = False
         self._drag_offset = None
+        # 待机提示：停手 5 秒后键帽亮三下（和 PawMotion 的收手同时发生）
+        self._glow = IdleGlow(self._renderer, self)
+        self._glow.changed.connect(self.update)
+        # 表情姿态：呼吸 / 歪头 / 眨眼 / 打瞌睡 / 惊醒 / 打字气泡
+        self._anim = PetAnim(self)
+        self._anim.changed.connect(self.update)
 
         # 不吃 WindowTransparentForInput / WA_TransparentForMouseEvents 了：
         # 开着模式时宠物本体是藏着的，叠加层要是也不收鼠标，这块画面就彻底
@@ -1201,7 +1531,7 @@ class BongoOverlay(QWidget):
     def apply_mode(self, mode: BongoMode) -> None:
         """运行时换造型：重建 renderer 和运动器，窗口尺寸与位置不变。
 
-        不能只改 renderer.draw_arms 就完事——换模式可能连素材（键盘布局）都
+        不能只换 renderer 的模式字段就完事——换模式可能连素材（键盘布局）都
         换了，键帽 id 和爪子落点全得重算，运动器也跟着换一份干净的。
         旧 motion 用 deleteLater 收尾：它是本窗口的子对象，连带把内部那个
         QTimer 一起停掉，不然两只爪子会各跑一个定时器。
@@ -1209,6 +1539,7 @@ class BongoOverlay(QWidget):
         self._renderer = BongoRenderer(mode=mode)
         self._mouse_l = False
         self._mouse_r = False
+        self._glow.set_renderer(self._renderer)
         old = getattr(self, "motion", None)
         self.motion = PawMotion(self._renderer, self)
         self.motion.changed.connect(self.update)
@@ -1231,8 +1562,9 @@ class BongoOverlay(QWidget):
         mouse_l / mouse_r 只有键鼠造型用：控制鼠标上左右键的高亮。
         """
         caps = frozenset(caps)
+        hand_changed = (left_down, right_down) != (self._left, self._right)
         same = (
-            (left_down, right_down) == (self._left, self._right)
+            not hand_changed
             and caps == self._caps
             and (mouse_l, mouse_r) == (self._mouse_l, self._mouse_r)
         )
@@ -1240,11 +1572,26 @@ class BongoOverlay(QWidget):
         self._caps = caps
         self._mouse_l, self._mouse_r = mouse_l, mouse_r
         self.motion.set_targets(left_cap, right_cap)
+        # 只有手的按下/抬起算「还在打字」：鼠标移动也会走到这里，不能让它把
+        # 待机倒计时一次次顶回去，否则鼠标一直在动就永远等不到待机灯。
+        if hand_changed:
+            self._glow.poke()
+            self._anim.note_key()
         if not same:
             self.update()
 
+    def showEvent(self, event) -> None:
+        # 表情动画只在窗口可见时跑：藏起来的窗口还按 25fps 重绘纯属烧 CPU
+        self._anim.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event) -> None:
+        self._anim.stop()
+        super().hideEvent(event)
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
+        self._renderer.set_pose(self._anim.pose())
         self._renderer.frame_transform(painter)
         centers = self.motion.centers()
         # 桌面盖在身体上：桌子是实体，它挡住宠物下半身，只露上半身。
@@ -1255,10 +1602,11 @@ class BongoOverlay(QWidget):
         self._renderer.paint_pad(
             painter, self._mouse_l, self._mouse_r, self.motion.mouse_offset()
         )
-        self._renderer.paint_desk(painter, self._caps)
+        self._renderer.paint_desk(painter, self._caps | self._glow.caps())
         self._renderer.paint_head(painter)
-        self._renderer.paint_arms(painter, centers)
         self._renderer.paint_paws(painter, self._left, self._right, centers)
+        # 气泡不吃任何变换，永远压在嘴上
+        self._renderer.paint_bubble(painter)
         painter.end()
 
 
@@ -1469,6 +1817,10 @@ class _BongoDemo(QWidget):
         self._caps = frozenset()
         self.motion = PawMotion(self._renderer, self)
         self.motion.changed.connect(self.update)
+        self._glow = IdleGlow(self._renderer, self)
+        self._glow.changed.connect(self.update)
+        self._anim = PetAnim(self)
+        self._anim.changed.connect(self.update)
         self.controller = BongoController()
         self.controller.state_changed.connect(self._on_state)
         self.controller.caps_changed.connect(self._on_caps)
@@ -1494,6 +1846,7 @@ class _BongoDemo(QWidget):
         mode = next_mode(self._renderer.mode.key)
         set_mode(mode.key)
         self._renderer = self._build_renderer(mode)
+        self._glow.set_renderer(self._renderer)
         self.controller.cap_pool = _cap_pool_for(mode)
         old = self.motion
         self.motion = PawMotion(self._renderer, self)
@@ -1504,11 +1857,15 @@ class _BongoDemo(QWidget):
         print(f"[bongo] 造型切换为「{mode.label}」（{mode.key}）")
 
     def _on_state(self, left: bool, right: bool) -> None:
+        self._glow.poke()
+        self._anim.note_key()
         self._sync_paw_targets()
         self.update()
 
     def _on_caps(self, caps: frozenset) -> None:
         self._caps = caps
+        self._glow.poke()
+        self._anim.note_key()
         self._sync_paw_targets()
         self.update()
 
@@ -1518,8 +1875,17 @@ class _BongoDemo(QWidget):
             self.controller.cap_of("right"),
         )
 
+    def showEvent(self, event) -> None:
+        self._anim.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event) -> None:
+        self._anim.stop()
+        super().hideEvent(event)
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
+        self._renderer.set_pose(self._anim.pose())
         self._renderer.frame_transform(painter)
         centers = self.motion.centers()
         # 顺序：躯干 → 桌面 → 垫子 → 键盘 → 头 → 手臂 → 爪子。
@@ -1528,12 +1894,12 @@ class _BongoDemo(QWidget):
         self._renderer.paint_body(painter)
         self._renderer.paint_table(painter)
         self._renderer.paint_pad(painter, False, False, self.motion.mouse_offset())
-        self._renderer.paint_desk(painter, self._caps)
+        self._renderer.paint_desk(painter, self._caps | self._glow.caps())
         self._renderer.paint_head(painter)
-        self._renderer.paint_arms(painter, centers)
         self._renderer.paint_paws(
             painter, *self.controller.state, centers=centers
         )
+        self._renderer.paint_bubble(painter)
         painter.end()
 
     def keyPressEvent(self, event) -> None:
