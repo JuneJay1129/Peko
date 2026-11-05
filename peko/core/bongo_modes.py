@@ -10,7 +10,8 @@ Bongo 造型模式注册表：决定叠加层画哪块键盘、有没有手臂�
 
 素材
 - desk_svg / body_svg  文件名，相对 pets/<pet>/resource/bongo
-- layout               键位布局标识，给 bongo_keys 挑键帽表用（现在只有 "60"）
+- layout               键位布局标识（"60" / "40" / "piano"），纯标记
+- caps / raise_caps    素材里画了哪些键帽、哪些压在别的键上（钢琴黑键）
 
 几何（整块画布坐标系，改一个就要重新跑一遍素材脚本）
 - canvas_w / canvas_h  画布尺寸；小键盘比例和 60% 完全不同
@@ -105,6 +106,25 @@ class BongoMode:
     # 「按下再松手」是同一个落点，手不会在这一步跳一下。优先于 paw_rest_*。
     rest_cap_l: Optional[str] = None
     rest_cap_r: Optional[str] = None
+    # 本造型素材里实际画出来的键帽集合（不带 "k" 前缀）。空 = 60% 那套
+    # KEY_CAPS。渲染层只按这张表收集 bounds：钢琴的琴键叫 w0/b3，
+    # 和 QWERTY 键名完全对不上，共用一张表会让爪子拿不到任何落点。
+    caps: Tuple[str, ...] = ()
+    # 这些键压**在别的键之上**（钢琴黑键压白键）。按下时先画普通键的高亮，
+    # 再把这几个键的键体重绘一遍、最后画它们自己的高亮——不这么做的话，
+    # 白键的整块高亮会把叠在上面的黑键盖掉，琴键看着缺一颗。
+    raise_caps: Tuple[str, ...] = ()
+    # 按键时忽略真实键位，每次按下从 caps 里随机挑一个（钢琴：按什么键都
+    # 是弹琴，落在哪颗琴键上由随机决定）。只在 press 抽签，松手不动。
+    random_caps: bool = False
+
+
+# 钢琴造型的琴键：两个八度 C4–C6，15 白键 + 10 黑键，和
+# scripts/gen_bongo_piano.py 生成的 piano.svg 是同一份编号。
+# 黑键单独留一张表——它压在白键上，高亮重绘顺序要靠 raise_caps。
+PIANO_WHITE = tuple(f"w{i}" for i in range(15))
+PIANO_BLACK = tuple(f"b{i}" for i in range(10))
+PIANO_CAPS = PIANO_WHITE + PIANO_BLACK
 
 
 # ---- 注册表 ----
@@ -168,6 +188,33 @@ register(BongoMode(
     # 是同一个落点，不是另算一块桌面。键盘占满画布下半，桌面那边已经塞
     # 不下第三只手了（键盘下沿到画布底只剩 27）。
     rest_cap_r="space",
+))
+
+register(BongoMode(
+    key="piano",
+    label="弹钢琴",
+    desc="爪子落在钢琴键上，每按一下随机弹一个琴键（只有动作，不出声）",
+    desk_svg="piano.svg",
+    layout="piano",
+    # 琴键 id 和 QWERTY 键名对不上，必须自带一张表；黑键压白键，
+    # 高亮时要把它们重绘到最上层（见 paint_desk）。
+    caps=PIANO_CAPS,
+    raise_caps=PIANO_BLACK,
+    # 「弹什么」不重要，按下就随机落一颗：控制器从 caps 里抽签。
+    random_caps=True,
+    # 琴宽 384，收窄量按键盘同样的透视角换算（34 × 384/252 ≈ 52），
+    # 不然两块道具是两套视角，切造型时倾斜感会跳一下。
+    persp_inset=52.0,
+    # 琴有 372 宽，手伸到两端会拉成两条横穿画布的长杆，和「纯手」一样
+    # 只留爪子浮在琴键上。
+    draw_arms=False,
+    # 白键 74 高，爪子只有 30，落在正中就够了，不用像 60% 那样往上提
+    # 让出键帽下半截。
+    paw_y_offset=0.0,
+    # 待机时双手各压在一颗白键上（不是悬在琴外）：键区左右各取一颗
+    # 靠中间的白键，画面左右对称。
+    rest_cap_l="w10",
+    rest_cap_r="w4",
 ))
 
 DEFAULT_MODE = "paws"

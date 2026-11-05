@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 280" width="420" height="280">
+
+  <!--
+    钢琴键盘，绕琴键区中心旋转 180°（正对宠物，观众看到的是倒的）：
+    黑键从白键下缘凸出、右手边的白键在画面左侧。
+
+    琴键 id：白键 kw0..kw14、黑键 kb0..kb9（前缀 k + 白/黑编号）。
+    黑键必须排在白键之后——它压在白键上，顺序反了黑键会被啃掉一半。
+  -->
+
+  <path id="table" d="M -70.0 168.0 L 490.0 168.0 L 490.0 380.0 L -70.0 380.0 Z" fill="#F3E8D8" stroke="#DFCBB2" stroke-width="3.0"/>
+
+  <g id="desk">
+    <rect x="18.00" y="166.00" width="384.00" height="86.00" rx="14" fill="#1F1F27"/>
+    <rect x="20.50" y="168.50" width="379.00" height="81.00" rx="11.5" fill="#2E2E38"/>
+  <g id="kw0">
+    <rect x="371.90" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="373.30" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw1">
+    <rect x="347.10" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="348.50" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw2">
+    <rect x="322.30" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="323.70" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw3">
+    <rect x="297.50" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="298.90" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw4">
+    <rect x="272.70" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="274.10" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw5">
+    <rect x="247.90" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="249.30" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw6">
+    <rect x="223.10" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="224.50" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw7">
+    <rect x="198.30" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="199.70" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw8">
+    <rect x="173.50" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="174.90" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw9">
+    <rect x="148.70" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="150.10" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw10">
+    <rect x="123.90" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="125.30" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw11">
+    <rect x="99.10" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="100.50" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw12">
+    <rect x="74.30" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="75.70" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw13">
+    <rect x="49.50" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="50.90" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kw14">
+    <rect x="24.70" y="172.00" width="23.40" height="74.00" rx="2.6" fill="#DBD3C4"/>
+    <rect x="26.10" y="173.40" width="20.60" height="71.20" rx="1.8" fill="#FFFCF6"/>
+  </g>
+  <g id="kb0">
+    <rect x="364.20" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="365.30" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb1">
+    <rect x="339.40" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="340.50" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb2">
+    <rect x="289.80" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="290.90" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb3">
+    <rect x="265.00" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="266.10" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb4">
+    <rect x="240.20" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="241.30" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb5">
+    <rect x="190.60" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="191.70" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb6">
+    <rect x="165.80" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="166.90" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb7">
+    <rect x="116.20" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="117.30" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb8">
+    <rect x="91.40" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="92.50" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  <g id="kb9">
+    <rect x="66.60" y="202.00" width="14.00" height="44.00" rx="3.2" fill="#3E3E4A"/>
+    <rect x="67.70" y="203.10" width="11.80" height="41.80" rx="2.2" fill="#22222A"/>
+  </g>
+  </g>
+  <g id="paw_l_rest">
+    <ellipse cx="168.0" cy="232.0" rx="15.0" ry="15.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="168.0" cy="234.7" rx="7.8" ry="6.6" fill="#DD8F8E"/>
+  </g>
+  <g id="paw_l_down">
+    <ellipse cx="168.0" cy="232.0" rx="17.0" ry="12.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="168.0" cy="234.2" rx="8.8" ry="5.3" fill="#DD8F8E"/>
+  </g>
+  <g id="paw_r_rest">
+    <ellipse cx="252.0" cy="232.0" rx="15.0" ry="15.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="252.0" cy="234.7" rx="7.8" ry="6.6" fill="#DD8F8E"/>
+  </g>
+  <g id="paw_r_down">
+    <ellipse cx="252.0" cy="232.0" rx="17.0" ry="12.0" fill="#EEB8B7" stroke="#1A1A1A" stroke-width="2.4"/>
+    <ellipse cx="252.0" cy="234.2" rx="8.8" ry="5.3" fill="#DD8F8E"/>
+  </g>
+</svg>

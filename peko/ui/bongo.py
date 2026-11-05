@@ -15,9 +15,10 @@
 from __future__ import annotations
 
 import os
+import random
 import sys
 import time
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, Tuple
 
 from PyQt5.QtCore import QObject, QPointF, QRectF, QTimer, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import (
@@ -184,10 +185,12 @@ class BongoRenderer:
         self._bounds = {}
         if not self.valid:
             return
-        # 键帽 id 统一是 "k" + 键名（kq / ka / kspace），下面直接用得上
+        # 键帽 id 统一是 "k" + 键名（kq / ka / kspace），下面直接用得上。
+        # 键名表按模式取：钢琴的琴键是 w0/b3，和 QWERTY 那套没有交集。
+        cap_ids = tuple(getattr(self.mode, "caps", ()) or ()) or KEY_CAPS
         extra = ["table", "pad", "mouse", "mouse_l", "mouse_r", "paw_mouse", "kb_shadow"]
         for eid in [self.DESK, *self.PAWS.values(), *extra,
-                    *(f"k{c}" for c in KEY_CAPS), *(f"h{c}" for c in KEY_CAPS)]:
+                    *(f"k{c}" for c in cap_ids), *(f"h{c}" for c in cap_ids)]:
             # 必须先 elementExists：boundsOnElement 对**不存在**的 id 不返回空
             # 矩形，而是把整幅文档的 bbox 给你。40% 这套键盘没有数字行和
             # Backspace，照单全收的话它们各自拿到一个「画布左下角」的假位置，
@@ -254,12 +257,13 @@ class BongoRenderer:
         painter.translate(-cx, -self.tilt_cy)
 
     def paint_desk(self, painter: QPainter, caps: Iterable[str] = ()) -> None:
-        """键盘画在 body 之后、手臂之前，按下的键帽再盖一层高亮。
+        """键盘 / 琴键画在 body 之后、手臂之前，按下的键帽再盖一层高亮。
 
-        整块键盘绕公共中心倾斜 8°，四个角转出去之后仍然要落在画布内，
-        所以键盘在 SVG 里整体上抬了 22（见 gen_bongo_keyboard.py 的
-        KB_LIFT）。外壳只留一圈 PAD 边，转完是一条完整的圆角矩形，
-        不会在角上被窗口切出直角。
+        整块道具绕公共中心倾斜 8°，四个角转出去之后仍然要落在画布内，
+        所以每份素材各自把外壳摆进画布：60% 键盘在 SVG 里整体上抬了 22
+        （见 gen_bongo_keyboard.py 的 KB_LIFT），琴键则从桌沿往下摆
+        （见 gen_bongo_piano.py 的 KB_TOP）。外壳只留一圈 PAD 边，转完是
+        一条完整的圆角矩形，不会在角上被窗口切出直角。
         """
         if not self.valid:
             return
@@ -282,20 +286,40 @@ class BongoRenderer:
 
         painter.save()
         painter.setTransform(self._desk_matrix(), True)
+        # 高亮分两层画：普通键（白键）先亮，压在它们上面的键（钢琴黑键）
+        # 之后再把键体重绘一遍、最后亮自己。混在一起按集合顺序画的话，
+        # 白键那整块高亮会把叠在它上沿的黑键抹掉，一眼看去像掉了几颗键。
+        raise_caps = frozenset(getattr(self.mode, "raise_caps", ()) or ())
         for cap in caps:
-            # 素材自带高亮元素（透视键帽的 AABB 盖不住形状）就直接渲染它，
-            # 没有才退回盖圆角矩形——60% 那套键帽是正矩形，矩形就对得上。
-            hl = self._bounds.get(f"h{cap}")
-            if hl is not None:
-                self._renderer.render(painter, f"h{cap}", hl)
+            if cap in raise_caps:
+                continue
+            self._paint_cap_highlight(painter, cap)
+        for cap in caps:
+            if cap not in raise_caps:
                 continue
             rect = self._bounds.get(f"k{cap}")
-            if rect is None:
-                continue
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(self._highlight)
-            painter.drawRoundedRect(rect.adjusted(0.4, 0.4, -0.4, -0.4), 2, 2)
+            if rect is not None:
+                # 重绘键体本身：它本来就是压在白键上的那一层
+                self._renderer.render(painter, f"k{cap}", rect)
+            self._paint_cap_highlight(painter, cap)
         painter.restore()
+
+    def _paint_cap_highlight(self, painter: QPainter, cap: str) -> None:
+        """点亮一颗键帽。
+
+        素材自带高亮元素（透视键帽的 AABB 盖不住形状）就直接渲染它，
+        没有才退回盖圆角矩形——60% 那套键帽是正矩形，矩形就对得上。
+        """
+        hl = self._bounds.get(f"h{cap}")
+        if hl is not None:
+            self._renderer.render(painter, f"h{cap}", hl)
+            return
+        rect = self._bounds.get(f"k{cap}")
+        if rect is None:
+            return
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(self._highlight)
+        painter.drawRoundedRect(rect.adjusted(0.4, 0.4, -0.4, -0.4), 2, 2)
 
     def _render_desk_base(self, painter: QPainter) -> None:
         """键盘本体：阴影 + 外壳 + 键帽，不含高亮。"""
@@ -954,6 +978,10 @@ class BongoController(QObject):
         self._caps_snapshot = frozenset()
         self._down = {"left": False, "right": False}
         self._last_side = "right"
+        # 「按下就随机落键」的造型（钢琴）非空：每次 press 从这里抽一颗，
+        # 真实键位不再参与。空 = 按真实键帽（60% / 键鼠那两套）。
+        self.cap_pool: Tuple[str, ...] = ()
+        self._rng = random.Random()
 
     @property
     def state(self):
@@ -980,6 +1008,10 @@ class BongoController(QObject):
         return best
 
     def _resolve(self, hint: Optional[str]) -> Optional[str]:
+        if hint is None and self.cap_pool:
+            # 随机落键的造型（钢琴）不看键位，F 区、Esc 这些没有左右归属、
+            # bongo_keys 也不认识的键照样要弹：按无位置键处理，左右交替。
+            hint = "alt"
         if hint in ("left", "right"):
             self._last_side = hint
             return hint
@@ -1021,6 +1053,10 @@ class BongoController(QObject):
         side = self._resolve(side_hint)
         if side is None:
             return
+        # 随机落键只在**按下**抽签：抽到的 cap 存进 _caps，松手时跟着这条
+        # 记录一起清掉，不会出现「手抬起来之前那一下又换了个键」。
+        if self.cap_pool:
+            cap = self._rng.choice(self.cap_pool)
         self._held[key_id] = side
         self._held_since[key_id] = time.monotonic()
         if cap:
@@ -1058,6 +1094,16 @@ class BongoController(QObject):
     def on_key(self, key_id: str, pressed: bool, side_hint: str, cap: str) -> None:
         """跨线程入口：pynput 线程只能通过 queued invoke 进来。"""
         self.key_event(key_id, pressed, side_hint or None, cap or None)
+
+
+def _cap_pool_for(mode: Optional[BongoMode]) -> Tuple[str, ...]:
+    """造型要求「按下随机落键」时返回琴键池，否则空元组。
+
+    控制器本身不认识造型（纯状态机，方便单测），池子由宿主在换造型时喂进去。
+    """
+    if not getattr(mode, "random_caps", False):
+        return ()
+    return tuple(getattr(mode, "caps", ()) or ())
 
 
 class BongoOverlay(QWidget):
@@ -1243,6 +1289,8 @@ class BongoKeyboardMode(QObject):
         self._follow_timer = QTimer(self)
         self._follow_timer.setInterval(80)
         self._follow_timer.timeout.connect(self._follow)
+        # 钢琴造型：按什么键都行，落哪颗琴键交给控制器抽签
+        self.controller.cap_pool = _cap_pool_for(self.overlay._renderer.mode)
 
     def start(self) -> str:
         """开启并返回键盘后端名；空串表示这台机器拿不到全局键盘。"""
@@ -1314,6 +1362,9 @@ class BongoKeyboardMode(QObject):
         还在给一只已经不存在的鼠标手喂位移。
         """
         self.overlay.apply_mode(mode)
+        # 换造型可能切换到「随机落键」（钢琴）或切回来，池子要跟着换，
+        # 否则切回 60% 之后爪子还在乱弹不存在的琴键。
+        self.controller.cap_pool = _cap_pool_for(mode)
         if self._follow_timer.isActive():
             if getattr(self.overlay._renderer, "mouse_hand", ""):
                 self._start_mouse()
@@ -1421,6 +1472,7 @@ class _BongoDemo(QWidget):
         self.controller = BongoController()
         self.controller.state_changed.connect(self._on_state)
         self.controller.caps_changed.connect(self._on_caps)
+        self.controller.cap_pool = _cap_pool_for(self._renderer.mode)
 
         screen = QApplication.desktop().screenGeometry()
         self.move(screen.width() // 2 - self.width() // 2, screen.height() - self.height() - 80)
@@ -1442,6 +1494,7 @@ class _BongoDemo(QWidget):
         mode = next_mode(self._renderer.mode.key)
         set_mode(mode.key)
         self._renderer = self._build_renderer(mode)
+        self.controller.cap_pool = _cap_pool_for(mode)
         old = self.motion
         self.motion = PawMotion(self._renderer, self)
         self.motion.changed.connect(self.update)

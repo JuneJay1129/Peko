@@ -275,5 +275,60 @@ class MouseModeTests(unittest.TestCase):
         self.assertIn("kb_shadow", self.r._bounds)
 
 
+class PianoStageTests(unittest.TestCase):
+    """钢琴自己的舞台：桌沿分割线（scripts/bongo_stage.py）。
+
+    线以上是 BB 鼠、线以下是琴键。60% 键盘和键鼠仍是各自的老坐标系，
+    这里只钉钢琴那一套，别顺手把它们也拉进来。
+    """
+
+    DESK_EDGE_Y = 168.0  # = scripts/bongo_stage.DESK_EDGE_Y
+
+    @classmethod
+    def setUpClass(cls):
+        cls.mode = get_mode("piano")
+        cls.r = BongoRenderer(mode=cls.mode)
+
+    def test_desk_asset_ships_its_own_table(self):
+        self.assertTrue(self.r.valid)
+        self.assertIn("table", self.r._bounds)
+
+    def test_table_edge_sits_on_the_split_line(self):
+        # stroke 3 会往上下各溢 1.5，所以量到的上沿比 DESK_EDGE_Y 小 1.5
+        self.assertAlmostEqual(
+            self.r._bounds["table"].top(), self.DESK_EDGE_Y - 1.5, delta=0.2
+        )
+
+    def test_props_start_below_the_edge(self):
+        """琴身上沿不能高过桌沿，否则就是它多遮住一截 BB 鼠。"""
+        self.assertGreaterEqual(self.r._bounds["desk"].top(), self.DESK_EDGE_Y - 2.0)
+
+    def test_body_is_not_scaled_or_shifted(self):
+        """钢琴不缩放身体：BB 鼠和键盘那套一样大、一样高。"""
+        self.assertEqual(self.mode.body_dy, 0.0)
+        self.assertEqual(self.mode.body_scale, 1.0)
+
+    def test_shares_the_common_tilt(self):
+        other = get_mode("paws")
+        self.assertEqual(self.mode.tilt_deg, other.tilt_deg)
+        self.assertEqual(self.mode.tilt_cy, other.tilt_cy)
+
+    def test_table_covers_the_whole_bottom(self):
+        b = self.r._bounds["table"]
+        self.assertLess(b.left(), 0.0)
+        self.assertGreater(b.right(), self.r.canvas_w)
+        self.assertGreater(b.bottom(), self.r.canvas_h)
+
+    def test_props_fit_on_canvas_after_tilt(self):
+        """转完 8° 之后四个角都还在画布里，不然窗口会把它切平。"""
+        from PyQt5.QtCore import QPointF
+
+        b = self.r._bounds["desk"]
+        for pt in (b.topLeft(), b.topRight(), b.bottomLeft(), b.bottomRight()):
+            p = self.r._desk_matrix().map(QPointF(pt))
+            self.assertTrue(0 <= p.x() <= self.r.canvas_w, (pt, p.x()))
+            self.assertTrue(0 <= p.y() <= self.r.canvas_h, (pt, p.y()))
+
+
 if __name__ == "__main__":
     unittest.main()
