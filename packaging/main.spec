@@ -39,8 +39,31 @@ _hidden = [
     'pynput._util',
     'requests',
 ]
+_excludes = []
 if sys.platform == 'win32':
     _hidden.append('keyboard')
+else:
+    # keyboard 库只有 Windows 实现，代码里那两处 import 也都包在
+    # sys.platform == "win32" 里；但 PyInstaller 只看静态 import，在 mac
+    # 构建机上会一路告警（还可能把缺包的坑留到运行时），这里显式排除。
+    _excludes.append('keyboard')
+
+if sys.platform == 'darwin':
+    # pynput 在 mac 上靠 CGEventTap 收键，真正干活的是 _darwin 子模块，
+    # 底下依赖 pyobjc 的几个 framework 包。PyInstaller 的 hook 只兜住一部分，
+    # 漏一个的后果就是「键盘模式开不了」，甚至第一次点开关就崩。
+    _hidden += [
+        'pynput.keyboard._darwin',
+        'pynput.mouse._darwin',
+        'pynput._util.darwin',
+        'objc',
+        'HIServices',
+        'Quartz',
+        'AppKit',
+        'Foundation',
+        'CoreFoundation',
+        'Carbon',
+    ]
 
 a = Analysis(
     [os.path.join(_project_root, 'main.py')],
@@ -51,7 +74,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=_excludes,
     noarchive=False,
     optimize=0,
 )
@@ -67,14 +90,17 @@ if sys.platform == 'darwin':
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
-        upx=True,
+        # UPX 压 Mach-O 是 macOS 上的经典崩溃源（还会破坏签名），
+        # 体积换稳定不值当，mac 一律不压
+        upx=False,
         upx_exclude=[],
         runtime_tmpdir=None,
         console=False,
         disable_windowed_traceback=False,
         argv_emulation=False,
         target_arch=None,
-        codesign_identity=None,
+        # ad-hoc 签名：Apple Silicon 上未签名的 arm64 二进制会被内核直接拒绝
+        codesign_identity='-',
         entitlements_file=None,
         icon=exe_icon,
     )
@@ -83,7 +109,7 @@ if sys.platform == 'darwin':
         a.binaries,
         a.datas,
         strip=False,
-        upx=True,
+        upx=False,
         upx_exclude=[],
         name='Peko',
     )

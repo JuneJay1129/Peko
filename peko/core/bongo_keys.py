@@ -13,6 +13,7 @@ pynput 只给字符 / 键名，拿不到物理坐标，所以用一张标准 QWE
 """
 from __future__ import annotations
 
+import sys
 from typing import Optional
 
 # 左手区：数字 1-5、Q W E R T、A S D F G、Z X C V B 及其 shift 符号
@@ -225,10 +226,18 @@ def cap_for(
 
 
 def cap_for_pynput(key) -> Optional[str]:
-    """pynput 版本：先取虚拟键码，取不到再看字符。"""
-    vk = getattr(key, "vk", None)
-    if vk is None:
-        vk = getattr(getattr(key, "value", None), "vk", None)
+    """pynput 版本：Windows 上先取虚拟键码，其余平台只认字符 / 键名。
+
+    cap_for 里的 vk 快路径（32 = 空格、65–90 = 字母）是 **Windows 虚拟键码**
+    语义。macOS 的 pynput 给的是 HID keycode，同一个数字指的是完全不同的键：
+    32 是 U，65–90 是小键盘和 F 区。套进来会变成「敲 U 点亮空格、按小键盘
+    数字点亮字母」，所以 darwin / linux 上一律不看 vk，走 char 和 name。
+    """
+    vk = None
+    if sys.platform == "win32":
+        vk = getattr(key, "vk", None)
+        if vk is None:
+            vk = getattr(getattr(key, "value", None), "vk", None)
     return cap_for(
         char=getattr(key, "char", None),
         name=getattr(key, "name", None),

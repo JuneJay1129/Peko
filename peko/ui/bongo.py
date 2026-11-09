@@ -1467,7 +1467,17 @@ class BongoOverlay(QWidget):
         # 不吃 WindowTransparentForInput / WA_TransparentForMouseEvents 了：
         # 开着模式时宠物本体是藏着的，叠加层要是也不收鼠标，这块画面就彻底
         # 拖不动。键盘按键走的是全局监听，不靠窗口焦点，收鼠标不影响敲击。
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
+        # macOS 上 Qt.Tool 是 NSPanel：窗口一失焦就被系统隐藏（pet.py 的
+        # bubble_window 已经踩过这个坑），半透明 NSPanel 在部分 Intel 机器
+        # 上还会直接把进程带走。mac 改用普通无边框窗口 + 置顶，和桌宠一致。
+        if sys.platform == "darwin":
+            self.setWindowFlags(
+                Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint
+            )
+        else:
+            self.setWindowFlags(
+                Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
+            )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setCursor(Qt.OpenHandCursor)
         self._sync_geometry()
@@ -1641,15 +1651,38 @@ class BongoKeyboardMode(QObject):
         self.controller.cap_pool = _cap_pool_for(self.overlay._renderer.mode)
 
     def start(self) -> str:
-        """开启并返回键盘后端名；空串表示这台机器拿不到全局键盘。"""
+        """开启并返回键盘后端名；空串表示这台机器拿不到全局键盘。
+
+        PyQt5 里从槽函数逃出去的异常会把整个进程 abort —— 用户看到的
+        就是「一打开键盘模式就闪退」，连报错都来不及看。这里兜住一切，
+        失败就把已经做了一半的现场回滚干净，让托盘把开关弹回去。
+        """
+        try:
+            return self._start()
+        except Exception as exc:
+            print(f"[Peko] 键盘模式启动失败: {exc!r}")
+            try:
+                self.stop()
+            except Exception:
+                pass
+            return ""
+
+    def _start(self) -> str:
         if not self._backend:
             self._backend = _start_key_listener(self.controller)
+        if not self._backend:
+            # 拿不到全局键盘就别摆画面了：冻住宠物又立刻解冻，中间会闪一下
+            return ""
         # 记下进入前的模式：用户可能本来就勾着「停止移动」，退出时要原样还回去
         self._saved = {
             "control": getattr(self._pet, "control_mode", False),
             "follow": getattr(self._pet, "follow_mouse_mode", False),
             "allow": getattr(self._pet, "allow_movement", True),
         }
+        # 宠物本体的可见性从现在起归叠加层管：macOS 的可见性守卫每 2 秒
+        # 会把隐藏的宠物拉回来（见 pet._ensure_visible），3 秒宽限一过就
+        # 和叠加层叠成两个身子。stop() 里交还。
+        setattr(self._pet, "_bongo_owns_visibility", True)
         self._freeze_pet()
         self._pet.hide()
         self.overlay.show()
@@ -1666,6 +1699,7 @@ class BongoKeyboardMode(QObject):
         self._caps = frozenset()
         self.overlay.hide()
         self._thaw_pet()
+        setattr(self._pet, "_bongo_owns_visibility", False)
         self._pet.show()
 
     def _freeze_pet(self) -> None:
@@ -1803,7 +1837,17 @@ class _BongoDemo(QWidget):
 
     def __init__(self, pet_dir: str, scale: int = 2, mode: Optional[BongoMode] = None):
         super().__init__(None)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
+        # macOS 上 Qt.Tool 是 NSPanel：窗口一失焦就被系统隐藏（pet.py 的
+        # bubble_window 已经踩过这个坑），半透明 NSPanel 在部分 Intel 机器
+        # 上还会直接把进程带走。mac 改用普通无边框窗口 + 置顶，和桌宠一致。
+        if sys.platform == "darwin":
+            self.setWindowFlags(
+                Qt.Window | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint
+            )
+        else:
+            self.setWindowFlags(
+                Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool
+            )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._scale = scale
         self._pet_dir = pet_dir
@@ -1961,6 +2005,24 @@ def _pynput_key_id(key) -> str:
     return f"k{name}" if name else str(key)
 
 
+def _mac_keyboard_trusted() -> bool:
+    """macOS 上全局键盘监听是否已被系统放行。
+
+    pynput 在 mac 上靠 CGEventTap 收键。没有「输入监控」授权时 tap 建不
+    起来，但它照样 start() 成功、一个事件都不给——画面开着、爪子不动，
+    用户只会觉得「开了没用」。这里先问系统一次（辅助功能授权），问不到
+    （比如没打包 HIServices）就当已授权，交给 pynput 自己兜。
+    """
+    if sys.platform != "darwin":
+        return True
+    try:
+        import HIServices  # pyobjc-framework-HIServices，装 pynput 时会一起带上
+
+        return bool(HIServices.AXIsProcessTrusted())
+    except Exception:
+        return True
+
+
 def _start_key_listener(ctrl: BongoController) -> str:
     """接管全局键盘，返回实际用的后端名。
 
@@ -1979,6 +2041,11 @@ def _start_key_listener(ctrl: BongoController) -> str:
 
     try:
         from pynput import keyboard as pynput_keyboard
+
+        # macOS：没授权就别起监听。tap 建不起来时 pynput 不抛异常、也不
+        # 给事件，静默失败最难排查，不如在这里直接判定「拿不到」。
+        if not _mac_keyboard_trusted():
+            return ""
 
         def handler(pressed: bool):
             def cb(key):

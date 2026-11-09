@@ -818,6 +818,9 @@ class DesktopPet(BubbleMixin, ComfortFlowMixin, SayingsMixin, StateParamsMixin, 
         """macOS 可见性守卫：如果应该显示却被系统隐藏了，重新显示。"""
         if not hasattr(self, "_last_hide_manually_ms"):
             return
+        # 敲键盘模式开着时，宠物本体是被叠加层「接管隐藏」的，守卫不能拉回
+        if getattr(self, "_bongo_owns_visibility", False):
+            return
         # 如果最近 3 秒内显式隐藏过，不守卫
         from PyQt5.QtCore import QDateTime
         if QDateTime.currentMSecsSinceEpoch() - self._last_hide_manually_ms < 3000:

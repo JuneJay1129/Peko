@@ -11,6 +11,17 @@ from PyQt5.QtGui import QIcon, QCursor
 
 from ..core.pet_manager import RESOURCE_DIR, get_app_exe_icon_path
 
+def _bongo_unavailable_hint() -> str:
+    """敲键盘模式开不了时的提示。mac 上要把授权路径说清楚，不然用户
+    只会看到「开了画面、爪子不动」，根本不知道该去哪里点允许。"""
+    if sys.platform == "darwin":
+        return (
+            "拿不到全局键盘监听：去「系统设置 › 隐私与安全 › 输入监控」给 Peko"
+            "打勾，必要时把「辅助功能」也打开，然后重开程序。"
+        )
+    return "这机器拿不到全局键盘监听（缺 pynput / 辅助功能权限），敲键盘模式开不了。"
+
+
 def _menu_style() -> str:
     """托盘菜单样式：已收敛到 style_kit.menu_qss（保留函数名兼容旧调用点）。"""
     from .style_kit import menu_qss
@@ -574,12 +585,18 @@ class TrayIcon:
         if not checked:
             host.stop()
             return
-        backend = host.start()
+        try:
+            backend = host.start()
+        except Exception as exc:
+            # 槽函数里漏出去的异常会让 PyQt 直接 abort 整个进程，
+            # 用户看到的就是「一开键盘模式就闪退」，日志都没有
+            print(f"[Peko] 键盘模式启动异常: {exc!r}")
+            backend = ""
         if not backend:
             # 拿不到全局键盘就退回关闭：光有画面、爪子不动，比直接不开更迷惑
             host.stop()
             self._bongo_mode_action.setChecked(False)
-            self._warn("这机器拿不到全局键盘监听（缺 pynput / 辅助功能权限），敲键盘模式开不了。")
+            self._warn(_bongo_unavailable_hint())
 
     def _leave_bongo_mode(self):
         """切到别的模式前先关掉敲键盘模式。
