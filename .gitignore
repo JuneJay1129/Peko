@@ -22,3 +22,13 @@ __pycache__/
 dist/
 build/
 *.spec.bak
+
+# 本机单测：这几支只在本机跑，不进仓库（要复现时 git add -f）
+unit_tests/test_bongo_modes.py
+unit_tests/test_bongo_piano.py
+unit_tests/test_chat_store.py
+unit_tests/test_context_builder.py
+unit_tests/test_plans_store.py
+unit_tests/test_relative_imports.py
+unit_tests/test_user_memory.py
+unit_tests/test_weather_anim.py

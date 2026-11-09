@@ -67,6 +67,25 @@ TRACE = dict(
     path_precision=2,
 )
 
+# 源图肚子上还有两团原画粉手（含黑描边）落在角色 59%~71% 高度。
+# 键盘造型靠「整双落在键盘上沿之下」把它挡住（见上面 TOP_Y 的注释），
+# 键鼠造型 body_scale=1.3 把身体放大上移，手就从桌子底下钻出来了，
+# 跟运行时那两只爪子凑成四只手。描摹前先把这块刷成身体灰——cutout
+# 分层下那里本来就是一层灰底，刷掉等于从源头去掉，生成出来的 svg
+# 里不会再有那两团粉色和黑圈。脚和耳朵里的粉点都在这个框外，别动。
+# 比例按源图边长给，换分辨率的同款素材也能对上（左, 上, 右, 下）。
+ERASE_HANDS = (0.385, 0.588, 0.629, 0.707)
+BODY_GRAY = (204, 203, 203, 255)  # 身体主色，从手四周采样
+
+
+def erase_hands(im: Image.Image) -> Image.Image:
+    """把肚子上那两只原画粉手刷成身体灰，返回新图（不改原对象）。"""
+    w, h = im.size
+    l, t, r, b = ERASE_HANDS
+    clean = im.copy()
+    clean.paste(BODY_GRAY, (int(l * w), int(t * h), int(r * w), int(b * h)))
+    return clean
+
 
 def main() -> None:
     im = Image.open(SRC).convert("RGBA")
@@ -82,8 +101,12 @@ def main() -> None:
     ty = TOP_Y - top * scale
     print("缩放 %.4f，平移 (%.2f, %.2f)，落到画布上宽 %.1f" % (scale, tx, ty, bw * scale))
 
+    # 刷掉肚子上的原画粉手再描摹（键鼠造型放大后那双手会露出来，见
+    # ERASE_HANDS 的注释）。存成临时 PNG 给 vtracer 读。
+    tmp_png = os.path.join(tempfile.gettempdir(), "bongo_body_nohand.png")
+    erase_hands(im).save(tmp_png)
     tmp = os.path.join(tempfile.gettempdir(), "bongo_body_raw.svg")
-    vtracer.convert_image_to_svg_py(SRC, tmp, **TRACE)
+    vtracer.convert_image_to_svg_py(tmp_png, tmp, **TRACE)
     raw = open(tmp, encoding="utf-8").read()
 
     paths = re.findall(r"<path\b[^>]*?/>", raw)
