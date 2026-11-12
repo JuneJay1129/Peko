@@ -76,14 +76,32 @@ jobs:
           mv dist/Peko.app dist/Peko-Intel.app
         working-directory: ${{ github.workspace }}
 
-      - name: Verify & archive
+      - name: Sign, verify & archive
         run: |
-          set -e
+          set -euo pipefail
           APP="dist/Peko-Intel.app"
-          test -d "$APP" || (echo "ERROR: $APP not found"; ls -la dist/; exit 1)
-          file "$APP/Contents/MacOS/Peko" | grep -q "executable x86_64" || (echo "ERROR: not an x86_64 binary"; file "$APP/Contents/MacOS/Peko"; exit 1)
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/Peko-macOS-Intel.zip"
-          ls -lh dist/
+          test -d "$APP" || { echo "ERROR: $APP not found"; ls -la dist/; exit 1; }
+
+          file "$APP/Contents/MacOS/Peko"
+          file "$APP/Contents/MacOS/Peko" | grep -q "x86_64" \
+            || { echo "ERROR: 主二进制不是 x86_64，交叉编译没生效"; exit 1; }
+
+          # spec 里 BUNDLE 已经带 codesign_identity='-'，正常情况整包是签好的。
+          # 所以先只校验，通不过才强签：--deep 会打乱嵌套签名的顺序，
+          # 对 PyInstaller 这种已签好的 bundle 反而是破坏，不能无条件跑。
+          if ! codesign --verify --deep --strict "$APP" 2>/dev/null; then
+            echo "整包签名不完整，强制重签 ..."
+            codesign --force --deep --sign - "$APP"
+          fi
+
+          codesign --verify --deep --strict --verbose=2 "$APP" \
+            || { echo "ERROR: 签名校验失败，这个包发出去必然开不了，中断"; exit 1; }
+
+          # ad-hoc + 未公证，spctl 必然 rejected，只留日志不判失败
+          spctl -a -vv "$APP" || true
+
+          # 打 zip 时顺带塞入「首次运行.command」和说明，朋友双击脚本即可启动
+          bash packaging/make_mac_zip.sh "$APP" "dist/Peko-macOS-Intel.zip"
         working-directory: ${{ github.workspace }}
 
       - name: Upload macOS Intel artifact
@@ -119,14 +137,28 @@ jobs:
           mv dist/Peko.app dist/Peko-AppleSilicon.app
         working-directory: ${{ github.workspace }}
 
-      - name: Verify & archive
+      - name: Sign, verify & archive
         run: |
-          set -e
+          set -euo pipefail
           APP="dist/Peko-AppleSilicon.app"
-          test -d "$APP" || (echo "ERROR: $APP not found"; ls -la dist/; exit 1)
+          test -d "$APP" || { echo "ERROR: $APP not found"; ls -la dist/; exit 1; }
+
           file "$APP/Contents/MacOS/Peko"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "dist/Peko-macOS-AppleSilicon.zip"
-          ls -lh dist/
+          file "$APP/Contents/MacOS/Peko" | grep -q "arm64" \
+            || { echo "ERROR: 主二进制不是 arm64"; exit 1; }
+
+          # 同 Intel job：先校验，不通过才强签，避免 --deep 破坏嵌套签名
+          if ! codesign --verify --deep --strict "$APP" 2>/dev/null; then
+            echo "整包签名不完整，强制重签 ..."
+            codesign --force --deep --sign - "$APP"
+          fi
+
+          codesign --verify --deep --strict --verbose=2 "$APP" \
+            || { echo "ERROR: 签名校验失败，这个包发出去必然开不了，中断"; exit 1; }
+
+          spctl -a -vv "$APP" || true
+
+          bash packaging/make_mac_zip.sh "$APP" "dist/Peko-macOS-AppleSilicon.zip"
         working-directory: ${{ github.workspace }}
 
       - name: Upload macOS Apple Silicon artifact

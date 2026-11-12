@@ -28,15 +28,21 @@ pyinstaller packaging/main.spec
 
 # 打包完成后标记架构
 ARCH_NAME="$(uname -m)"
+APP_NAME=""
+ZIP_NAME=""
 if [ -d "dist/Peko.app" ]; then
     # 重命名带架构标识，方便区分
     cd dist
     if [ "$ARCH_NAME" = "x86_64" ]; then
         mv Peko.app Peko-Intel.app
+        APP_NAME="Peko-Intel.app"
+        ZIP_NAME="Peko-macOS-Intel.zip"
         echo ""
         echo "✅ 打包完成（Intel x86_64）：dist/Peko-Intel.app"
     elif [ "$ARCH_NAME" = "arm64" ]; then
         mv Peko.app Peko-AppleSilicon.app
+        APP_NAME="Peko-AppleSilicon.app"
+        ZIP_NAME="Peko-macOS-AppleSilicon.zip"
         echo ""
         echo "✅ 打包完成（Apple Silicon arm64）：dist/Peko-AppleSilicon.app"
     else
@@ -46,7 +52,24 @@ if [ -d "dist/Peko.app" ]; then
     cd ..
 fi
 
+# BUNDLE 整包重签 + 校验：PyInstaller 只签了内部二进制，整包不签的话
+# 下载端会报「已损坏，无法打开」，这跟「未验证开发者」是两回事
+if [ -n "$APP_NAME" ]; then
+    echo ""
+    echo "🔏 签名并校验 dist/$APP_NAME ..."
+    codesign --force --deep --sign - "dist/$APP_NAME"
+    codesign --verify --deep --strict --verbose=2 "dist/$APP_NAME"
+    # ad-hoc + 未公证，spctl 一定 rejected，这里只留档
+    spctl -a -vv "dist/$APP_NAME" || true
+
+    echo ""
+    echo "🗜  打包成可直接分发的 zip ..."
+    bash "$SCRIPT_DIR/make_mac_zip.sh" "dist/$APP_NAME" "dist/$ZIP_NAME"
+fi
+
 echo ""
-echo "使用方式：将 Peko.app 拷贝到本地后，直接在 Finder 中双击运行。"
-echo "若首次运行被 Gatekeeper 拦截，请在"系统设置 -> 隐私与安全性"中允许后再次打开。"
+echo "分发方式：把 dist/$ZIP_NAME 直接发给朋友。"
+echo "解压后里面有 Peko.app 和「首次运行.command」，让他先双击那个脚本。"
+echo "脚本会清掉 macOS 下载隔离标记再启动——ad-hoc 签名的包过不了公证，"
+echo "双击 .app 会被判「已损坏」，先跑一次脚本就不会了。"
 echo "首次运行后，会在 ~/Library/Application Support/Peko/config 自动创建配置。"

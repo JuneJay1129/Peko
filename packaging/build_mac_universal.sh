@@ -58,15 +58,19 @@ if [ ! -d "$OUTPUT_DIR/Peko-Intel.app" ]; then
 fi
 echo "✅ Intel 打包完成"
 
-# --- 第 3 步：打 zip 压缩包，方便分发 ---
+# --- 第 3 步：确认分发 zip ---
+# zip 由 build_mac.sh 收尾时生成（已重签 + 内含「首次运行.command」和说明），
+# 这里不要再自己 ditto 一遍，否则会把带引导文件的那份覆盖掉
 echo ""
-echo "🗜  压缩成 zip..."
-cd "$OUTPUT_DIR"
-
-ditto -c -k --sequesterRsrc --keepParent Peko-AppleSilicon.app Peko-macOS-AppleSilicon.zip
-ditto -c -k --sequesterRsrc --keepParent Peko-Intel.app Peko-macOS-Intel.zip
-
-cd ..
+echo "🔍 检查分发 zip..."
+for f in "$OUTPUT_DIR/Peko-macOS-AppleSilicon.zip" "$OUTPUT_DIR/Peko-macOS-Intel.zip"; do
+    if [ -f "$f" ]; then
+        ls -lh "$f"
+    else
+        echo "❌ 缺少 $f"
+        exit 1
+    fi
+done
 
 echo ""
 echo "========================================"

@@ -117,6 +117,11 @@ if sys.platform == 'darwin':
         coll,
         name='Peko.app',
         icon=exe_icon,
+        bundle_identifier='com.peko.desktop',
+        # 这里必须再显式传一次：PyInstaller 不会把 EXE 的 codesign_identity
+        # 传导到 BUNDLE 上，只签了内部二进制而整包没签，macOS 报的是
+        # 「已损坏，无法打开」（比「未验证开发者」更死，右键打开也绕不过）
+        codesign_identity='-',
     )
 else:
     exe = EXE(
